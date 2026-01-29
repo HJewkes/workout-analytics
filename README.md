@@ -1,65 +1,16 @@
 # @voltras/workout-analytics
 
-A hardware-agnostic TypeScript library for analyzing workout telemetry data, estimating effort (RPE/RIR), calculating strength metrics (1RM), building velocity profiles, and assessing fatigue. Designed for workout intensity assessment, intra-workout autoregulation, and overall programming.
+A hardware-agnostic TypeScript library for analyzing workout telemetry data. Process real-time exercise samples into structured reps and sets with automatic boundary detection and O(1) metric access.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- **Rep & Set Analysis**: Detect rep boundaries, aggregate phase metrics, compute set-level statistics
-- **Effort Estimation**: Estimate RPE (Rate of Perceived Exertion) and RIR (Reps In Reserve) from velocity data
-- **Strength Metrics**: Calculate 1RM estimates using Epley formula and velocity-based methods
-- **Velocity Profiles**: Build load-velocity profiles for personalized training zones
-- **Fatigue Assessment**: Track velocity loss, eccentric control, and form degradation
+- **Real-time Processing**: Stream `WorkoutSample` data and get automatic rep/set boundaries
+- **O(1) Metrics**: Running aggregates computed incrementally - no re-scanning
+- **Immutable Data Structures**: All operations return new objects, safe to share
 - **Hardware Agnostic**: Works with any telemetry source that provides `WorkoutSample` data
 - **TypeScript**: Full type definitions included
-
-## Repository Structure
-
-This repository is organized into two main directories:
-
-### `src/` (Future Public API)
-
-The `src/` directory is currently empty and reserved for the future public API implementation. This will be a carefully designed, clean API that:
-
-- Provides a hardware-agnostic interface
-- Uses `WorkoutSample` as the primary telemetry format
-- Focuses on pure functions and clear separation of concerns
-- Follows domain-driven design principles
-
-### `v0/` (Reference Implementation)
-
-The `v0/` directory contains a complete copy of the workout analytics code extracted from the `voltras` mobile application. This serves as:
-
-- **Reference**: A working implementation to reference during migration
-- **Documentation**: Examples of how metrics are calculated and how detectors work
-- **Testing**: Test files that validate the expected behavior
-
-The `v0/` structure mirrors the domain organization:
-
-```
-v0/
-├── models/          # Core data structures (WorkoutSample, Rep, Set, etc.)
-├── aggregators/     # Metric computation functions (phase, rep, set level)
-├── detectors/       # Event detection (rep boundaries from samples)
-├── analytics/       # High-level analysis (strength, readiness, fatigue estimates)
-├── vbt/            # Velocity-based training utilities (profiles, 1RM, zones)
-└── __tests__/      # Test files for all modules
-```
-
-**Note**: Code in `v0/` may contain:
-- Voltra-specific imports (e.g., `@/domain/workout`)
-- Dependencies on the original app's architecture
-- Patterns that will be refined in the `src/` implementation
-
-## Migration Plan
-
-The migration from `v0/` to `src/` will be gradual and deliberate:
-
-1. **Design Phase**: Define the public API structure and interfaces
-2. **Incremental Migration**: Port modules one at a time, adapting as needed
-3. **Testing**: Ensure migrated code maintains compatibility with `v0/` test expectations
-4. **Documentation**: Add comprehensive documentation for the public API
 
 ## Installation
 
@@ -67,134 +18,176 @@ The migration from `v0/` to `src/` will be gradual and deliberate:
 npm install @voltras/workout-analytics
 ```
 
-## Usage
-
-> **Note**: The public API is still under development. The examples below represent the intended API design.
-
-### Basic Rep Detection
+## Quick Start
 
 ```typescript
-import { RepDetector } from '@voltras/workout-analytics';
+import {
+  MovementPhase,
+  createSet,
+  addSampleToSet,
+  completeSet,
+  getRepMeanVelocity,
+  getRepTempo,
+} from '@voltras/workout-analytics';
 
-const detector = new RepDetector();
+// Create a new set
+let set = createSet();
 
-// Process telemetry samples
+// Process samples as they arrive from your device
 for (const sample of telemetryStream) {
-  const repBoundary = detector.processSample(sample);
-  
-  if (repBoundary) {
-    console.log(`Rep ${repBoundary.repNumber} completed`);
-  }
+  set = addSampleToSet(set, sample);
 }
-```
 
-### Set Metrics Calculation
+// Finalize when done (trims trailing idle time)
+set = completeSet(set);
 
-```typescript
-import { aggregateSet } from '@voltras/workout-analytics';
-
-// After detecting reps and aggregating phases
-const setMetrics = aggregateSet(reps, plannedSet);
-
-console.log(`RIR: ${setMetrics.effort.rir}`);
-console.log(`RPE: ${setMetrics.effort.rpe}`);
-console.log(`Fatigue Index: ${setMetrics.fatigue.fatigueIndex}`);
-```
-
-### Velocity-Based Training
-
-```typescript
-import { buildLoadVelocityProfile, generateWorkingWeightRecommendation } from '@voltras/workout-analytics';
-
-// Build profile from historical data
-const profile = buildLoadVelocityProfile('bench-press', [
-  { weight: 135, velocity: 0.65 },
-  { weight: 155, velocity: 0.50 },
-  { weight: 175, velocity: 0.35 },
-]);
-
-// Generate training recommendations
-const recommendation = generateWorkingWeightRecommendation(
-  profile,
-  TrainingGoal.HYPERTROPHY
-);
-
-console.log(`Recommended weight: ${recommendation.workingWeight} lbs`);
-console.log(`Rep range: ${recommendation.repRange[0]}-${recommendation.repRange[1]}`);
+// Access metrics
+for (const rep of set.reps) {
+  console.log(`Rep ${rep.repNumber}: ${getRepMeanVelocity(rep).toFixed(2)} m/s, tempo ${getRepTempo(rep)}`);
+}
 ```
 
 ## Core Concepts
 
 ### WorkoutSample
 
-The fundamental telemetry data structure. A `WorkoutSample` contains:
+The fundamental telemetry data point. Adapters convert device-specific data into this format.
 
-- `timestamp`: When the sample was recorded
-- `phase`: Movement phase (concentric, eccentric, hold, idle)
-- `position`: Normalized position (0-1)
-- `velocity`: Movement velocity (m/s)
-- `force`: Applied force (N)
+```typescript
+interface WorkoutSample {
+  sequence: number;      // Incrementing sequence (for drop detection)
+  timestamp: number;     // Timestamp in ms since epoch
+  phase: MovementPhase;  // IDLE, CONCENTRIC, HOLD, or ECCENTRIC
+  position: number;      // Position in ROM (0 = start, 1 = full extension)
+  velocity: number;      // Instantaneous velocity (m/s, always positive)
+  force: number;         // Force reading (lbs, absolute value)
+}
+```
 
-### Rep Detection
+### Movement Phases
 
-The `RepDetector` uses a state machine to identify rep boundaries from a stream of `WorkoutSample` data. It tracks:
+```typescript
+enum MovementPhase {
+  IDLE = 0,       // Ready / resting
+  CONCENTRIC = 1, // Lifting phase (muscle shortening)
+  HOLD = 2,       // Isometric hold at top of rep
+  ECCENTRIC = 3,  // Lowering phase (muscle lengthening)
+}
+```
 
-- Movement phases (concentric → hold → eccentric)
-- Rep completion (when eccentric phase ends)
-- Abandoned reps (concentric without eccentric)
+### Data Hierarchy
 
-### Metric Aggregation
+```
+Set
+└── Rep[]
+    ├── concentric: Phase  (lifting + hold at top)
+    └── eccentric: Phase   (lowering + hold at bottom)
+        └── samples: WorkoutSample[]
+```
 
-Metrics are computed at three levels:
+**Rep boundaries** are detected automatically: a new rep starts when transitioning from eccentric → concentric.
 
-1. **Phase Level**: Duration, velocity, force from samples
-2. **Rep Level**: Combined concentric/eccentric metrics, tempo
-3. **Set Level**: Velocity decline, fatigue index, RPE/RIR estimation
+## API Reference
 
-### Velocity-Based Training (VBT)
+### Set Functions
 
-VBT utilities help:
+| Function | Description |
+|----------|-------------|
+| `createSet()` | Create an empty set |
+| `addSampleToSet(set, sample)` | Add a sample, returns new set with automatic rep detection |
+| `completeSet(set)` | Finalize set, trims trailing idle from last rep |
+| `getSetRepCount(set)` | Number of reps |
+| `getSetDuration(set)` | Total duration in seconds |
+| `getSetTimeUnderTension(set)` | Movement time excluding holds |
 
-- Build load-velocity profiles from training data
-- Estimate 1RM from velocity measurements
-- Generate working weight recommendations based on training goals
-- Suggest warmup sets
+### Rep Functions
+
+| Function | Description |
+|----------|-------------|
+| `createRep(repNumber)` | Create a new rep (usually handled by Set) |
+| `addSampleToRep(rep, sample)` | Add a sample, routes to appropriate phase |
+| `getRepDuration(rep)` | Total rep duration in seconds |
+| `getRepTempo(rep)` | Tempo string (e.g., "3-1-2-0") |
+| `getRepMeanVelocity(rep)` | Mean concentric velocity (m/s) |
+| `getRepPeakVelocity(rep)` | Peak concentric velocity (m/s) |
+| `getRepPeakForce(rep)` | Peak force across both phases |
+| `getRepRangeOfMotion(rep)` | ROM as position value (0-1) |
+| `getRepSamples(rep)` | All samples in the rep |
+
+### Phase Functions
+
+| Function | Description |
+|----------|-------------|
+| `addSampleToPhase(phase, sample)` | Add a sample to phase |
+| `rebuildPhaseFromSamples(samples)` | Reconstruct phase from samples |
+| `getPhaseDuration(phase)` | Total duration in seconds |
+| `getPhaseHoldDuration(phase)` | Hold/pause time in seconds |
+| `getPhaseMovementDuration(phase)` | Movement time (excluding holds) |
+| `getPhaseMeanVelocity(phase)` | Mean velocity during movement |
+| `getPhaseMeanForce(phase)` | Mean force during movement |
+| `getPhaseRangeOfMotion(phase)` | Absolute position change |
+
+### Tempo
+
+```typescript
+import { formatTempo, parseTempo } from '@voltras/workout-analytics';
+
+// Format parts into standard tempo notation
+formatTempo({ eccentric: 3, holdTop: 1, concentric: 2, holdBottom: 0 }); // "3-1-2-0"
+
+// Parse tempo string into parts
+parseTempo("3-1-2-0"); // { eccentric: 3, holdTop: 1, concentric: 2, holdBottom: 0 }
+```
+
+## Repository Structure
+
+### `src/` - Public SDK
+
+The main library with immutable data structures and O(1) metric access:
+
+```
+src/
+├── models/
+│   ├── types.ts      # MovementPhase enum, PhaseNames
+│   ├── sample.ts     # WorkoutSample interface
+│   ├── phase.ts      # Phase type and functions
+│   ├── rep.ts        # Rep type and functions
+│   ├── set.ts        # Set type and functions
+│   └── tempo.ts      # Tempo formatting/parsing
+└── index.ts          # Public exports
+```
+
+### `v0/` - Reference Implementation
+
+Contains analytics code extracted from the Voltras mobile app. Serves as reference for:
+
+- Rep detection algorithms
+- VBT (velocity-based training) utilities
+- RPE/RIR estimation
+- Load-velocity profiling
+- Fatigue assessment
+
+This code is being incrementally migrated and refined into `src/`.
 
 ## Development
 
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Setup
-
 ```bash
+# Install dependencies
 npm install
-```
 
-### Testing
-
-```bash
+# Run tests
 npm test
-```
 
-### Linting
+# Type check
+npm run typecheck
 
-```bash
+# Lint
 npm run lint
+
+# Build
+npm run build
 ```
-
-### Type Checking
-
-```bash
-npm run type-check
-```
-
-## Contributing
-
-This repository is currently in active development. The `v0/` implementation serves as a reference, and the `src/` directory will contain the public API once migration is complete.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
