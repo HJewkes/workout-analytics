@@ -10,15 +10,15 @@ import {
   addSampleToRep,
   isInEccentricPhase,
   getRepDuration,
-} from './rep';
+} from '@/models/rep';
 import {
   type Phase,
   EMPTY_PHASE,
   rebuildPhaseFromSamples,
   getPhaseMovementDuration,
-} from './phase';
-import type { WorkoutSample } from './sample';
-import { MovementPhase } from './types';
+} from '@/models/phase';
+import type { WorkoutSample } from '@/models/sample';
+import { MovementPhase } from '@/models/types';
 
 /**
  * Immutable Set interface.

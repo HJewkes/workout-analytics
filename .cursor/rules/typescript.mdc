@@ -65,30 +65,33 @@ export function calculateMean(values: number[]): number { ... }
 
 ## Import Patterns
 
-### Relative Imports Within Library
+### Absolute Imports with @ Alias
 
-Use relative imports within the library (no path alias needed for libraries).
+Use absolute imports with the `@/` path alias (mapped to `src/`) for all imports across modules.
 
 ```typescript
-// GOOD: Relative imports within library
-import { aggregatePhase } from '../aggregators/phase-aggregator';
-import type { WorkoutSample } from '../models/sample';
+// GOOD: Absolute imports with @ alias
+import { aggregatePhase } from '@/aggregators/phase-aggregator';
+import type { WorkoutSample } from '@/models/sample';
+import { estimate1RM, computeFatigue } from '@/analytics';
 
 // GOOD: Import from barrel when available
-import { aggregateSet, aggregateRep } from '../aggregators';
+import { aggregateSet, aggregateRep } from '@/aggregators';
+import type { WorkoutSample, Rep, Set } from '@/models';
 ```
 
-### Import from Barrels
+### When to Use Relative Imports
 
-Prefer importing from barrel exports, not individual files.
+Only use relative imports (`./`) for imports within the same directory (e.g., barrel re-exports).
 
 ```typescript
-// GOOD: Import from barrel
-import { estimate1RM, computeFatigue } from './analytics';
-import type { WorkoutSample, Rep, Set } from './models';
+// GOOD: Relative for same-directory barrel exports
+// In src/analytics/index.ts
+export { getRepMeanVelocity } from './rep-analytics';
+export { getSetVelocityLossPct } from './set-analytics';
 
-// ACCEPTABLE: Direct import when needed
-import { aggregateSet } from './aggregators/set-aggregator';
+// BAD: Relative imports across directories
+import { Rep } from '../models/rep';  // Use @/models/rep instead
 ```
 
 ## Interfaces vs Types

@@ -17,11 +17,11 @@ import {
   getRepPeakForce,
   getRepRangeOfMotion,
   getRepSamples,
-} from '../../models/rep';
-import { getPhaseMeanVelocity } from '../../models/phase';
-import { MovementPhase } from '../../models';
-import type { WorkoutSample } from '../../models/sample';
-import type { Rep } from '../../models/rep';
+} from '@/models/rep';
+import { getPhaseMeanVelocity } from '@/models/phase';
+import { MovementPhase } from '@/models';
+import type { WorkoutSample } from '@/models/sample';
+import type { Rep } from '@/models/rep';
 
 // =============================================================================
 // Test Helpers

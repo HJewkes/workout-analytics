@@ -1,71 +1,8 @@
 /**
- * Workout Analytics Library
- *
- * Hardware-agnostic workout analytics for analyzing reps, sets,
- * estimating RPE/RIR, calculating strength (1RM), velocity profiles,
- * and fatigue estimates.
+ * Analytics module - Rep and Set analytics for VBT autoregulation.
  */
 
-// Models
-export {
-  // Types
-  MovementPhase,
-  PhaseNames,
-  ActivityState,
-  type WorkoutSample,
-
-  // Phase
-  type Phase,
-  createPhase,
-  addSampleToPhase,
-
-  // Rep
-  type Rep,
-  createRep,
-  addSampleToRep,
-  forceCompleteRep,
-
-  // Set
-  type Set,
-  type AddSampleResult,
-  createSet,
-  addSampleToSet,
-  stopSet,
-} from './models';
-
-// Stats - Distribution
-export {
-  type StreamingDistribution,
-  EMPTY_DISTRIBUTION,
-  createDistribution,
-  addSample,
-  mergeDist,
-  getMean,
-  getVariance,
-  getStdDev,
-  getZScore,
-  getCV,
-  isOutlier,
-  isWithinRange,
-  buildDistribution,
-} from './stats';
-
-// Stats - Schemes
-export {
-  type BreakpointScheme,
-  type InterpolationScheme,
-  classifyByBreakpoints,
-  interpolate,
-  createBreakpointScheme,
-  createInterpolationScheme,
-  DEFAULT_RIR_SCHEME,
-  DEFAULT_CONSISTENCY_SCHEME,
-  DEFAULT_OUTLIER_SCHEME,
-  DEFAULT_QUALITY_SCHEME,
-  DEFAULT_CONFIDENCE_SCHEME,
-} from './stats';
-
-// Analytics - Types
+// Types
 export {
   type Expectation,
   type ComparisonResult,
@@ -81,9 +18,9 @@ export {
   createTechniqueBaseline,
   hasDistribution,
   getExpectationStdDev,
-} from './analytics';
+} from './types';
 
-// Analytics - Rep
+// Rep Analytics
 export {
   getRepMeanEccentricVelocity,
   getRepMeanConcentricForce,
@@ -102,9 +39,9 @@ export {
   getRepEccentricWork,
   getRepMeanConcentricPower,
   getRepMeanEccentricPower,
-} from './analytics';
+} from './rep-analytics';
 
-// Analytics - Set
+// Set Analytics
 export {
   getSetFirstRepVelocity,
   getSetLastRepVelocity,
@@ -122,9 +59,9 @@ export {
   getSetRepROMAt,
   type SetVelocitySummary,
   getSetVelocitySummary,
-} from './analytics';
+} from './set-analytics';
 
-// Analytics - Quality
+// Quality
 export {
   type RepQualityFlags,
   type QualitySchemes,
@@ -141,9 +78,9 @@ export {
   getRepEccentricTimeRatio,
   getRepVelocityRatio,
   assessRepQuality,
-} from './analytics';
+} from './quality';
 
-// Analytics - Fatigue
+// Fatigue
 export {
   type FatigueSchemes,
   type FatigueIndex,
@@ -164,4 +101,4 @@ export {
   estimateSetRIR,
   isSetFatigued,
   getSetFatigueSummary,
-} from './analytics';
+} from './fatigue';

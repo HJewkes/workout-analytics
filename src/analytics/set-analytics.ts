@@ -1,0 +1,189 @@
+/**
+ * Set Analytics - First-order analytics derived from Set objects.
+ *
+ * These functions compute VBT-critical metrics directly from a single Set,
+ * without requiring external context or historical data.
+ */
+
+import type { Set } from '@/models/set';
+import { getRepMeanVelocity, getRepPeakVelocity, getRepRangeOfMotion } from '@/models/rep';
+
+// =============================================================================
+// Velocity Analytics
+// =============================================================================
+
+/**
+ * Get mean concentric velocity of the first rep.
+ * Returns 0 if set has no reps.
+ */
+export function getSetFirstRepVelocity(set: Set): number {
+  const firstRep = set.reps[0];
+  if (!firstRep) return 0;
+  return getRepMeanVelocity(firstRep);
+}
+
+/**
+ * Get mean concentric velocity of the last rep.
+ * Returns 0 if set has no reps.
+ */
+export function getSetLastRepVelocity(set: Set): number {
+  const lastRep = set.reps.at(-1);
+  if (!lastRep) return 0;
+  return getRepMeanVelocity(lastRep);
+}
+
+/**
+ * Get the best (maximum) mean concentric velocity across all reps.
+ * Returns 0 if set has no reps.
+ */
+export function getSetBestRepVelocity(set: Set): number {
+  if (set.reps.length === 0) return 0;
+  return Math.max(...set.reps.map(getRepMeanVelocity));
+}
+
+/**
+ * Get velocity loss percentage: (V1 - VLast) / V1 × 100.
+ * Positive value indicates slowing down (typical fatigue).
+ * Negative value indicates speeding up (unusual).
+ * Returns 0 if V1 is 0 or set has no reps.
+ */
+export function getSetVelocityLossPct(set: Set): number {
+  const v1 = getSetFirstRepVelocity(set);
+  const vLast = getSetLastRepVelocity(set);
+  if (v1 === 0) return 0;
+  return ((v1 - vLast) / v1) * 100;
+}
+
+/**
+ * Get mean velocity across all reps.
+ * Returns 0 if set has no reps.
+ */
+export function getSetMeanVelocity(set: Set): number {
+  if (set.reps.length === 0) return 0;
+  const sum = set.reps.reduce((acc, rep) => acc + getRepMeanVelocity(rep), 0);
+  return sum / set.reps.length;
+}
+
+/**
+ * Get the best (maximum) peak concentric velocity across all reps.
+ * Returns 0 if set has no reps.
+ */
+export function getSetPeakVelocity(set: Set): number {
+  if (set.reps.length === 0) return 0;
+  return Math.max(...set.reps.map(getRepPeakVelocity));
+}
+
+/**
+ * Get velocities for all reps as an array.
+ * Useful for building distributions or detailed analysis.
+ */
+export function getSetRepVelocities(set: Set): number[] {
+  return set.reps.map(getRepMeanVelocity);
+}
+
+// =============================================================================
+// Range of Motion Analytics
+// =============================================================================
+
+/**
+ * Get mean range of motion across all reps.
+ * Returns 0 if set has no reps.
+ */
+export function getSetMeanROM(set: Set): number {
+  if (set.reps.length === 0) return 0;
+  const sum = set.reps.reduce((acc, rep) => acc + getRepRangeOfMotion(rep), 0);
+  return sum / set.reps.length;
+}
+
+/**
+ * Get the best (maximum) range of motion across all reps.
+ * Returns 0 if set has no reps.
+ */
+export function getSetBestROM(set: Set): number {
+  if (set.reps.length === 0) return 0;
+  return Math.max(...set.reps.map(getRepRangeOfMotion));
+}
+
+/**
+ * Get the first rep's range of motion.
+ * Returns 0 if set has no reps.
+ */
+export function getSetFirstRepROM(set: Set): number {
+  const firstRep = set.reps[0];
+  if (!firstRep) return 0;
+  return getRepRangeOfMotion(firstRep);
+}
+
+/**
+ * Get the last rep's range of motion.
+ * Returns 0 if set has no reps.
+ */
+export function getSetLastRepROM(set: Set): number {
+  const lastRep = set.reps.at(-1);
+  if (!lastRep) return 0;
+  return getRepRangeOfMotion(lastRep);
+}
+
+/**
+ * Get ROMs for all reps as an array.
+ * Useful for building distributions or detailed analysis.
+ */
+export function getSetRepROMs(set: Set): number[] {
+  return set.reps.map(getRepRangeOfMotion);
+}
+
+// =============================================================================
+// Rep Index Helpers
+// =============================================================================
+
+/**
+ * Get velocity for a specific rep by index (1-based).
+ * Returns 0 if rep doesn't exist.
+ */
+export function getSetRepVelocityAt(set: Set, repNumber: number): number {
+  const rep = set.reps[repNumber - 1];
+  if (!rep) return 0;
+  return getRepMeanVelocity(rep);
+}
+
+/**
+ * Get ROM for a specific rep by index (1-based).
+ * Returns 0 if rep doesn't exist.
+ */
+export function getSetRepROMAt(set: Set, repNumber: number): number {
+  const rep = set.reps[repNumber - 1];
+  if (!rep) return 0;
+  return getRepRangeOfMotion(rep);
+}
+
+// =============================================================================
+// Summary Statistics
+// =============================================================================
+
+/**
+ * Get a summary of velocity statistics for the set.
+ */
+export interface SetVelocitySummary {
+  first: number;
+  last: number;
+  best: number;
+  mean: number;
+  peak: number;
+  lossPct: number;
+  repCount: number;
+}
+
+/**
+ * Get comprehensive velocity summary for a set.
+ */
+export function getSetVelocitySummary(set: Set): SetVelocitySummary {
+  return {
+    first: getSetFirstRepVelocity(set),
+    last: getSetLastRepVelocity(set),
+    best: getSetBestRepVelocity(set),
+    mean: getSetMeanVelocity(set),
+    peak: getSetPeakVelocity(set),
+    lossPct: getSetVelocityLossPct(set),
+    repCount: set.reps.length,
+  };
+}

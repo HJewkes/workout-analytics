@@ -13,10 +13,10 @@ import {
   getSetRepCount,
   getSetDuration,
   getSetTimeUnderTension,
-} from '../../models/set';
-import { MovementPhase } from '../../models';
-import type { WorkoutSample } from '../../models/sample';
-import type { Set } from '../../models/set';
+} from '@/models/set';
+import { MovementPhase } from '@/models';
+import type { WorkoutSample } from '@/models/sample';
+import type { Set } from '@/models/set';
 
 // =============================================================================
 // Test Helpers

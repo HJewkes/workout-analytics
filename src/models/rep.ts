@@ -11,10 +11,10 @@ import {
   getPhaseHoldDuration,
   getPhaseMovementDuration,
   getPhaseMeanVelocity,
-} from './phase';
-import type { WorkoutSample } from './sample';
-import { MovementPhase } from './types';
-import { formatTempo } from './tempo';
+} from '@/models/phase';
+import type { WorkoutSample } from '@/models/sample';
+import { MovementPhase } from '@/models/types';
+import { formatTempo } from '@/models/tempo';
 
 /**
  * Immutable Rep interface.

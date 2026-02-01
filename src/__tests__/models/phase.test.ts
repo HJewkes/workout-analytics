@@ -15,10 +15,10 @@ import {
   getPhaseMeanVelocity,
   getPhaseMeanForce,
   getPhaseRangeOfMotion,
-} from '../../models/phase';
-import { MovementPhase } from '../../models';
-import type { WorkoutSample } from '../../models/sample';
-import type { Phase } from '../../models/phase';
+} from '@/models/phase';
+import { MovementPhase } from '@/models';
+import type { WorkoutSample } from '@/models/sample';
+import type { Phase } from '@/models/phase';
 
 // =============================================================================
 // Test Helpers
