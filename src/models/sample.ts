@@ -25,5 +25,9 @@ export interface WorkoutSample {
 
   /** Force reading (lbs, absolute value) */
   force: number;
+
+  /** Instantaneous load/resistance (lbs). Calculated from device settings + position + phase.
+   *  Optional for backward compatibility -- not available for samples created without settings. */
+  load?: number;
 }
 

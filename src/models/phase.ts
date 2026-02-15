@@ -24,12 +24,14 @@ export interface Phase {
   // Running aggregates (internal, for O(1) means)
   readonly _totalVelocity: number;
   readonly _totalForce: number;
+  readonly _totalLoad: number;
   readonly _movementSampleCount: number;
   readonly _totalHoldDuration: number; // in ms
 
   // Peaks
   readonly peakVelocity: number;
   readonly peakForce: number;
+  readonly peakLoad: number;
 }
 
 /**
@@ -44,10 +46,12 @@ export const EMPTY_PHASE: Phase = Object.freeze({
   endPosition: 0,
   _totalVelocity: 0,
   _totalForce: 0,
+  _totalLoad: 0,
   _movementSampleCount: 0,
   _totalHoldDuration: 0,
   peakVelocity: 0,
   peakForce: 0,
+  peakLoad: 0,
 });
 
 /**
@@ -60,6 +64,8 @@ export function addSampleToPhase(phase: Phase, sample: WorkoutSample): Phase {
   const isHold = sample.phase === MovementPhase.HOLD || sample.phase === MovementPhase.IDLE;
   const timeDelta = isFirst ? 0 : sample.timestamp - phase.endTime;
 
+  const sampleLoad = sample.load ?? 0;
+
   return {
     samples: [...phase.samples, sample],
     startTime: isFirst ? sample.timestamp : phase.startTime,
@@ -68,10 +74,12 @@ export function addSampleToPhase(phase: Phase, sample: WorkoutSample): Phase {
     endPosition: sample.position,
     _totalVelocity: isHold ? phase._totalVelocity : phase._totalVelocity + sample.velocity,
     _totalForce: isHold ? phase._totalForce : phase._totalForce + sample.force,
+    _totalLoad: isHold ? phase._totalLoad : phase._totalLoad + sampleLoad,
     _movementSampleCount: isHold ? phase._movementSampleCount : phase._movementSampleCount + 1,
     _totalHoldDuration: phase._totalHoldDuration + (isHold ? timeDelta : 0),
     peakVelocity: isHold ? phase.peakVelocity : Math.max(phase.peakVelocity, sample.velocity),
     peakForce: isHold ? phase.peakForce : Math.max(phase.peakForce, sample.force),
+    peakLoad: isHold ? phase.peakLoad : Math.max(phase.peakLoad, sampleLoad),
   };
 }
 
@@ -108,4 +116,13 @@ export function getPhaseMeanForce(phase: Phase): number {
 
 export function getPhaseRangeOfMotion(phase: Phase): number {
   return Math.abs(phase.endPosition - phase.startPosition);
+}
+
+export function getPhaseMeanLoad(phase: Phase): number {
+  if (phase._movementSampleCount === 0) return 0;
+  return phase._totalLoad / phase._movementSampleCount;
+}
+
+export function getPhasePeakLoad(phase: Phase): number {
+  return phase.peakLoad;
 }

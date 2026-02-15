@@ -10,6 +10,8 @@ import {
   addSampleToRep,
   isInEccentricPhase,
   getRepDuration,
+  getRepMeanLoad,
+  getRepPeakLoad,
 } from '@/models/rep';
 import {
   type Phase,
@@ -19,19 +21,23 @@ import {
 } from '@/models/phase';
 import type { WorkoutSample } from '@/models/sample';
 import { MovementPhase } from '@/models/types';
+import type { LoadSettings } from '@/models/load';
+import { getEffectiveLoad } from '@/models/load';
 
 /**
  * Immutable Set interface.
  */
 export interface Set {
   readonly reps: readonly Rep[];
+  /** Load configuration for this set. Optional for backward compatibility. */
+  readonly loadSettings?: LoadSettings;
 }
 
 /**
- * Create an empty set.
+ * Create an empty set, optionally with load settings.
  */
-export function createSet(): Set {
-  return { reps: [] };
+export function createSet(loadSettings?: LoadSettings): Set {
+  return loadSettings ? { reps: [], loadSettings } : { reps: [] };
 }
 
 /**
@@ -44,18 +50,18 @@ export function addSampleToSet(set: Set, sample: WorkoutSample): Set {
   // No rep yet - need CONCENTRIC to start first rep
   if (!lastRep) {
     if (sample.phase === MovementPhase.CONCENTRIC) {
-      return { reps: [addSampleToRep(createRep(1), sample)] };
+      return { ...set, reps: [addSampleToRep(createRep(1), sample)] };
     }
     return set; // Ignore samples before first rep
   }
 
   // Eccentric → Concentric = new rep
   if (isInEccentricPhase(lastRep) && sample.phase === MovementPhase.CONCENTRIC) {
-    return { reps: [...set.reps, addSampleToRep(createRep(set.reps.length + 1), sample)] };
+    return { ...set, reps: [...set.reps, addSampleToRep(createRep(set.reps.length + 1), sample)] };
   }
 
   // Add to current rep (IDLE included as hold time)
-  return { reps: [...set.reps.slice(0, -1), addSampleToRep(lastRep, sample)] };
+  return { ...set, reps: [...set.reps.slice(0, -1), addSampleToRep(lastRep, sample)] };
 }
 
 /**
@@ -94,7 +100,7 @@ export function completeSet(set: Set): Set {
     ? { ...lastRep, eccentric: trimTrailingIdle(lastRep.eccentric) }
     : { ...lastRep, concentric: trimTrailingIdle(lastRep.concentric) };
 
-  return { reps: [...set.reps.slice(0, -1), trimmedRep] };
+  return { ...set, reps: [...set.reps.slice(0, -1), trimmedRep] };
 }
 
 // ============================================================
@@ -125,4 +131,44 @@ export function getSetTimeUnderTension(set: Set): number {
     const eccDuration = getPhaseMovementDuration(rep.eccentric);
     return sum + conDuration + eccDuration;
   }, 0);
+}
+
+// ============================================================
+// Load Helpers
+// ============================================================
+
+/**
+ * Get nominal load for analytics (base weight setting).
+ * This is the simple scalar used by volume, e1RM, stimulus, fatigue calculations.
+ * Returns 0 if no load settings are present.
+ */
+export function getSetLoad(set: Set): number {
+  if (!set.loadSettings) return 0;
+  return getEffectiveLoad(set.loadSettings);
+}
+
+/**
+ * Get mean per-frame load across all reps (from sample aggregation).
+ * Useful for analyzing actual load experienced when chains/eccentric are active.
+ * Returns 0 if no load data is present on samples.
+ */
+export function getSetMeanLoad(set: Set): number {
+  if (set.reps.length === 0) return 0;
+  let total = 0;
+  for (const rep of set.reps) {
+    total += getRepMeanLoad(rep);
+  }
+  return total / set.reps.length;
+}
+
+/**
+ * Get peak per-frame load across all reps (from sample aggregation).
+ * Returns 0 if no load data is present on samples.
+ */
+export function getSetPeakLoad(set: Set): number {
+  let peak = 0;
+  for (const rep of set.reps) {
+    peak = Math.max(peak, getRepPeakLoad(rep));
+  }
+  return peak;
 }

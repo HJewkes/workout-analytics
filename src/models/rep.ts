@@ -11,6 +11,7 @@ import {
   getPhaseHoldDuration,
   getPhaseMovementDuration,
   getPhaseMeanVelocity,
+  getPhaseMeanLoad,
 } from '@/models/phase';
 import type { WorkoutSample } from '@/models/sample';
 import { MovementPhase } from '@/models/types';
@@ -98,4 +99,12 @@ export function getRepRangeOfMotion(rep: Rep): number {
 
 export function getRepSamples(rep: Rep): readonly WorkoutSample[] {
   return [...rep.concentric.samples, ...rep.eccentric.samples];
+}
+
+export function getRepMeanLoad(rep: Rep): number {
+  return getPhaseMeanLoad(rep.concentric);
+}
+
+export function getRepPeakLoad(rep: Rep): number {
+  return Math.max(rep.concentric.peakLoad, rep.eccentric.peakLoad);
 }

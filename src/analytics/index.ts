@@ -102,3 +102,23 @@ export {
   isSetFatigued,
   getSetFatigueSummary,
 } from './fatigue';
+
+// Intensity
+export {
+  estimatePerRepRIR,
+  getRepHardnessWeight,
+  getSetIntensityScore,
+  getSetStimulusScore,
+} from './intensity';
+
+// Session
+export {
+  type StrengthEstimate,
+  type ReadinessEstimate,
+  type SessionFatigueEstimate,
+  computeStrengthEstimate,
+  computeReadiness,
+  computeSessionFatigue,
+  computeVolume,
+  computeEffectiveVolume,
+} from './session';

@@ -11,26 +11,56 @@ export {
   // Types
   MovementPhase,
   PhaseNames,
-  ActivityState,
   type WorkoutSample,
+
+  // Load
+  type LoadSettings,
+  DEFAULT_LOAD_SETTINGS,
+  calculateFrameLoad,
+  getEffectiveLoad,
 
   // Phase
   type Phase,
-  createPhase,
+  EMPTY_PHASE,
   addSampleToPhase,
+  rebuildPhaseFromSamples,
+  getPhaseDuration,
+  getPhaseHoldDuration,
+  getPhaseMovementDuration,
+  getPhaseMeanVelocity,
+  getPhaseMeanForce,
+  getPhaseMeanLoad,
+  getPhasePeakLoad,
+  getPhaseRangeOfMotion,
 
   // Rep
   type Rep,
   createRep,
   addSampleToRep,
-  forceCompleteRep,
+  isInEccentricPhase,
+  getRepDuration,
+  getRepTempo,
+  getRepMeanVelocity,
+  getRepPeakVelocity,
+  getRepPeakForce,
+  getRepMeanLoad,
+  getRepPeakLoad,
+  getRepRangeOfMotion,
+  getRepSamples,
 
   // Set
   type Set,
-  type AddSampleResult,
   createSet,
   addSampleToSet,
-  stopSet,
+  completeSet,
+  getSetLoad,
+  getSetMeanLoad,
+  getSetPeakLoad,
+
+  // Tempo
+  type TempoParts,
+  formatTempo,
+  parseTempo,
 } from './models';
 
 // Stats - Distribution
@@ -165,3 +195,73 @@ export {
   isSetFatigued,
   getSetFatigueSummary,
 } from './analytics';
+
+// Analytics - Intensity
+export {
+  estimatePerRepRIR,
+  getRepHardnessWeight,
+  getSetIntensityScore,
+  getSetStimulusScore,
+} from './analytics';
+
+// Analytics - Session
+export {
+  type StrengthEstimate,
+  type ReadinessEstimate,
+  type SessionFatigueEstimate,
+  computeStrengthEstimate,
+  computeReadiness,
+  computeSessionFatigue,
+  computeVolume,
+  computeEffectiveVolume,
+} from './analytics';
+
+// VBT - Constants
+export {
+  VELOCITY_AT_PERCENT_1RM,
+  DEFAULT_MVT,
+  DEFAULT_VELOCITY_RIR_MAP,
+  estimatePercent1RMFromVelocity,
+  categorizeVelocity,
+  type VelocityZone,
+} from './vbt';
+
+// VBT - Profile
+export {
+  type LoadVelocityDataPoint,
+  type LoadVelocityProfile,
+  buildProfile,
+  predictVelocity,
+  estimateLoad,
+  addDataPoint,
+} from './vbt';
+
+// VBT - Baseline
+export {
+  type VelocityBaseline,
+  buildBaseline,
+  getExpectedVelocity,
+} from './vbt';
+
+// VBT - e1RM
+export {
+  type E1RMEstimate,
+  estimateE1RMFromProfile,
+  estimateE1RMFromReps,
+  estimateHybridE1RM,
+} from './vbt';
+
+// VBT - Coverage
+export {
+  type CoverageBin,
+  type CoverageResult,
+  computeCoverage,
+  identifyCoverageGaps,
+} from './vbt';
+
+// VBT - Advanced Fitting
+export {
+  type FittingOptions,
+  type FittingResult,
+  fitLVProfile,
+} from './vbt';
