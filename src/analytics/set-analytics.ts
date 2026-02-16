@@ -7,6 +7,7 @@
 
 import type { Set } from '@/models/set';
 import { getRepMeanVelocity, getRepPeakVelocity, getRepRangeOfMotion } from '@/models/rep';
+import { getRepMeanEccentricVelocity } from '@/analytics/rep-analytics';
 
 // =============================================================================
 // Velocity Analytics
@@ -79,6 +80,61 @@ export function getSetPeakVelocity(set: Set): number {
  */
 export function getSetRepVelocities(set: Set): number[] {
   return set.reps.map(getRepMeanVelocity);
+}
+
+// =============================================================================
+// Eccentric Velocity Analytics
+// =============================================================================
+
+/**
+ * Get mean eccentric velocity of the first rep.
+ * Returns 0 if set has no reps.
+ */
+export function getSetFirstRepEccentricVelocity(set: Set): number {
+  const firstRep = set.reps[0];
+  if (!firstRep) return 0;
+  return getRepMeanEccentricVelocity(firstRep);
+}
+
+/**
+ * Get mean eccentric velocity of the last rep.
+ * Returns 0 if set has no reps.
+ */
+export function getSetLastRepEccentricVelocity(set: Set): number {
+  const lastRep = set.reps.at(-1);
+  if (!lastRep) return 0;
+  return getRepMeanEccentricVelocity(lastRep);
+}
+
+/**
+ * Get mean eccentric velocity across all reps.
+ * Returns 0 if set has no reps.
+ */
+export function getSetMeanEccentricVelocity(set: Set): number {
+  if (set.reps.length === 0) return 0;
+  const sum = set.reps.reduce((acc, rep) => acc + getRepMeanEccentricVelocity(rep), 0);
+  return sum / set.reps.length;
+}
+
+/**
+ * Get eccentric velocities for all reps as an array.
+ * Useful for tracking eccentric control trends across the set.
+ */
+export function getSetRepEccentricVelocities(set: Set): number[] {
+  return set.reps.map(getRepMeanEccentricVelocity);
+}
+
+/**
+ * Get eccentric velocity change percentage: (VEcc_last - VEcc_first) / VEcc_first × 100.
+ * Positive value indicates eccentric is speeding up (loss of control).
+ * Negative value indicates eccentric is slowing down (more controlled).
+ * Returns 0 if first rep eccentric velocity is 0 or set has no reps.
+ */
+export function getSetEccentricVelocityChangePct(set: Set): number {
+  const vFirst = getSetFirstRepEccentricVelocity(set);
+  const vLast = getSetLastRepEccentricVelocity(set);
+  if (vFirst === 0) return 0;
+  return ((vLast - vFirst) / vFirst) * 100;
 }
 
 // =============================================================================

@@ -13,6 +13,11 @@ import {
   getSetMeanVelocity,
   getSetPeakVelocity,
   getSetRepVelocities,
+  getSetFirstRepEccentricVelocity,
+  getSetLastRepEccentricVelocity,
+  getSetMeanEccentricVelocity,
+  getSetRepEccentricVelocities,
+  getSetEccentricVelocityChangePct,
   getSetMeanROM,
   getSetBestROM,
   getSetFirstRepROM,
@@ -241,6 +246,114 @@ describe('getSetRepVelocities()', () => {
 
   it('returns empty array for empty set', () => {
     expect(getSetRepVelocities(createEmptySet())).toEqual([]);
+  });
+});
+
+// =============================================================================
+// Eccentric Velocity Analytics Tests
+// =============================================================================
+
+/**
+ * Create rep samples with independent eccentric velocity control.
+ */
+function createRepSamplesWithEccentric(
+  repStartSeq: number,
+  repStartTime: number,
+  conVelocity: number,
+  eccVelocity: number,
+  rom: number
+): WorkoutSample[] {
+  return [
+    { sequence: repStartSeq, timestamp: repStartTime, phase: MovementPhase.CONCENTRIC, position: 0, velocity: conVelocity, force: 100 },
+    { sequence: repStartSeq + 1, timestamp: repStartTime + 500, phase: MovementPhase.CONCENTRIC, position: rom, velocity: conVelocity, force: 100 },
+    { sequence: repStartSeq + 2, timestamp: repStartTime + 1000, phase: MovementPhase.ECCENTRIC, position: rom, velocity: eccVelocity, force: 80 },
+    { sequence: repStartSeq + 3, timestamp: repStartTime + 2000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: eccVelocity, force: 80 },
+  ];
+}
+
+/**
+ * Set where eccentric velocity increases (loss of control).
+ */
+function createEccentricSpeedupSet(): Set {
+  const samples: WorkoutSample[] = [
+    ...createRepSamplesWithEccentric(0, 1000, 0.6, 0.3, 1.0),
+    ...createRepSamplesWithEccentric(4, 3000, 0.5, 0.4, 1.0),
+    ...createRepSamplesWithEccentric(8, 5000, 0.4, 0.5, 1.0),
+  ];
+  return buildSet(samples);
+}
+
+describe('getSetFirstRepEccentricVelocity()', () => {
+  it('returns first rep eccentric velocity', () => {
+    const set = createEccentricSpeedupSet();
+    expect(getSetFirstRepEccentricVelocity(set)).toBeCloseTo(0.3, 5);
+  });
+
+  it('returns 0 for empty set', () => {
+    expect(getSetFirstRepEccentricVelocity(createEmptySet())).toBe(0);
+  });
+});
+
+describe('getSetLastRepEccentricVelocity()', () => {
+  it('returns last rep eccentric velocity', () => {
+    const set = createEccentricSpeedupSet();
+    expect(getSetLastRepEccentricVelocity(set)).toBeCloseTo(0.5, 5);
+  });
+
+  it('returns 0 for empty set', () => {
+    expect(getSetLastRepEccentricVelocity(createEmptySet())).toBe(0);
+  });
+});
+
+describe('getSetMeanEccentricVelocity()', () => {
+  it('computes mean eccentric velocity across reps', () => {
+    const set = createEccentricSpeedupSet();
+    // (0.3 + 0.4 + 0.5) / 3 = 0.4
+    expect(getSetMeanEccentricVelocity(set)).toBeCloseTo(0.4, 5);
+  });
+
+  it('returns 0 for empty set', () => {
+    expect(getSetMeanEccentricVelocity(createEmptySet())).toBe(0);
+  });
+});
+
+describe('getSetRepEccentricVelocities()', () => {
+  it('returns array of eccentric velocities', () => {
+    const set = createEccentricSpeedupSet();
+    const velocities = getSetRepEccentricVelocities(set);
+
+    expect(velocities).toHaveLength(3);
+    expect(velocities[0]).toBeCloseTo(0.3, 5);
+    expect(velocities[1]).toBeCloseTo(0.4, 5);
+    expect(velocities[2]).toBeCloseTo(0.5, 5);
+  });
+
+  it('returns empty array for empty set', () => {
+    expect(getSetRepEccentricVelocities(createEmptySet())).toEqual([]);
+  });
+});
+
+describe('getSetEccentricVelocityChangePct()', () => {
+  it('computes positive change when eccentric speeds up', () => {
+    const set = createEccentricSpeedupSet();
+    // (0.5 - 0.3) / 0.3 × 100 = 66.67%
+    expect(getSetEccentricVelocityChangePct(set)).toBeCloseTo(66.67, 1);
+  });
+
+  it('returns 0 for empty set', () => {
+    expect(getSetEccentricVelocityChangePct(createEmptySet())).toBe(0);
+  });
+
+  it('returns 0 for constant eccentric velocity', () => {
+    const set = createConstantSet();
+    expect(getSetEccentricVelocityChangePct(set)).toBeCloseTo(0, 5);
+  });
+
+  it('returns negative when eccentric slows down (good control)', () => {
+    // Declining set: eccentric = velocity * 0.5, so it declines too
+    const set = createDecliningSet();
+    // First ecc = 0.3, last ecc = 0.2 -> (0.2 - 0.3) / 0.3 × 100 = -33.33%
+    expect(getSetEccentricVelocityChangePct(set)).toBeCloseTo(-33.33, 1);
   });
 });
 

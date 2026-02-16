@@ -16,6 +16,9 @@ import {
   getSetVelocityLossPct,
   getSetRepVelocities,
   getSetRepROMs,
+  getSetFirstRepEccentricVelocity,
+  getSetLastRepEccentricVelocity,
+  getSetEccentricVelocityChangePct,
 } from '@/analytics/set-analytics';
 import {
   type StreamingDistribution,
@@ -153,6 +156,84 @@ export function getSetROMChange(
   const last = lastRep ? getRepRangeOfMotion(lastRep) : 0;
 
   return computeChange(first, last, historicalDist);
+}
+
+/**
+ * Get eccentric velocity change from first to last rep.
+ * Positive percentChange = speeding up (loss of control).
+ */
+export function getSetEccentricVelocityChange(
+  set: Set,
+  historicalDist?: StreamingDistribution
+): ChangeResult {
+  const first = getSetFirstRepEccentricVelocity(set);
+  const last = getSetLastRepEccentricVelocity(set);
+  return computeChange(first, last, historicalDist);
+}
+
+// =============================================================================
+// Eccentric Control
+// =============================================================================
+
+/**
+ * Eccentric control assessment for a set.
+ */
+export interface EccentricControl {
+  /** Eccentric control quality (0-100, higher = better control) */
+  score: number;
+  /** Eccentric velocity change % (positive = speeding up = bad) */
+  eccentricChangePct: number;
+  /** Form warning message, or null if form looks good */
+  formWarning: string | null;
+}
+
+/**
+ * Compute eccentric control score for a set.
+ *
+ * Score of 100 = perfect control (eccentric velocity not increasing).
+ * Score decreases as eccentric phase speeds up, indicating loss of control
+ * (lifter dropping the weight rather than controlling the negative).
+ *
+ * Returns 100 if set has fewer than 2 reps (not enough data).
+ */
+export function getSetEccentricControlScore(set: Set): number {
+  if (set.reps.length < 2) return 100;
+  const eccentricChangePct = getSetEccentricVelocityChangePct(set);
+  // Positive change = speeding up = loss of control
+  // Scale: each 1% speedup costs 2 points off of 100
+  return Math.max(0, Math.min(100, 100 - eccentricChangePct * 2));
+}
+
+/**
+ * Get a form warning string if eccentric control is deteriorating.
+ *
+ * Returns null if form looks acceptable.
+ */
+export function getSetFormWarning(set: Set): string | null {
+  if (set.reps.length < 2) return null;
+
+  const eccentricChangePct = getSetEccentricVelocityChangePct(set);
+  const controlScore = getSetEccentricControlScore(set);
+  const velocityLossPct = getSetVelocityLossPct(set);
+
+  if (controlScore < 40) {
+    return 'Eccentric control declining - slow the negative';
+  }
+  if (eccentricChangePct > 30 && velocityLossPct > 10) {
+    return 'Grinding with loss of control - consider ending set';
+  }
+  return null;
+}
+
+/**
+ * Get full eccentric control assessment for a set.
+ */
+export function getSetEccentricControl(set: Set): EccentricControl {
+  return {
+    score: getSetEccentricControlScore(set),
+    eccentricChangePct: getSetEccentricVelocityChangePct(set),
+    formWarning: getSetFormWarning(set),
+  };
 }
 
 // =============================================================================

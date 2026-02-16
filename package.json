@@ -1,6 +1,6 @@
 {
   "name": "@voltras/workout-analytics",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hardware-agnostic workout analytics library for analyzing reps, sets, estimating RPE/RIR, calculating strength (1RM), velocity profiles, and fatigue estimates",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",

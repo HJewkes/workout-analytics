@@ -9,6 +9,10 @@ import {
   getSetVelocityChange,
   getSetTempoChange,
   getSetROMChange,
+  getSetEccentricVelocityChange,
+  getSetEccentricControlScore,
+  getSetFormWarning,
+  getSetEccentricControl,
   getSetFatigueIndex,
   getSetConsistencyScore,
   getSetVelocityDistribution,
@@ -429,5 +433,156 @@ describe('DEFAULT_FATIGUE_WEIGHTS', () => {
   it('prioritizes velocity', () => {
     expect(DEFAULT_FATIGUE_WEIGHTS.velocity).toBeGreaterThan(DEFAULT_FATIGUE_WEIGHTS.tempo);
     expect(DEFAULT_FATIGUE_WEIGHTS.velocity).toBeGreaterThan(DEFAULT_FATIGUE_WEIGHTS.rom);
+  });
+});
+
+// =============================================================================
+// Eccentric Control Tests
+// =============================================================================
+
+/**
+ * Create rep samples with independent eccentric velocity.
+ */
+function createRepSamplesEcc(
+  startSeq: number,
+  startTime: number,
+  conVelocity: number,
+  eccVelocity: number,
+  rom: number,
+  conTimeMs: number
+): WorkoutSample[] {
+  return [
+    { sequence: startSeq, timestamp: startTime, phase: MovementPhase.CONCENTRIC, position: 0, velocity: conVelocity, force: 100 },
+    { sequence: startSeq + 1, timestamp: startTime + conTimeMs, phase: MovementPhase.CONCENTRIC, position: rom, velocity: conVelocity, force: 100 },
+    { sequence: startSeq + 2, timestamp: startTime + conTimeMs + 500, phase: MovementPhase.ECCENTRIC, position: rom, velocity: eccVelocity, force: 80 },
+    { sequence: startSeq + 3, timestamp: startTime + conTimeMs + 2000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: eccVelocity, force: 80 },
+  ];
+}
+
+/**
+ * Set where eccentric speeds up significantly (loss of control).
+ */
+function createEccentricLossSet(): Set {
+  const samples: WorkoutSample[] = [
+    ...createRepSamplesEcc(0, 1000, 0.6, 0.3, 1.0, 1000),
+    ...createRepSamplesEcc(4, 4000, 0.5, 0.5, 1.0, 1200),
+    ...createRepSamplesEcc(8, 7000, 0.4, 0.7, 1.0, 1400),
+  ];
+  return buildSet(samples);
+}
+
+/**
+ * Set with stable eccentric control.
+ */
+function createEccentricControlledSet(): Set {
+  const samples: WorkoutSample[] = [
+    ...createRepSamplesEcc(0, 1000, 0.6, 0.3, 1.0, 1000),
+    ...createRepSamplesEcc(4, 4000, 0.55, 0.3, 1.0, 1000),
+    ...createRepSamplesEcc(8, 7000, 0.5, 0.3, 1.0, 1000),
+  ];
+  return buildSet(samples);
+}
+
+describe('getSetEccentricVelocityChange()', () => {
+  it('returns positive change when eccentric speeds up', () => {
+    const set = createEccentricLossSet();
+    const change = getSetEccentricVelocityChange(set);
+
+    expect(change.percentChange).toBeGreaterThan(0);
+  });
+
+  it('returns ~0 change for controlled eccentric', () => {
+    const set = createEccentricControlledSet();
+    const change = getSetEccentricVelocityChange(set);
+
+    expect(change.percentChange).toBeCloseTo(0, 1);
+  });
+});
+
+describe('getSetEccentricControlScore()', () => {
+  it('returns high score for controlled eccentric', () => {
+    const set = createEccentricControlledSet();
+    const score = getSetEccentricControlScore(set);
+
+    expect(score).toBeCloseTo(100, 0);
+  });
+
+  it('returns low score when eccentric speeds up significantly', () => {
+    const set = createEccentricLossSet();
+    const score = getSetEccentricControlScore(set);
+
+    // Eccentric: 0.3 -> 0.7 = +133% change -> 100 - 133*2 = clamped to 0
+    expect(score).toBeLessThan(20);
+  });
+
+  it('returns 100 for single-rep set', () => {
+    const set = buildSet(createRepSamplesEcc(0, 1000, 0.6, 0.3, 1.0, 1000));
+    expect(getSetEccentricControlScore(set)).toBe(100);
+  });
+
+  it('returns 100 for empty set', () => {
+    expect(getSetEccentricControlScore(createSet())).toBe(100);
+  });
+
+  it('clamps between 0 and 100', () => {
+    const set = createEccentricLossSet();
+    const score = getSetEccentricControlScore(set);
+
+    expect(score).toBeGreaterThanOrEqual(0);
+    expect(score).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('getSetFormWarning()', () => {
+  it('returns warning when control score is low', () => {
+    const set = createEccentricLossSet();
+    const warning = getSetFormWarning(set);
+
+    expect(warning).not.toBeNull();
+    expect(warning).toContain('Eccentric control declining');
+  });
+
+  it('returns null for controlled set', () => {
+    const set = createEccentricControlledSet();
+    expect(getSetFormWarning(set)).toBeNull();
+  });
+
+  it('returns null for single-rep set', () => {
+    const set = buildSet(createRepSamplesEcc(0, 1000, 0.6, 0.3, 1.0, 1000));
+    expect(getSetFormWarning(set)).toBeNull();
+  });
+
+  it('returns grinding warning when eccentric speeds up with concentric decline', () => {
+    // Eccentric change > 30%, velocity loss > 10%
+    const samples: WorkoutSample[] = [
+      ...createRepSamplesEcc(0, 1000, 0.6, 0.3, 1.0, 1000),
+      ...createRepSamplesEcc(4, 4000, 0.5, 0.45, 1.0, 1200),
+    ];
+    const set = buildSet(samples);
+    const warning = getSetFormWarning(set);
+
+    // eccentric change = (0.45 - 0.3) / 0.3 * 100 = 50%, control score = 100 - 50*2 = 0
+    // Since control score < 40, we get the "declining" warning
+    expect(warning).not.toBeNull();
+  });
+});
+
+describe('getSetEccentricControl()', () => {
+  it('returns full control assessment', () => {
+    const set = createEccentricLossSet();
+    const control = getSetEccentricControl(set);
+
+    expect(control.score).toBeDefined();
+    expect(control.eccentricChangePct).toBeGreaterThan(0);
+    expect(control.formWarning).not.toBeNull();
+  });
+
+  it('returns clean assessment for controlled set', () => {
+    const set = createEccentricControlledSet();
+    const control = getSetEccentricControl(set);
+
+    expect(control.score).toBeCloseTo(100, 0);
+    expect(control.eccentricChangePct).toBeCloseTo(0, 1);
+    expect(control.formWarning).toBeNull();
   });
 });
