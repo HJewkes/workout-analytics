@@ -275,3 +275,24 @@ export {
   type FittingResult,
   fitLVProfile,
 } from './vbt';
+
+// Exercises
+export {
+  type Exercise,
+  type MuscleGroupId,
+  type MovementPatternId,
+  type EquipmentCategory,
+  type EquipmentInfo,
+  type CableSetup,
+  setCatalog,
+  loadCatalog,
+  getExerciseById,
+  getAllExercises,
+  getExercisesByMuscleGroup,
+  getExercisesByMovementPattern,
+  getExercisesByEquipment,
+  getCableExercises,
+  searchExercises,
+  hasExercise,
+  getExerciseCount,
+} from './exercises';
