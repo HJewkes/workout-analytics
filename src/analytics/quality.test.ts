@@ -19,7 +19,11 @@ import {
   DEFAULT_PARTIAL_REP_SCHEME,
   DEFAULT_ECC_RUSHED_SCHEME,
 } from '@/analytics/quality';
-import { createTechniqueBaseline, createFixedExpectation, createDistributionExpectation } from '@/analytics/types';
+import {
+  createTechniqueBaseline,
+  createFixedExpectation,
+  createDistributionExpectation,
+} from '@/analytics/types';
 import { buildDistribution } from '@/stats/distribution';
 import { createBreakpointScheme } from '@/stats/schemes';
 import { createRep, addSampleToRep } from '@/models/rep';
@@ -46,11 +50,39 @@ function createTestRep(velocity: number, rom: number, eccTimeSec: number): Rep {
   const eccTimeMs = eccTimeSec * 1000;
   const samples: WorkoutSample[] = [
     // Concentric: 1 second
-    { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity, force: 100 },
-    { sequence: 1, timestamp: 2000, phase: MovementPhase.CONCENTRIC, position: rom, velocity, force: 100 },
+    {
+      sequence: 0,
+      timestamp: 1000,
+      phase: MovementPhase.CONCENTRIC,
+      position: 0,
+      velocity,
+      force: 100,
+    },
+    {
+      sequence: 1,
+      timestamp: 2000,
+      phase: MovementPhase.CONCENTRIC,
+      position: rom,
+      velocity,
+      force: 100,
+    },
     // Eccentric: specified time
-    { sequence: 2, timestamp: 2500, phase: MovementPhase.ECCENTRIC, position: rom, velocity: velocity * 0.5, force: 80 },
-    { sequence: 3, timestamp: 2500 + eccTimeMs, phase: MovementPhase.ECCENTRIC, position: 0, velocity: velocity * 0.5, force: 80 },
+    {
+      sequence: 2,
+      timestamp: 2500,
+      phase: MovementPhase.ECCENTRIC,
+      position: rom,
+      velocity: velocity * 0.5,
+      force: 80,
+    },
+    {
+      sequence: 3,
+      timestamp: 2500 + eccTimeMs,
+      phase: MovementPhase.ECCENTRIC,
+      position: 0,
+      velocity: velocity * 0.5,
+      force: 80,
+    },
   ];
   return buildRep(1, samples);
 }

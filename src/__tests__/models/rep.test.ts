@@ -183,10 +183,38 @@ describe('addSampleToRep()', () => {
   describe('metrics computation', () => {
     it('computes duration from phases', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1800, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 100 },
-        { sequence: 2, timestamp: 2000, phase: MovementPhase.ECCENTRIC, position: 1, velocity: 0.3, force: 100 },
-        { sequence: 3, timestamp: 3500, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.3, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1800,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 1,
+          velocity: 0.3,
+          force: 100,
+        },
+        {
+          sequence: 3,
+          timestamp: 3500,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0,
+          velocity: 0.3,
+          force: 100,
+        },
       ];
       const rep = buildRep(1, samples);
 
@@ -196,10 +224,38 @@ describe('addSampleToRep()', () => {
 
     it('computes concentric velocity from concentric phase', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.6, force: 100 },
-        { sequence: 1, timestamp: 1500, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.6, force: 100 },
-        { sequence: 2, timestamp: 2000, phase: MovementPhase.ECCENTRIC, position: 1, velocity: 0.35, force: 100 },
-        { sequence: 3, timestamp: 3000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.35, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.6,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1500,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.6,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 1,
+          velocity: 0.35,
+          force: 100,
+        },
+        {
+          sequence: 3,
+          timestamp: 3000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0,
+          velocity: 0.35,
+          force: 100,
+        },
       ];
       const rep = buildRep(1, samples);
 
@@ -208,10 +264,38 @@ describe('addSampleToRep()', () => {
 
     it('computes eccentric velocity from eccentric phase', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.6, force: 100 },
-        { sequence: 1, timestamp: 1500, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.6, force: 100 },
-        { sequence: 2, timestamp: 2000, phase: MovementPhase.ECCENTRIC, position: 1, velocity: 0.35, force: 100 },
-        { sequence: 3, timestamp: 3000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.35, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.6,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1500,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.6,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 1,
+          velocity: 0.35,
+          force: 100,
+        },
+        {
+          sequence: 3,
+          timestamp: 3000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0,
+          velocity: 0.35,
+          force: 100,
+        },
       ];
       const rep = buildRep(1, samples);
 
@@ -220,9 +304,30 @@ describe('addSampleToRep()', () => {
 
     it('computes peak velocity from concentric phase', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.4, force: 100 },
-        { sequence: 1, timestamp: 1250, phase: MovementPhase.CONCENTRIC, position: 0.5, velocity: 0.8, force: 100 },
-        { sequence: 2, timestamp: 1500, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.4, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.4,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1250,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.5,
+          velocity: 0.8,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 1500,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.4,
+          force: 100,
+        },
       ];
       const rep = buildRep(1, samples);
 
@@ -231,10 +336,38 @@ describe('addSampleToRep()', () => {
 
     it('computes peakForce from both phases', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 200 },
-        { sequence: 1, timestamp: 1500, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 150 },
-        { sequence: 2, timestamp: 2000, phase: MovementPhase.ECCENTRIC, position: 1, velocity: 0.3, force: 180 },
-        { sequence: 3, timestamp: 3000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.3, force: 120 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 200,
+        },
+        {
+          sequence: 1,
+          timestamp: 1500,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.5,
+          force: 150,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 1,
+          velocity: 0.3,
+          force: 180,
+        },
+        {
+          sequence: 3,
+          timestamp: 3000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0,
+          velocity: 0.3,
+          force: 120,
+        },
       ];
       const rep = buildRep(1, samples);
 
@@ -243,10 +376,38 @@ describe('addSampleToRep()', () => {
 
     it('computes rangeOfMotion from concentric phase', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1500, phase: MovementPhase.CONCENTRIC, position: 0.95, velocity: 0.5, force: 100 },
-        { sequence: 2, timestamp: 2000, phase: MovementPhase.ECCENTRIC, position: 0.95, velocity: 0.3, force: 100 },
-        { sequence: 3, timestamp: 3000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.3, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1500,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.95,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0.95,
+          velocity: 0.3,
+          force: 100,
+        },
+        {
+          sequence: 3,
+          timestamp: 3000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0,
+          velocity: 0.3,
+          force: 100,
+        },
       ];
       const rep = buildRep(1, samples);
 
@@ -257,10 +418,38 @@ describe('addSampleToRep()', () => {
   describe('tempo formatting', () => {
     it('formats standard tempo correctly', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 2000, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 100 },
-        { sequence: 2, timestamp: 2100, phase: MovementPhase.ECCENTRIC, position: 1, velocity: 0.3, force: 100 },
-        { sequence: 3, timestamp: 4100, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.3, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 2000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2100,
+          phase: MovementPhase.ECCENTRIC,
+          position: 1,
+          velocity: 0.3,
+          force: 100,
+        },
+        {
+          sequence: 3,
+          timestamp: 4100,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0,
+          velocity: 0.3,
+          force: 100,
+        },
       ];
       const rep = buildRep(1, samples);
 
@@ -273,10 +462,38 @@ describe('addSampleToRep()', () => {
   describe('sample collection', () => {
     it('collects all samples from both phases', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1500, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 100 },
-        { sequence: 2, timestamp: 2000, phase: MovementPhase.ECCENTRIC, position: 1, velocity: 0.3, force: 100 },
-        { sequence: 3, timestamp: 3000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.3, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1500,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 1,
+          velocity: 0.3,
+          force: 100,
+        },
+        {
+          sequence: 3,
+          timestamp: 3000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0,
+          velocity: 0.3,
+          force: 100,
+        },
       ];
       const rep = buildRep(1, samples);
 

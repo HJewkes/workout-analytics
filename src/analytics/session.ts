@@ -8,7 +8,12 @@
 import type { Set } from '@/models/set';
 import { getSetLoad } from '@/models/set';
 import type { LoadVelocityProfile } from '@/vbt/profile';
-import { type E1RMEstimate, estimateE1RMFromReps, estimateE1RMFromProfile, estimateHybridE1RM } from '@/vbt/e1rm';
+import {
+  type E1RMEstimate,
+  estimateE1RMFromReps,
+  estimateE1RMFromProfile,
+  estimateHybridE1RM,
+} from '@/vbt/e1rm';
 import { estimatePerRepRIR, getRepHardnessWeight } from '@/analytics/intensity';
 import { getSetFirstRepVelocity, getSetVelocityLossPct } from '@/analytics/set-analytics';
 
@@ -73,7 +78,7 @@ export interface SessionFatigueEstimate {
 export function computeStrengthEstimate(
   sets: readonly Set[],
   weights?: readonly number[],
-  profile?: LoadVelocityProfile,
+  profile?: LoadVelocityProfile
 ): StrengthEstimate {
   if (sets.length === 0) {
     return { estimated1RM: 0, confidence: 0, source: 'reps' };
@@ -137,7 +142,7 @@ export function computeStrengthEstimate(
  */
 export function computeReadiness(
   actualVelocity: number,
-  baselineVelocity: number,
+  baselineVelocity: number
 ): ReadinessEstimate {
   if (baselineVelocity <= 0 || actualVelocity <= 0) {
     return { zone: 'yellow', velocityRatio: 0, confidence: 0 };
@@ -156,10 +161,7 @@ export function computeReadiness(
 
   // Confidence based on how far the ratio is from threshold boundaries
   // Higher when clearly in a zone, lower when near boundaries
-  const distFromNearest = Math.min(
-    Math.abs(velocityRatio - 0.95),
-    Math.abs(velocityRatio - 0.85),
-  );
+  const distFromNearest = Math.min(Math.abs(velocityRatio - 0.95), Math.abs(velocityRatio - 0.85));
   const confidence = Math.min(1, 0.6 + distFromNearest * 4);
 
   return { zone, velocityRatio, confidence };
@@ -184,7 +186,7 @@ export function computeReadiness(
  */
 export function computeSessionFatigue(
   sets: readonly Set[],
-  _weights?: readonly number[],
+  _weights?: readonly number[]
 ): SessionFatigueEstimate {
   if (sets.length < 2) {
     return {
@@ -245,10 +247,7 @@ export function computeSessionFatigue(
  * @param weights - Optional parallel array of load per set. Falls back to set.loadSettings.weight.
  * @returns Total volume in load-units * reps
  */
-export function computeVolume(
-  sets: readonly Set[],
-  weights?: readonly number[],
-): number {
+export function computeVolume(sets: readonly Set[], weights?: readonly number[]): number {
   let volume = 0;
   for (let i = 0; i < sets.length; i++) {
     const load = weights?.[i] ?? getSetLoad(sets[i]);
@@ -274,7 +273,7 @@ export function computeVolume(
 export function computeEffectiveVolume(
   sets: readonly Set[],
   weights?: readonly number[],
-  options?: { decayRate?: number },
+  options?: { decayRate?: number }
 ): number {
   const decayRate = options?.decayRate ?? 0.4;
   let effectiveVolume = 0;

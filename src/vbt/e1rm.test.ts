@@ -17,11 +17,11 @@ import { buildProfile, type LoadVelocityDataPoint } from '@/vbt/profile';
 
 /** Perfect linear: velocity = -0.01 * load + 1.5 -> e1RM at MVT(0.17) = 133 */
 const LINEAR_DATA: LoadVelocityDataPoint[] = [
-  { load: 20, velocity: 1.30 },
-  { load: 40, velocity: 1.10 },
-  { load: 60, velocity: 0.90 },
-  { load: 80, velocity: 0.70 },
-  { load: 100, velocity: 0.50 },
+  { load: 20, velocity: 1.3 },
+  { load: 40, velocity: 1.1 },
+  { load: 60, velocity: 0.9 },
+  { load: 80, velocity: 0.7 },
+  { load: 100, velocity: 0.5 },
 ];
 
 // =============================================================================
@@ -45,7 +45,7 @@ describe('estimateE1RMFromProfile', () => {
 
   it('respects custom MVT', () => {
     const profile = buildProfile(LINEAR_DATA);
-    const result = estimateE1RMFromProfile(profile, 0.30);
+    const result = estimateE1RMFromProfile(profile, 0.3);
     // 0.30 = -0.01 * load + 1.50 -> load = 120
     expect(result.e1RM).toBeCloseTo(120, 0);
   });
@@ -58,7 +58,7 @@ describe('estimateE1RMFromProfile', () => {
   });
 
   it('returns 0 for flat profile (slope=0)', () => {
-    const profile = buildProfile([{ load: 50, velocity: 0.80 }]);
+    const profile = buildProfile([{ load: 50, velocity: 0.8 }]);
     const result = estimateE1RMFromProfile(profile);
     expect(result.e1RM).toBe(0);
   });

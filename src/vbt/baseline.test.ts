@@ -11,10 +11,10 @@ import type { LoadVelocityDataPoint } from '@/vbt/profile';
 // =============================================================================
 
 const HISTORICAL_DATA: LoadVelocityDataPoint[] = [
-  { load: 30, velocity: 1.00 },
+  { load: 30, velocity: 1.0 },
   { load: 50, velocity: 0.75 },
   { load: 70, velocity: 0.55 },
-  { load: 90, velocity: 0.30 },
+  { load: 90, velocity: 0.3 },
 ];
 
 // =============================================================================
@@ -25,7 +25,7 @@ describe('buildBaseline', () => {
   it('sorts data points by load', () => {
     const unsorted: LoadVelocityDataPoint[] = [
       { load: 70, velocity: 0.55 },
-      { load: 30, velocity: 1.00 },
+      { load: 30, velocity: 1.0 },
       { load: 50, velocity: 0.75 },
     ];
     const baseline = buildBaseline(unsorted);
@@ -52,8 +52,8 @@ describe('buildBaseline', () => {
 describe('getExpectedVelocity', () => {
   it('returns exact velocity at known load', () => {
     const baseline = buildBaseline(HISTORICAL_DATA);
-    expect(getExpectedVelocity(baseline, 30)).toBe(1.00);
-    expect(getExpectedVelocity(baseline, 90)).toBe(0.30);
+    expect(getExpectedVelocity(baseline, 30)).toBe(1.0);
+    expect(getExpectedVelocity(baseline, 90)).toBe(0.3);
   });
 
   it('interpolates between known loads', () => {

@@ -26,11 +26,7 @@ export {
 } from './profile';
 
 // Baseline
-export {
-  type VelocityBaseline,
-  buildBaseline,
-  getExpectedVelocity,
-} from './baseline';
+export { type VelocityBaseline, buildBaseline, getExpectedVelocity } from './baseline';
 
 // e1RM Estimation
 export {
@@ -49,8 +45,4 @@ export {
 } from './coverage';
 
 // Advanced Profile Fitting
-export {
-  type FittingOptions,
-  type FittingResult,
-  fitLVProfile,
-} from './profile-fitting';
+export { type FittingOptions, type FittingResult, fitLVProfile } from './profile-fitting';

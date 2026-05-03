@@ -50,10 +50,7 @@ export function buildBaseline(dataPoints: LoadVelocityDataPoint[]): VelocityBase
  * @param load - Load to estimate velocity for
  * @returns Expected velocity in m/s, or null if out of range
  */
-export function getExpectedVelocity(
-  baseline: VelocityBaseline,
-  load: number,
-): number | null {
+export function getExpectedVelocity(baseline: VelocityBaseline, load: number): number | null {
   const points = baseline.dataPoints;
 
   if (points.length === 0) {

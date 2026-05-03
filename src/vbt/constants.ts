@@ -126,7 +126,7 @@ export function estimatePercent1RMFromVelocity(velocity: number): number {
  */
 export function categorizeVelocity(velocity: number): VelocityZone {
   if (velocity > 0.75) return 'fast';
-  if (velocity > 0.50) return 'moderate';
-  if (velocity > 0.30) return 'slow';
+  if (velocity > 0.5) return 'moderate';
+  if (velocity > 0.3) return 'slow';
   return 'grinding';
 }

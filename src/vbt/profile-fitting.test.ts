@@ -15,31 +15,31 @@ const DAY = 24 * 60 * 60 * 1000;
 
 /** Perfect linear: velocity = -0.01 * load + 1.5 */
 const PERFECT_LINEAR: LoadVelocityDataPoint[] = [
-  { load: 20, velocity: 1.30, timestamp: now },
-  { load: 40, velocity: 1.10, timestamp: now },
-  { load: 60, velocity: 0.90, timestamp: now },
-  { load: 80, velocity: 0.70, timestamp: now },
-  { load: 100, velocity: 0.50, timestamp: now },
+  { load: 20, velocity: 1.3, timestamp: now },
+  { load: 40, velocity: 1.1, timestamp: now },
+  { load: 60, velocity: 0.9, timestamp: now },
+  { load: 80, velocity: 0.7, timestamp: now },
+  { load: 100, velocity: 0.5, timestamp: now },
 ];
 
 /** Data with one extreme outlier */
 const WITH_OUTLIER: LoadVelocityDataPoint[] = [
-  { load: 20, velocity: 1.30, timestamp: now },
-  { load: 40, velocity: 1.10, timestamp: now },
-  { load: 60, velocity: 0.90, timestamp: now },
-  { load: 80, velocity: 0.70, timestamp: now },
-  { load: 100, velocity: 0.50, timestamp: now },
-  { load: 50, velocity: -0.50, timestamp: now }, // Extreme outlier
+  { load: 20, velocity: 1.3, timestamp: now },
+  { load: 40, velocity: 1.1, timestamp: now },
+  { load: 60, velocity: 0.9, timestamp: now },
+  { load: 80, velocity: 0.7, timestamp: now },
+  { load: 100, velocity: 0.5, timestamp: now },
+  { load: 50, velocity: -0.5, timestamp: now }, // Extreme outlier
 ];
 
 /** Data with recency variation - recent data shows strength improvement */
 const RECENCY_DATA: LoadVelocityDataPoint[] = [
-  { load: 40, velocity: 0.90, timestamp: now - 90 * DAY },
+  { load: 40, velocity: 0.9, timestamp: now - 90 * DAY },
   { load: 60, velocity: 0.65, timestamp: now - 90 * DAY },
-  { load: 80, velocity: 0.40, timestamp: now - 90 * DAY },
-  { load: 40, velocity: 1.00, timestamp: now },
+  { load: 80, velocity: 0.4, timestamp: now - 90 * DAY },
+  { load: 40, velocity: 1.0, timestamp: now },
   { load: 60, velocity: 0.75, timestamp: now },
-  { load: 80, velocity: 0.50, timestamp: now },
+  { load: 80, velocity: 0.5, timestamp: now },
 ];
 
 // =============================================================================
@@ -58,7 +58,7 @@ describe('fitLVProfile', () => {
   it('fits perfect linear data correctly', () => {
     const result = fitLVProfile(PERFECT_LINEAR);
     expect(result.slope).toBeCloseTo(-0.01, 4);
-    expect(result.intercept).toBeCloseTo(1.50, 4);
+    expect(result.intercept).toBeCloseTo(1.5, 4);
     expect(result.rSquared).toBeCloseTo(1.0, 4);
     expect(result.dataPointsUsed).toBe(5);
   });
@@ -106,9 +106,9 @@ describe('fitLVProfile with recency weighting', () => {
 describe('fitLVProfile with quality weighting', () => {
   it('applies quality weights', () => {
     const data: LoadVelocityDataPoint[] = [
-      { load: 40, velocity: 1.10 },
-      { load: 60, velocity: 0.90 },
-      { load: 80, velocity: 0.70 },
+      { load: 40, velocity: 1.1 },
+      { load: 60, velocity: 0.9 },
+      { load: 80, velocity: 0.7 },
     ];
     const qualityWeights = [0.1, 1.0, 1.0]; // First point low quality
 
@@ -132,8 +132,8 @@ describe('fitLVProfile with robust regression', () => {
     const robust = fitLVProfile(WITH_OUTLIER, { robustRegression: true });
 
     // Robust should be closer to the true line (-0.01, 1.50) than OLS
-    const olsSlopeError = Math.abs(ols.slope - (-0.01));
-    const robustSlopeError = Math.abs(robust.slope - (-0.01));
+    const olsSlopeError = Math.abs(ols.slope - -0.01);
+    const robustSlopeError = Math.abs(robust.slope - -0.01);
     expect(robustSlopeError).toBeLessThan(olsSlopeError);
   });
 
@@ -153,8 +153,8 @@ describe('fitLVProfile with robust regression', () => {
 describe('fitLVProfile with maxAge', () => {
   it('excludes old data points', () => {
     const data: LoadVelocityDataPoint[] = [
-      { load: 60, velocity: 0.80, timestamp: now - 100 * DAY }, // Old
-      { load: 60, velocity: 0.90, timestamp: now }, // Recent
+      { load: 60, velocity: 0.8, timestamp: now - 100 * DAY }, // Old
+      { load: 60, velocity: 0.9, timestamp: now }, // Recent
     ];
 
     const result = fitLVProfile(data, { maxAge: 30 * DAY });
@@ -163,8 +163,8 @@ describe('fitLVProfile with maxAge', () => {
 
   it('includes points without timestamps', () => {
     const data: LoadVelocityDataPoint[] = [
-      { load: 60, velocity: 0.80 }, // No timestamp -> always included
-      { load: 80, velocity: 0.60, timestamp: now },
+      { load: 60, velocity: 0.8 }, // No timestamp -> always included
+      { load: 80, velocity: 0.6, timestamp: now },
     ];
 
     const result = fitLVProfile(data, { maxAge: 30 * DAY });
@@ -173,8 +173,8 @@ describe('fitLVProfile with maxAge', () => {
 
   it('returns empty result when all points are too old', () => {
     const data: LoadVelocityDataPoint[] = [
-      { load: 60, velocity: 0.80, timestamp: now - 100 * DAY },
-      { load: 80, velocity: 0.60, timestamp: now - 90 * DAY },
+      { load: 60, velocity: 0.8, timestamp: now - 100 * DAY },
+      { load: 80, velocity: 0.6, timestamp: now - 90 * DAY },
     ];
 
     const result = fitLVProfile(data, { maxAge: 30 * DAY });

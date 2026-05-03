@@ -67,7 +67,10 @@ export function addSample(dist: StreamingDistribution, value: number): Streaming
  * Merge two distributions using the parallel variance algorithm (Chan et al.).
  * Useful for combining statistics from different sessions or time periods.
  */
-export function mergeDist(a: StreamingDistribution, b: StreamingDistribution): StreamingDistribution {
+export function mergeDist(
+  a: StreamingDistribution,
+  b: StreamingDistribution
+): StreamingDistribution {
   if (a.n === 0) return b;
   if (b.n === 0) return a;
 

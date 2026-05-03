@@ -127,10 +127,7 @@ export function getSetVelocityChange(
 /**
  * Get tempo (concentric time) change from first to last rep.
  */
-export function getSetTempoChange(
-  set: Set,
-  historicalDist?: StreamingDistribution
-): ChangeResult {
+export function getSetTempoChange(set: Set, historicalDist?: StreamingDistribution): ChangeResult {
   const firstRep = set.reps[0];
   const lastRep = set.reps.at(-1);
 
@@ -143,10 +140,7 @@ export function getSetTempoChange(
 /**
  * Get ROM change from first to last rep.
  */
-export function getSetROMChange(
-  set: Set,
-  historicalDist?: StreamingDistribution
-): ChangeResult {
+export function getSetROMChange(set: Set, historicalDist?: StreamingDistribution): ChangeResult {
   const firstRep = set.reps[0];
   const lastRep = set.reps.at(-1);
 
@@ -276,9 +270,7 @@ export function getSetFatigueIndex(
 
   // Weighted composite
   const value =
-    velocityFatigue * weights.velocity +
-    tempoFatigue * weights.tempo +
-    romFatigue * weights.rom;
+    velocityFatigue * weights.velocity + tempoFatigue * weights.tempo + romFatigue * weights.rom;
 
   // Confidence based on rep count
   let confidence: 'high' | 'medium' | 'low';
@@ -336,10 +328,7 @@ export function getSetTempoDistribution(set: Set): StreamingDistribution {
 /**
  * Get consistency score for the set.
  */
-export function getSetConsistencyScore(
-  set: Set,
-  schemes?: FatigueSchemes
-): ConsistencyScore {
+export function getSetConsistencyScore(set: Set, schemes?: FatigueSchemes): ConsistencyScore {
   const consistencyScheme = schemes?.consistency ?? DEFAULT_CONSISTENCY_SCHEME;
 
   const velocityDist = getSetVelocityDistribution(set);
@@ -369,10 +358,7 @@ export function getSetConsistencyScore(
 /**
  * Find reps that are statistical outliers within the set.
  */
-export function findOutlierReps(
-  set: Set,
-  schemes?: FatigueSchemes
-): OutlierRep[] {
+export function findOutlierReps(set: Set, schemes?: FatigueSchemes): OutlierRep[] {
   const outlierScheme = schemes?.outlier ?? DEFAULT_OUTLIER_SCHEME;
   const outliers: OutlierRep[] = [];
 
@@ -435,10 +421,7 @@ export function findOutlierReps(
 /**
  * Estimate RIR (Reps in Reserve) from velocity loss.
  */
-export function estimateSetRIR(
-  set: Set,
-  schemes?: FatigueSchemes
-): RIREstimate {
+export function estimateSetRIR(set: Set, schemes?: FatigueSchemes): RIREstimate {
   const rirScheme = schemes?.rir ?? DEFAULT_RIR_SCHEME;
   const velLossPct = getSetVelocityLossPct(set);
 

@@ -152,7 +152,7 @@ export function searchExercises(query: string): Exercise[] {
   return catalogData.filter(
     (ex) =>
       ex.name.toLowerCase().includes(normalized) ||
-      (ex.aliases?.some((a) => a.toLowerCase().includes(normalized)) ?? false),
+      (ex.aliases?.some((a) => a.toLowerCase().includes(normalized)) ?? false)
   );
 }
 

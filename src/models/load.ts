@@ -70,7 +70,7 @@ export const DEFAULT_LOAD_SETTINGS: LoadSettings = Object.freeze({
 export function calculateFrameLoad(
   settings: LoadSettings,
   position: number,
-  phase: MovementPhase,
+  phase: MovementPhase
 ): number {
   let load = settings.weight;
 
