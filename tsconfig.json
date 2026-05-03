@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2020"],
+    "lib": ["ES2022"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -11,8 +11,9 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
+    "declarationDir": "./dist/types",
     "sourceMap": true,
-    "noEmit": true,
+    "outDir": "./dist/esm",
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
@@ -20,5 +21,5 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/__tests__/*"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/__tests__/*", "v0"]
 }
