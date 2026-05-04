@@ -15,17 +15,17 @@ const DAY = 24 * 60 * 60 * 1000;
 
 /** Even distribution across intensity spectrum. e1RM = 100. */
 const EVEN_DATA: LoadVelocityDataPoint[] = [
-  { load: 45, velocity: 0.90, timestamp: now },  // 45% e1RM
-  { load: 55, velocity: 0.80, timestamp: now },  // 55%
-  { load: 65, velocity: 0.70, timestamp: now },  // 65%
-  { load: 75, velocity: 0.55, timestamp: now },  // 75%
-  { load: 85, velocity: 0.40, timestamp: now },  // 85%
-  { load: 95, velocity: 0.25, timestamp: now },  // 95%
+  { load: 45, velocity: 0.9, timestamp: now }, // 45% e1RM
+  { load: 55, velocity: 0.8, timestamp: now }, // 55%
+  { load: 65, velocity: 0.7, timestamp: now }, // 65%
+  { load: 75, velocity: 0.55, timestamp: now }, // 75%
+  { load: 85, velocity: 0.4, timestamp: now }, // 85%
+  { load: 95, velocity: 0.25, timestamp: now }, // 95%
 ];
 
 /** Concentrated in one area */
 const CONCENTRATED_DATA: LoadVelocityDataPoint[] = [
-  { load: 70, velocity: 0.60, timestamp: now },
+  { load: 70, velocity: 0.6, timestamp: now },
   { load: 72, velocity: 0.58, timestamp: now },
   { load: 74, velocity: 0.56, timestamp: now },
   { load: 76, velocity: 0.54, timestamp: now },
@@ -92,7 +92,7 @@ describe('computeCoverage', () => {
 
   it('staleness filter excludes old data', () => {
     const oldData: LoadVelocityDataPoint[] = [
-      { load: 65, velocity: 0.70, timestamp: now - 60 * DAY },
+      { load: 65, velocity: 0.7, timestamp: now - 60 * DAY },
     ];
     const result = computeCoverage(oldData, 100, { stalenessMs: 30 * DAY });
     // The old data point should be excluded
@@ -119,8 +119,8 @@ describe('identifyCoverageGaps', () => {
 
   it('supports minObservations threshold', () => {
     const data: LoadVelocityDataPoint[] = [
-      { load: 45, velocity: 0.90, timestamp: now },
-      { load: 65, velocity: 0.70, timestamp: now },
+      { load: 45, velocity: 0.9, timestamp: now },
+      { load: 65, velocity: 0.7, timestamp: now },
       { load: 65, velocity: 0.68, timestamp: now },
       { load: 65, velocity: 0.72, timestamp: now },
     ];

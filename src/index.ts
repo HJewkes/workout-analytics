@@ -247,11 +247,7 @@ export {
 } from './vbt';
 
 // VBT - Baseline
-export {
-  type VelocityBaseline,
-  buildBaseline,
-  getExpectedVelocity,
-} from './vbt';
+export { type VelocityBaseline, buildBaseline, getExpectedVelocity } from './vbt';
 
 // VBT - e1RM
 export {
@@ -270,11 +266,7 @@ export {
 } from './vbt';
 
 // VBT - Advanced Fitting
-export {
-  type FittingOptions,
-  type FittingResult,
-  fitLVProfile,
-} from './vbt';
+export { type FittingOptions, type FittingResult, fitLVProfile } from './vbt';
 
 // Exercises
 export {

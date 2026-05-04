@@ -30,4 +30,3 @@ export interface WorkoutSample {
    *  Optional for backward compatibility -- not available for samples created without settings. */
   load?: number;
 }
-

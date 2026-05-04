@@ -18,11 +18,11 @@ import { DEFAULT_MVT } from '@/vbt/constants';
 
 /** Perfect linear data: velocity = -0.01 * load + 1.5 */
 const PERFECT_LINEAR: LoadVelocityDataPoint[] = [
-  { load: 20, velocity: 1.30 },
-  { load: 40, velocity: 1.10 },
-  { load: 60, velocity: 0.90 },
-  { load: 80, velocity: 0.70 },
-  { load: 100, velocity: 0.50 },
+  { load: 20, velocity: 1.3 },
+  { load: 40, velocity: 1.1 },
+  { load: 60, velocity: 0.9 },
+  { load: 80, velocity: 0.7 },
+  { load: 100, velocity: 0.5 },
 ];
 
 /** Realistic data with some noise */
@@ -31,7 +31,7 @@ const REALISTIC_DATA: LoadVelocityDataPoint[] = [
   { load: 45, velocity: 0.78 },
   { load: 60, velocity: 0.62 },
   { load: 75, velocity: 0.48 },
-  { load: 90, velocity: 0.30 },
+  { load: 90, velocity: 0.3 },
 ];
 
 // =============================================================================
@@ -42,7 +42,7 @@ describe('buildProfile', () => {
   it('computes correct slope and intercept for perfect linear data', () => {
     const profile = buildProfile(PERFECT_LINEAR);
     expect(profile.slope).toBeCloseTo(-0.01, 4);
-    expect(profile.intercept).toBeCloseTo(1.50, 4);
+    expect(profile.intercept).toBeCloseTo(1.5, 4);
   });
 
   it('achieves R² = 1.0 for perfect linear data', () => {
@@ -64,10 +64,10 @@ describe('buildProfile', () => {
   });
 
   it('uses provided MVT', () => {
-    const profile = buildProfile(PERFECT_LINEAR, 0.20);
+    const profile = buildProfile(PERFECT_LINEAR, 0.2);
     // 0.20 = -0.01 * load + 1.50 -> load = 130
     expect(profile.estimated1RM).toBeCloseTo(130, 0);
-    expect(profile.mvt).toBe(0.20);
+    expect(profile.mvt).toBe(0.2);
   });
 
   it('uses DEFAULT_MVT when not specified', () => {
@@ -83,14 +83,14 @@ describe('buildProfile', () => {
   it('assigns medium confidence for R² >= 0.70 and >= 2 points', () => {
     // Two points always give R² = 1.0, but only 2 points
     const profile = buildProfile([
-      { load: 50, velocity: 0.80 },
-      { load: 80, velocity: 0.50 },
+      { load: 50, velocity: 0.8 },
+      { load: 80, velocity: 0.5 },
     ]);
     expect(profile.confidence).toBe('medium');
   });
 
   it('assigns low confidence for single point', () => {
-    const profile = buildProfile([{ load: 50, velocity: 0.80 }]);
+    const profile = buildProfile([{ load: 50, velocity: 0.8 }]);
     expect(profile.confidence).toBe('low');
   });
 
@@ -105,7 +105,7 @@ describe('buildProfile', () => {
 
   it('handles all same load (vertical line)', () => {
     const profile = buildProfile([
-      { load: 50, velocity: 0.80 },
+      { load: 50, velocity: 0.8 },
       { load: 50, velocity: 0.82 },
       { load: 50, velocity: 0.78 },
     ]);
@@ -126,13 +126,13 @@ describe('buildProfile', () => {
 describe('predictVelocity', () => {
   it('predicts correctly on the regression line', () => {
     const profile = buildProfile(PERFECT_LINEAR);
-    expect(predictVelocity(profile, 60)).toBeCloseTo(0.90, 2);
+    expect(predictVelocity(profile, 60)).toBeCloseTo(0.9, 2);
   });
 
   it('extrapolates beyond data range', () => {
     const profile = buildProfile(PERFECT_LINEAR);
     // load = 120: -0.01 * 120 + 1.50 = 0.30
-    expect(predictVelocity(profile, 120)).toBeCloseTo(0.30, 2);
+    expect(predictVelocity(profile, 120)).toBeCloseTo(0.3, 2);
   });
 
   it('clamps to 0 for very high loads', () => {
@@ -150,7 +150,7 @@ describe('estimateLoad', () => {
   it('estimates correctly from the regression line', () => {
     const profile = buildProfile(PERFECT_LINEAR);
     // velocity 0.90 -> load 60
-    expect(estimateLoad(profile, 0.90)).toBeCloseTo(60, 0);
+    expect(estimateLoad(profile, 0.9)).toBeCloseTo(60, 0);
   });
 
   it('round-trips with predictVelocity', () => {
@@ -167,8 +167,8 @@ describe('estimateLoad', () => {
   });
 
   it('returns 0 for flat profile (slope = 0)', () => {
-    const profile = buildProfile([{ load: 50, velocity: 0.80 }]);
-    expect(estimateLoad(profile, 0.60)).toBe(0);
+    const profile = buildProfile([{ load: 50, velocity: 0.8 }]);
+    expect(estimateLoad(profile, 0.6)).toBe(0);
   });
 });
 
@@ -179,19 +179,19 @@ describe('estimateLoad', () => {
 describe('addDataPoint', () => {
   it('returns a new profile with the additional point', () => {
     const profile = buildProfile(PERFECT_LINEAR);
-    const updated = addDataPoint(profile, { load: 120, velocity: 0.30 });
+    const updated = addDataPoint(profile, { load: 120, velocity: 0.3 });
     expect(updated.dataPoints).toHaveLength(6);
   });
 
   it('does not mutate the original profile', () => {
     const profile = buildProfile(PERFECT_LINEAR);
-    addDataPoint(profile, { load: 120, velocity: 0.30 });
+    addDataPoint(profile, { load: 120, velocity: 0.3 });
     expect(profile.dataPoints).toHaveLength(5);
   });
 
   it('re-fits the regression with the new point', () => {
     const profile = buildProfile(PERFECT_LINEAR);
-    const updated = addDataPoint(profile, { load: 120, velocity: 0.30 });
+    const updated = addDataPoint(profile, { load: 120, velocity: 0.3 });
     // R² should still be very high
     expect(updated.rSquared).toBeGreaterThan(0.95);
   });

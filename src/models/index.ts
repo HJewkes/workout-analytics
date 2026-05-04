@@ -14,11 +14,7 @@ export type { TempoParts } from './tempo';
 export type { LoadSettings } from './load';
 
 // Load
-export {
-  DEFAULT_LOAD_SETTINGS,
-  calculateFrameLoad,
-  getEffectiveLoad,
-} from './load';
+export { DEFAULT_LOAD_SETTINGS, calculateFrameLoad, getEffectiveLoad } from './load';
 
 // Phase
 export {

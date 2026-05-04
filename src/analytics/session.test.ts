@@ -33,17 +33,45 @@ function createRepSamples(
   startTime: number,
   velocity: number,
   rom: number = 200,
-  conTimeMs: number = 500,
+  conTimeMs: number = 500
 ): WorkoutSample[] {
   return [
-    { sequence: startSeq, timestamp: startTime, phase: MovementPhase.CONCENTRIC, position: 0, velocity, force: 100 },
-    { sequence: startSeq + 1, timestamp: startTime + conTimeMs, phase: MovementPhase.CONCENTRIC, position: rom, velocity, force: 100 },
-    { sequence: startSeq + 2, timestamp: startTime + conTimeMs + 500, phase: MovementPhase.ECCENTRIC, position: rom, velocity: velocity * 0.5, force: 80 },
-    { sequence: startSeq + 3, timestamp: startTime + conTimeMs + 1500, phase: MovementPhase.ECCENTRIC, position: 0, velocity: velocity * 0.5, force: 80 },
+    {
+      sequence: startSeq,
+      timestamp: startTime,
+      phase: MovementPhase.CONCENTRIC,
+      position: 0,
+      velocity,
+      force: 100,
+    },
+    {
+      sequence: startSeq + 1,
+      timestamp: startTime + conTimeMs,
+      phase: MovementPhase.CONCENTRIC,
+      position: rom,
+      velocity,
+      force: 100,
+    },
+    {
+      sequence: startSeq + 2,
+      timestamp: startTime + conTimeMs + 500,
+      phase: MovementPhase.ECCENTRIC,
+      position: rom,
+      velocity: velocity * 0.5,
+      force: 80,
+    },
+    {
+      sequence: startSeq + 3,
+      timestamp: startTime + conTimeMs + 1500,
+      phase: MovementPhase.ECCENTRIC,
+      position: 0,
+      velocity: velocity * 0.5,
+      force: 80,
+    },
   ];
 }
 
-function buildTestSet(numReps: number, v0: number = 0.80): Set {
+function buildTestSet(numReps: number, v0: number = 0.8): Set {
   const samples: WorkoutSample[] = [];
   for (let i = 0; i < numReps; i++) {
     const velocity = v0 * (1 - i * 0.05);
@@ -83,9 +111,9 @@ describe('computeStrengthEstimate', () => {
   it('uses hybrid method when profile available', () => {
     const set = buildTestSet(5);
     const profile = buildProfile([
-      { load: 40, velocity: 1.10 },
-      { load: 60, velocity: 0.90 },
-      { load: 80, velocity: 0.70 },
+      { load: 40, velocity: 1.1 },
+      { load: 60, velocity: 0.9 },
+      { load: 80, velocity: 0.7 },
     ]);
     const result = computeStrengthEstimate([set], [80], profile);
     expect(result.source).toBe('hybrid');
@@ -99,28 +127,28 @@ describe('computeStrengthEstimate', () => {
 
 describe('computeReadiness', () => {
   it('returns green when velocity >= 95% of baseline', () => {
-    const result = computeReadiness(0.76, 0.80);
+    const result = computeReadiness(0.76, 0.8);
     expect(result.zone).toBe('green');
     expect(result.velocityRatio).toBeCloseTo(0.95, 2);
   });
 
   it('returns yellow when velocity is 85-95% of baseline', () => {
-    const result = computeReadiness(0.72, 0.80);
+    const result = computeReadiness(0.72, 0.8);
     expect(result.zone).toBe('yellow');
   });
 
   it('returns red when velocity < 85% of baseline', () => {
-    const result = computeReadiness(0.60, 0.80);
+    const result = computeReadiness(0.6, 0.8);
     expect(result.zone).toBe('red');
   });
 
   it('returns yellow with 0 confidence for zero inputs', () => {
-    expect(computeReadiness(0, 0.80).confidence).toBe(0);
-    expect(computeReadiness(0.80, 0).confidence).toBe(0);
+    expect(computeReadiness(0, 0.8).confidence).toBe(0);
+    expect(computeReadiness(0.8, 0).confidence).toBe(0);
   });
 
   it('velocity ratio is computed correctly', () => {
-    const result = computeReadiness(0.72, 0.80);
+    const result = computeReadiness(0.72, 0.8);
     expect(result.velocityRatio).toBeCloseTo(0.9, 2);
   });
 });
@@ -139,24 +167,24 @@ describe('computeSessionFatigue', () => {
 
   it('detects velocity recovery loss across sets', () => {
     // First set with high velocity, last set with lower
-    const set1 = buildTestSet(5, 0.80);
-    const set2 = buildTestSet(5, 0.70);
-    const set3 = buildTestSet(5, 0.60);
+    const set1 = buildTestSet(5, 0.8);
+    const set2 = buildTestSet(5, 0.7);
+    const set3 = buildTestSet(5, 0.6);
     const result = computeSessionFatigue([set1, set2, set3], [80, 80, 80]);
     expect(result.velocityRecoveryPct).toBeLessThan(100);
     expect(result.level).toBeGreaterThan(0);
   });
 
   it('detects rep drop across sets', () => {
-    const set1 = buildTestSet(8, 0.80);
+    const set1 = buildTestSet(8, 0.8);
     const set2 = buildTestSet(5, 0.75);
     const result = computeSessionFatigue([set1, set2], [80, 80]);
     expect(result.repDropPct).toBeGreaterThan(0);
   });
 
   it('fatigue level is bounded 0-1', () => {
-    const set1 = buildTestSet(5, 0.80);
-    const set2 = buildTestSet(5, 0.40);
+    const set1 = buildTestSet(5, 0.8);
+    const set2 = buildTestSet(5, 0.4);
     const result = computeSessionFatigue([set1, set2], [80, 80]);
     expect(result.level).toBeGreaterThanOrEqual(0);
     expect(result.level).toBeLessThanOrEqual(1);

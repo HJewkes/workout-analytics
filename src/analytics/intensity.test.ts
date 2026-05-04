@@ -34,13 +34,41 @@ function createRepSamples(
   startTime: number,
   velocity: number,
   rom: number,
-  conTimeMs: number = 500,
+  conTimeMs: number = 500
 ): WorkoutSample[] {
   return [
-    { sequence: startSeq, timestamp: startTime, phase: MovementPhase.CONCENTRIC, position: 0, velocity, force: 100 },
-    { sequence: startSeq + 1, timestamp: startTime + conTimeMs, phase: MovementPhase.CONCENTRIC, position: rom, velocity, force: 100 },
-    { sequence: startSeq + 2, timestamp: startTime + conTimeMs + 500, phase: MovementPhase.ECCENTRIC, position: rom, velocity: velocity * 0.5, force: 80 },
-    { sequence: startSeq + 3, timestamp: startTime + conTimeMs + 1500, phase: MovementPhase.ECCENTRIC, position: 0, velocity: velocity * 0.5, force: 80 },
+    {
+      sequence: startSeq,
+      timestamp: startTime,
+      phase: MovementPhase.CONCENTRIC,
+      position: 0,
+      velocity,
+      force: 100,
+    },
+    {
+      sequence: startSeq + 1,
+      timestamp: startTime + conTimeMs,
+      phase: MovementPhase.CONCENTRIC,
+      position: rom,
+      velocity,
+      force: 100,
+    },
+    {
+      sequence: startSeq + 2,
+      timestamp: startTime + conTimeMs + 500,
+      phase: MovementPhase.ECCENTRIC,
+      position: rom,
+      velocity: velocity * 0.5,
+      force: 80,
+    },
+    {
+      sequence: startSeq + 3,
+      timestamp: startTime + conTimeMs + 1500,
+      phase: MovementPhase.ECCENTRIC,
+      position: 0,
+      velocity: velocity * 0.5,
+      force: 80,
+    },
   ];
 }
 
@@ -48,7 +76,7 @@ function createRepSamples(
  * Build a set with declining velocity to simulate fatigue.
  * Velocities: [v0, v0*0.9, v0*0.8, v0*0.7, v0*0.6]
  */
-function buildFatigueSet(numReps: number, v0: number = 0.80, rom: number = 200): Set {
+function buildFatigueSet(numReps: number, v0: number = 0.8, rom: number = 200): Set {
   const samples: WorkoutSample[] = [];
   for (let i = 0; i < numReps; i++) {
     const velocity = v0 * (1 - i * 0.1); // 10% velocity loss per rep
@@ -68,11 +96,11 @@ describe('getRepHardnessWeight', () => {
   });
 
   it('returns expected values at default k=0.4', () => {
-    expect(getRepHardnessWeight(0)).toBeCloseTo(1.00, 2);
+    expect(getRepHardnessWeight(0)).toBeCloseTo(1.0, 2);
     expect(getRepHardnessWeight(1)).toBeCloseTo(0.67, 2);
     expect(getRepHardnessWeight(2)).toBeCloseTo(0.45, 2);
-    expect(getRepHardnessWeight(3)).toBeCloseTo(0.30, 2);
-    expect(getRepHardnessWeight(4)).toBeCloseTo(0.20, 2);
+    expect(getRepHardnessWeight(3)).toBeCloseTo(0.3, 2);
+    expect(getRepHardnessWeight(4)).toBeCloseTo(0.2, 2);
   });
 
   it('RIR 0->1 difference is larger than 1->2', () => {
@@ -219,7 +247,7 @@ describe('getSetStimulusScore', () => {
   });
 
   it('applies ROM multiplier when enabled', () => {
-    const set = buildFatigueSet(5, 0.80, 200);
+    const set = buildFatigueSet(5, 0.8, 200);
     const withoutROM = getSetStimulusScore(set, 80, { setRIR: 1 });
     const withROM = getSetStimulusScore(set, 80, {
       setRIR: 1,

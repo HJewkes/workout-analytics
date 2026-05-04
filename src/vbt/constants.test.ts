@@ -23,7 +23,9 @@ describe('VELOCITY_AT_PERCENT_1RM', () => {
   });
 
   it('velocities decrease as %1RM increases', () => {
-    const percents = Object.keys(VELOCITY_AT_PERCENT_1RM).map(Number).sort((a, b) => a - b);
+    const percents = Object.keys(VELOCITY_AT_PERCENT_1RM)
+      .map(Number)
+      .sort((a, b) => a - b);
     for (let i = 0; i < percents.length - 1; i++) {
       expect(VELOCITY_AT_PERCENT_1RM[percents[i]]).toBeGreaterThan(
         VELOCITY_AT_PERCENT_1RM[percents[i + 1]]
@@ -76,7 +78,7 @@ describe('DEFAULT_VELOCITY_RIR_MAP', () => {
 describe('estimatePercent1RMFromVelocity', () => {
   it('returns 100 at or below MVT', () => {
     expect(estimatePercent1RMFromVelocity(0.17)).toBe(100);
-    expect(estimatePercent1RMFromVelocity(0.10)).toBe(100);
+    expect(estimatePercent1RMFromVelocity(0.1)).toBe(100);
   });
 
   it('returns 30 at or above highest velocity', () => {
@@ -93,13 +95,13 @@ describe('estimatePercent1RMFromVelocity', () => {
 
   it('interpolates between table values', () => {
     // 0.54 is exactly 75%, 0.50 should be between 75 and 80
-    const pct = estimatePercent1RMFromVelocity(0.50);
+    const pct = estimatePercent1RMFromVelocity(0.5);
     expect(pct).toBeGreaterThan(75);
     expect(pct).toBeLessThan(80);
   });
 
   it('is monotonically decreasing (higher velocity = lower %1RM)', () => {
-    const velocities = [0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 1.00];
+    const velocities = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0];
     const percents = velocities.map(estimatePercent1RMFromVelocity);
     for (let i = 0; i < percents.length - 1; i++) {
       expect(percents[i]).toBeGreaterThanOrEqual(percents[i + 1]);
@@ -113,25 +115,25 @@ describe('estimatePercent1RMFromVelocity', () => {
 
 describe('categorizeVelocity', () => {
   it('categorizes fast (> 0.75 m/s)', () => {
-    expect(categorizeVelocity(0.80)).toBe('fast');
-    expect(categorizeVelocity(1.00)).toBe('fast');
+    expect(categorizeVelocity(0.8)).toBe('fast');
+    expect(categorizeVelocity(1.0)).toBe('fast');
   });
 
   it('categorizes moderate (0.50-0.75 m/s)', () => {
     expect(categorizeVelocity(0.75)).toBe('moderate');
-    expect(categorizeVelocity(0.60)).toBe('moderate');
+    expect(categorizeVelocity(0.6)).toBe('moderate');
     expect(categorizeVelocity(0.51)).toBe('moderate');
   });
 
   it('categorizes slow (0.30-0.50 m/s)', () => {
-    expect(categorizeVelocity(0.50)).toBe('slow');
-    expect(categorizeVelocity(0.40)).toBe('slow');
+    expect(categorizeVelocity(0.5)).toBe('slow');
+    expect(categorizeVelocity(0.4)).toBe('slow');
     expect(categorizeVelocity(0.31)).toBe('slow');
   });
 
   it('categorizes grinding (< 0.30 m/s)', () => {
-    expect(categorizeVelocity(0.30)).toBe('grinding');
-    expect(categorizeVelocity(0.20)).toBe('grinding');
-    expect(categorizeVelocity(0.10)).toBe('grinding');
+    expect(categorizeVelocity(0.3)).toBe('grinding');
+    expect(categorizeVelocity(0.2)).toBe('grinding');
+    expect(categorizeVelocity(0.1)).toBe('grinding');
   });
 });
