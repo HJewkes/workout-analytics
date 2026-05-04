@@ -229,5 +229,6 @@ describe('getSetStimulusScore', () => {
     // With ROM factor = 1.0 (actual == expected), scores should be similar
     // (not exact because of how test data works)
     expect(withROM).toBeGreaterThan(0);
+    expect(withoutROM).toBeGreaterThan(0);
   });
 });

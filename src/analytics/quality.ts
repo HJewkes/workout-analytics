@@ -8,7 +8,7 @@
 import type { Rep } from '@/models/rep';
 import { getRepRangeOfMotion, getRepMeanVelocity } from '@/models/rep';
 import type { Expectation, ComparisonResult, TechniqueBaseline, ComparisonSchemes } from '@/analytics/types';
-import { compareToExpectation, getExpectedValue } from '@/analytics/types';
+import { compareToExpectation } from '@/analytics/types';
 import { getRepEccentricTime } from '@/analytics/rep-analytics';
 import {
   classifyByBreakpoints,

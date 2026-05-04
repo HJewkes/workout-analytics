@@ -184,7 +184,7 @@ export function computeReadiness(
  */
 export function computeSessionFatigue(
   sets: readonly Set[],
-  weights?: readonly number[],
+  _weights?: readonly number[],
 ): SessionFatigueEstimate {
   if (sets.length < 2) {
     return {

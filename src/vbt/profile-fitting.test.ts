@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { fitLVProfile, type FittingOptions } from '@/vbt/profile-fitting';
+import { fitLVProfile } from '@/vbt/profile-fitting';
 import type { LoadVelocityDataPoint } from '@/vbt/profile';
 
 // =============================================================================
