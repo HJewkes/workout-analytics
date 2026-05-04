@@ -264,10 +264,38 @@ function createRepSamplesWithEccentric(
   rom: number
 ): WorkoutSample[] {
   return [
-    { sequence: repStartSeq, timestamp: repStartTime, phase: MovementPhase.CONCENTRIC, position: 0, velocity: conVelocity, force: 100 },
-    { sequence: repStartSeq + 1, timestamp: repStartTime + 500, phase: MovementPhase.CONCENTRIC, position: rom, velocity: conVelocity, force: 100 },
-    { sequence: repStartSeq + 2, timestamp: repStartTime + 1000, phase: MovementPhase.ECCENTRIC, position: rom, velocity: eccVelocity, force: 80 },
-    { sequence: repStartSeq + 3, timestamp: repStartTime + 2000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: eccVelocity, force: 80 },
+    {
+      sequence: repStartSeq,
+      timestamp: repStartTime,
+      phase: MovementPhase.CONCENTRIC,
+      position: 0,
+      velocity: conVelocity,
+      force: 100,
+    },
+    {
+      sequence: repStartSeq + 1,
+      timestamp: repStartTime + 500,
+      phase: MovementPhase.CONCENTRIC,
+      position: rom,
+      velocity: conVelocity,
+      force: 100,
+    },
+    {
+      sequence: repStartSeq + 2,
+      timestamp: repStartTime + 1000,
+      phase: MovementPhase.ECCENTRIC,
+      position: rom,
+      velocity: eccVelocity,
+      force: 80,
+    },
+    {
+      sequence: repStartSeq + 3,
+      timestamp: repStartTime + 2000,
+      phase: MovementPhase.ECCENTRIC,
+      position: 0,
+      velocity: eccVelocity,
+      force: 80,
+    },
   ];
 }
 

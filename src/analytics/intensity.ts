@@ -77,9 +77,8 @@ export function estimatePerRepRIR(set: Set, setRIR?: number): readonly number[] 
     const totalVelocityLossFraction = totalVelocityLoss / v0;
 
     // How much of the total velocity loss has occurred at rep i?
-    const proportionOfDecay = totalVelocityLossFraction > 0
-      ? velocityLossI / totalVelocityLossFraction
-      : i / (n - 1);
+    const proportionOfDecay =
+      totalVelocityLossFraction > 0 ? velocityLossI / totalVelocityLossFraction : i / (n - 1);
 
     // RIR decreases as more velocity loss has occurred
     const repRIR = resolvedSetRIR + remainingReps * (1 - proportionOfDecay);
@@ -127,7 +126,7 @@ export function getRepHardnessWeight(rir: number, decayRate: number = DEFAULT_DE
  */
 export function getSetIntensityScore(
   set: Set,
-  options?: { decayRate?: number; setRIR?: number },
+  options?: { decayRate?: number; setRIR?: number }
 ): number {
   const decayRate = options?.decayRate ?? DEFAULT_DECAY_RATE;
   const perRepRIR = estimatePerRepRIR(set, options?.setRIR);
@@ -173,7 +172,7 @@ export function getSetStimulusScore(
     includeTimeUnderTension?: boolean;
     expectedROM?: number;
     expectedTUT?: number;
-  },
+  }
 ): number {
   const resolvedLoad = load ?? getSetLoad(set);
   const decayRate = options?.decayRate ?? DEFAULT_DECAY_RATE;

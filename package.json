@@ -22,6 +22,12 @@
     "./store/sqlite-node": {
       "types": "./dist/types/store/sqlite-node/index.d.ts",
       "import": "./dist/esm/store/sqlite-node/index.js"
+    },
+    "./store/sqlite-expo": {
+      "import": {
+        "types": "./dist/types/store/sqlite-expo/index.d.ts",
+        "default": "./dist/esm/store/sqlite-expo/index.js"
+      }
     }
   },
   "files": [
@@ -71,6 +77,7 @@
     "@vitest/coverage-v8": "^4.0.0",
     "better-sqlite3": "^11.10.0",
     "eslint": "^9.18.0",
+    "expo-sqlite": "^15.2.14",
     "husky": "^9.1.0",
     "lint-staged": "^15.3.0",
     "prettier": "^3.4.0",

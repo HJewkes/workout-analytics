@@ -53,10 +53,38 @@ function createRepSamples(
   conTimeMs: number
 ): WorkoutSample[] {
   return [
-    { sequence: startSeq, timestamp: startTime, phase: MovementPhase.CONCENTRIC, position: 0, velocity, force: 100 },
-    { sequence: startSeq + 1, timestamp: startTime + conTimeMs, phase: MovementPhase.CONCENTRIC, position: rom, velocity, force: 100 },
-    { sequence: startSeq + 2, timestamp: startTime + conTimeMs + 500, phase: MovementPhase.ECCENTRIC, position: rom, velocity: velocity * 0.5, force: 80 },
-    { sequence: startSeq + 3, timestamp: startTime + conTimeMs + 2000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: velocity * 0.5, force: 80 },
+    {
+      sequence: startSeq,
+      timestamp: startTime,
+      phase: MovementPhase.CONCENTRIC,
+      position: 0,
+      velocity,
+      force: 100,
+    },
+    {
+      sequence: startSeq + 1,
+      timestamp: startTime + conTimeMs,
+      phase: MovementPhase.CONCENTRIC,
+      position: rom,
+      velocity,
+      force: 100,
+    },
+    {
+      sequence: startSeq + 2,
+      timestamp: startTime + conTimeMs + 500,
+      phase: MovementPhase.ECCENTRIC,
+      position: rom,
+      velocity: velocity * 0.5,
+      force: 80,
+    },
+    {
+      sequence: startSeq + 3,
+      timestamp: startTime + conTimeMs + 2000,
+      phase: MovementPhase.ECCENTRIC,
+      position: 0,
+      velocity: velocity * 0.5,
+      force: 80,
+    },
   ];
 }
 
@@ -65,9 +93,9 @@ function createRepSamples(
  */
 function createFatiguedSet(): Set {
   const samples: WorkoutSample[] = [
-    ...createRepSamples(0, 1000, 0.6, 1.0, 1000),   // Rep 1: fast
+    ...createRepSamples(0, 1000, 0.6, 1.0, 1000), // Rep 1: fast
     ...createRepSamples(4, 4000, 0.55, 0.98, 1100), // Rep 2: slightly slower
-    ...createRepSamples(8, 7000, 0.5, 0.95, 1200),  // Rep 3: slower
+    ...createRepSamples(8, 7000, 0.5, 0.95, 1200), // Rep 3: slower
     ...createRepSamples(12, 10000, 0.42, 0.92, 1400), // Rep 4: much slower
   ];
   return buildSet(samples);
@@ -96,7 +124,7 @@ function createSetWithOutlier(): Set {
     ...createRepSamples(4, 4000, 0.5, 1.0, 1000),
     ...createRepSamples(8, 7000, 0.5, 1.0, 1000),
     ...createRepSamples(12, 10000, 0.5, 1.0, 1000),
-    ...createRepSamples(16, 13000, 0.1, 1.0, 1000),  // Rep 5: extremely slow (outlier)
+    ...createRepSamples(16, 13000, 0.1, 1.0, 1000), // Rep 5: extremely slow (outlier)
     ...createRepSamples(20, 16000, 0.5, 1.0, 1000),
   ];
   return buildSet(samples);
@@ -294,9 +322,7 @@ describe('findOutlierReps()', () => {
 
     expect(outliers.length).toBeGreaterThan(0);
     // Rep 5 should be a velocity outlier (very slow compared to others)
-    const velocityOutlier = outliers.find(
-      (o) => o.metric === 'velocity' && o.repNumber === 5
-    );
+    const velocityOutlier = outliers.find((o) => o.metric === 'velocity' && o.repNumber === 5);
     expect(velocityOutlier).toBeDefined();
     expect(velocityOutlier!.direction).toBe('low');
   });
@@ -452,10 +478,38 @@ function createRepSamplesEcc(
   conTimeMs: number
 ): WorkoutSample[] {
   return [
-    { sequence: startSeq, timestamp: startTime, phase: MovementPhase.CONCENTRIC, position: 0, velocity: conVelocity, force: 100 },
-    { sequence: startSeq + 1, timestamp: startTime + conTimeMs, phase: MovementPhase.CONCENTRIC, position: rom, velocity: conVelocity, force: 100 },
-    { sequence: startSeq + 2, timestamp: startTime + conTimeMs + 500, phase: MovementPhase.ECCENTRIC, position: rom, velocity: eccVelocity, force: 80 },
-    { sequence: startSeq + 3, timestamp: startTime + conTimeMs + 2000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: eccVelocity, force: 80 },
+    {
+      sequence: startSeq,
+      timestamp: startTime,
+      phase: MovementPhase.CONCENTRIC,
+      position: 0,
+      velocity: conVelocity,
+      force: 100,
+    },
+    {
+      sequence: startSeq + 1,
+      timestamp: startTime + conTimeMs,
+      phase: MovementPhase.CONCENTRIC,
+      position: rom,
+      velocity: conVelocity,
+      force: 100,
+    },
+    {
+      sequence: startSeq + 2,
+      timestamp: startTime + conTimeMs + 500,
+      phase: MovementPhase.ECCENTRIC,
+      position: rom,
+      velocity: eccVelocity,
+      force: 80,
+    },
+    {
+      sequence: startSeq + 3,
+      timestamp: startTime + conTimeMs + 2000,
+      phase: MovementPhase.ECCENTRIC,
+      position: 0,
+      velocity: eccVelocity,
+      force: 80,
+    },
   ];
 }
 

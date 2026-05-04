@@ -60,7 +60,7 @@ export function computeCoverage(
     binWidth?: number;
     binRange?: [number, number];
     stalenessMs?: number;
-  },
+  }
 ): CoverageResult {
   const binWidth = options?.binWidth ?? 10;
   const [rangeMin, rangeMax] = options?.binRange ?? [40, 100];
@@ -99,9 +99,10 @@ export function computeCoverage(
         bins[i] = {
           ...bins[i],
           count: bins[i].count + 1,
-          lastObservedAt: timestamp !== null
-            ? Math.max(bins[i].lastObservedAt ?? 0, timestamp)
-            : bins[i].lastObservedAt,
+          lastObservedAt:
+            timestamp !== null
+              ? Math.max(bins[i].lastObservedAt ?? 0, timestamp)
+              : bins[i].lastObservedAt,
         };
         break;
       }
@@ -130,7 +131,7 @@ export function computeCoverage(
  */
 export function identifyCoverageGaps(
   coverage: CoverageResult,
-  minObservations: number = 1,
+  minObservations: number = 1
 ): readonly CoverageBin[] {
   return coverage.bins.filter((bin) => bin.count < minObservations);
 }

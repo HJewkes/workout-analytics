@@ -130,7 +130,7 @@ function olsRegression(xs: number[], ys: number[]): RegressionResult {
  */
 export function buildProfile(
   dataPoints: LoadVelocityDataPoint[],
-  mvt: number = DEFAULT_MVT,
+  mvt: number = DEFAULT_MVT
 ): LoadVelocityProfile {
   const loads = dataPoints.map((dp) => dp.load);
   const velocities = dataPoints.map((dp) => dp.velocity);
@@ -150,9 +150,9 @@ export function buildProfile(
 
   // Determine confidence
   let confidence: 'high' | 'medium' | 'low';
-  if (rSquared >= 0.90 && dataPoints.length >= 3) {
+  if (rSquared >= 0.9 && dataPoints.length >= 3) {
     confidence = 'high';
-  } else if (rSquared >= 0.70 && dataPoints.length >= 2) {
+  } else if (rSquared >= 0.7 && dataPoints.length >= 2) {
     confidence = 'medium';
   } else {
     confidence = 'low';
@@ -204,7 +204,7 @@ export function estimateLoad(profile: LoadVelocityProfile, targetVelocity: numbe
  */
 export function addDataPoint(
   profile: LoadVelocityProfile,
-  point: LoadVelocityDataPoint,
+  point: LoadVelocityDataPoint
 ): LoadVelocityProfile {
   return buildProfile([...profile.dataPoints, point], profile.mvt);
 }

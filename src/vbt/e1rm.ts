@@ -46,7 +46,7 @@ export interface E1RMEstimate {
  */
 export function estimateE1RMFromProfile(
   profile: LoadVelocityProfile,
-  mvt: number = DEFAULT_MVT,
+  mvt: number = DEFAULT_MVT
 ): E1RMEstimate {
   if (profile.slope === 0 || profile.dataPoints.length === 0) {
     return { e1RM: 0, confidence: 0, method: 'profile' };
@@ -87,10 +87,7 @@ export function estimateE1RMFromProfile(
  * @param reps - Number of reps completed
  * @returns e1RM estimate with confidence
  */
-export function estimateE1RMFromReps(
-  load: number,
-  reps: number,
-): E1RMEstimate {
+export function estimateE1RMFromReps(load: number, reps: number): E1RMEstimate {
   if (load <= 0 || reps <= 0) {
     return { e1RM: 0, confidence: 0, method: 'reps' };
   }
@@ -140,7 +137,7 @@ export function estimateE1RMFromReps(
  */
 export function estimateHybridE1RM(
   velocityEstimate: E1RMEstimate,
-  repsEstimate: E1RMEstimate,
+  repsEstimate: E1RMEstimate
 ): E1RMEstimate {
   const vc = velocityEstimate.confidence;
   const rc = repsEstimate.confidence;
@@ -157,8 +154,10 @@ export function estimateHybridE1RM(
   // Hybrid confidence: average of both, boosted slightly because
   // two independent estimates corroborating increases reliability
   const avgConfidence = totalConf / 2;
-  const agreement = 1 - Math.abs(velocityEstimate.e1RM - repsEstimate.e1RM) /
-    Math.max(velocityEstimate.e1RM, repsEstimate.e1RM, 1);
+  const agreement =
+    1 -
+    Math.abs(velocityEstimate.e1RM - repsEstimate.e1RM) /
+      Math.max(velocityEstimate.e1RM, repsEstimate.e1RM, 1);
   const confidence = Math.min(1, avgConfidence * (0.8 + 0.2 * agreement));
 
   return {

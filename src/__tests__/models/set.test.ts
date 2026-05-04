@@ -283,10 +283,38 @@ describe('Set metrics', () => {
 
   it('calculates total duration', () => {
     const samples: WorkoutSample[] = [
-      { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-      { sequence: 1, timestamp: 2000, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 100 },
-      { sequence: 2, timestamp: 2500, phase: MovementPhase.ECCENTRIC, position: 1, velocity: 0.3, force: 100 },
-      { sequence: 3, timestamp: 4000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.3, force: 100 },
+      {
+        sequence: 0,
+        timestamp: 1000,
+        phase: MovementPhase.CONCENTRIC,
+        position: 0,
+        velocity: 0.5,
+        force: 100,
+      },
+      {
+        sequence: 1,
+        timestamp: 2000,
+        phase: MovementPhase.CONCENTRIC,
+        position: 1,
+        velocity: 0.5,
+        force: 100,
+      },
+      {
+        sequence: 2,
+        timestamp: 2500,
+        phase: MovementPhase.ECCENTRIC,
+        position: 1,
+        velocity: 0.3,
+        force: 100,
+      },
+      {
+        sequence: 3,
+        timestamp: 4000,
+        phase: MovementPhase.ECCENTRIC,
+        position: 0,
+        velocity: 0.3,
+        force: 100,
+      },
     ];
 
     const set = processSamples(samples);
@@ -298,10 +326,38 @@ describe('Set metrics', () => {
 
   it('calculates time under tension', () => {
     const samples: WorkoutSample[] = [
-      { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-      { sequence: 1, timestamp: 2000, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 100 },
-      { sequence: 2, timestamp: 2500, phase: MovementPhase.ECCENTRIC, position: 1, velocity: 0.3, force: 100 },
-      { sequence: 3, timestamp: 4000, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.3, force: 100 },
+      {
+        sequence: 0,
+        timestamp: 1000,
+        phase: MovementPhase.CONCENTRIC,
+        position: 0,
+        velocity: 0.5,
+        force: 100,
+      },
+      {
+        sequence: 1,
+        timestamp: 2000,
+        phase: MovementPhase.CONCENTRIC,
+        position: 1,
+        velocity: 0.5,
+        force: 100,
+      },
+      {
+        sequence: 2,
+        timestamp: 2500,
+        phase: MovementPhase.ECCENTRIC,
+        position: 1,
+        velocity: 0.3,
+        force: 100,
+      },
+      {
+        sequence: 3,
+        timestamp: 4000,
+        phase: MovementPhase.ECCENTRIC,
+        position: 0,
+        velocity: 0.3,
+        force: 100,
+      },
     ];
 
     const set = processSamples(samples);

@@ -7,7 +7,12 @@
 
 import type { Rep } from '@/models/rep';
 import { getRepRangeOfMotion, getRepMeanVelocity } from '@/models/rep';
-import type { Expectation, ComparisonResult, TechniqueBaseline, ComparisonSchemes } from '@/analytics/types';
+import type {
+  Expectation,
+  ComparisonResult,
+  TechniqueBaseline,
+  ComparisonSchemes,
+} from '@/analytics/types';
 import { compareToExpectation } from '@/analytics/types';
 import { getRepEccentricTime } from '@/analytics/rep-analytics';
 import {
@@ -151,11 +156,7 @@ export function getRepQualityFlags(
 /**
  * Quick check if a rep is a partial rep (ROM below threshold).
  */
-export function isPartialRep(
-  rep: Rep,
-  expectedROM: number,
-  threshold: number = 0.8
-): boolean {
+export function isPartialRep(rep: Rep, expectedROM: number, threshold: number = 0.8): boolean {
   const actual = getRepRangeOfMotion(rep);
   return actual < expectedROM * threshold;
 }

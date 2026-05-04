@@ -14,28 +14,47 @@ A hardware-agnostic TypeScript library for analyzing workout telemetry data. Pro
   ```js
   const wa = await import('@voltras/workout-analytics');
   ```
-- New subpath exports landed in 1.0.0 (PR1):
-  - `@voltras/workout-analytics` — the existing analytics surface
-  - `@voltras/workout-analytics/schema` — schema types and validators
-  - `@voltras/workout-analytics/store` — `SessionStore` interface, `StoreError`, in-memory store
-  - `@voltras/workout-analytics/store/sqlite-node` — Node SQLite driver (peer: `better-sqlite3@^11`)
-- The Expo driver subpath (`@voltras/workout-analytics/store/sqlite-expo`) follows in 1.1.x.
 
-### Subpath usage examples
+## Subpath exports
 
-```ts
-import { sessionSchema } from '@voltras/workout-analytics/schema';
-import type { SessionStore } from '@voltras/workout-analytics/store';
-import { createMemoryStore } from '@voltras/workout-analytics/store';
-import { createNodeSQLiteStore } from '@voltras/workout-analytics/store/sqlite-node';
-```
+| Subpath | Purpose | Peer |
+| --- | --- | --- |
+| `@voltras/workout-analytics` | Existing analytics surface (reps, sets, VBT). | — |
+| `@voltras/workout-analytics/schema` | Schema record types and zod validators. | — |
+| `@voltras/workout-analytics/store` | `SessionStore` interface, error classes, transaction shim. | — |
+| `@voltras/workout-analytics/store/sqlite-node` | Node SQLite driver. | `better-sqlite3@^11` |
+| `@voltras/workout-analytics/store/sqlite-expo` | Expo / React Native SQLite driver. | `expo-sqlite@^15` |
 
 The SQLite drivers are declared as **optional peer dependencies**. Install only the driver you need:
 
 ```bash
 npm install @voltras/workout-analytics better-sqlite3   # Node target
-npm install @voltras/workout-analytics expo-sqlite       # Expo / React Native target
+npm install @voltras/workout-analytics expo-sqlite      # Expo / React Native target
 ```
+
+### Node usage
+
+```ts
+import { createSqliteNodeStore } from '@voltras/workout-analytics/store/sqlite-node';
+
+const store = await createSqliteNodeStore({ path: './app.sqlite' });
+await store.saveSession({ id: 's1', startedAt: Date.now(), schemaVersion: 1 });
+```
+
+### Expo / React Native usage
+
+```ts
+import { createSqliteExpoStore } from '@voltras/workout-analytics/store/sqlite-expo';
+
+// `path` is passed through to expo-sqlite's openDatabaseAsync — accepts a
+// database file name, an absolute path, or `:memory:`.
+const store = await createSqliteExpoStore({ path: 'app.sqlite' });
+await store.saveSession({ id: 's1', startedAt: Date.now(), schemaVersion: 1 });
+```
+
+### Verification
+
+The Expo driver is verified via type resolution at build time (TypeScript resolves types from `expo-sqlite/package.json#exports`) and via integration tests in `voltras/mobile`. The package's own CI does not run a runtime spike against the Expo driver: `expo-sqlite` is a React Native native module and cannot import in plain Node, so the conformance suite (`runStoreTests`) skips at runtime when the native module is unavailable. Functional verification on devices and simulators is owned by `voltras/mobile`.
 
 ## Features
 

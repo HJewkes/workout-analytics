@@ -182,9 +182,30 @@ describe('addSampleToPhase()', () => {
 
     it('handles HOLD samples as pauses', () => {
       const holdSamples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.HOLD, position: 1, velocity: 0, force: 100 },
-        { sequence: 1, timestamp: 1100, phase: MovementPhase.HOLD, position: 1, velocity: 0, force: 100 },
-        { sequence: 2, timestamp: 1200, phase: MovementPhase.HOLD, position: 1, velocity: 0, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.HOLD,
+          position: 1,
+          velocity: 0,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1100,
+          phase: MovementPhase.HOLD,
+          position: 1,
+          velocity: 0,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 1200,
+          phase: MovementPhase.HOLD,
+          position: 1,
+          velocity: 0,
+          force: 100,
+        },
       ];
       const phase = buildPhase(holdSamples);
 
@@ -198,8 +219,22 @@ describe('addSampleToPhase()', () => {
 
     it('handles IDLE samples as pauses', () => {
       const idleSamples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.IDLE, position: 0, velocity: 0, force: 0 },
-        { sequence: 1, timestamp: 1100, phase: MovementPhase.IDLE, position: 0, velocity: 0, force: 0 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.IDLE,
+          position: 0,
+          velocity: 0,
+          force: 0,
+        },
+        {
+          sequence: 1,
+          timestamp: 1100,
+          phase: MovementPhase.IDLE,
+          position: 0,
+          velocity: 0,
+          force: 0,
+        },
       ];
       const phase = buildPhase(idleSamples);
 
@@ -211,9 +246,30 @@ describe('addSampleToPhase()', () => {
   describe('duration calculation', () => {
     it('calculates duration in seconds', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1500, phase: MovementPhase.CONCENTRIC, position: 0.5, velocity: 0.7, force: 100 },
-        { sequence: 2, timestamp: 2000, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1500,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.5,
+          velocity: 0.7,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.5,
+          force: 100,
+        },
       ];
       const phase = buildPhase(samples);
 
@@ -222,7 +278,14 @@ describe('addSampleToPhase()', () => {
 
     it('returns 0 for single sample', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
       ];
       const phase = buildPhase(samples);
 
@@ -231,9 +294,30 @@ describe('addSampleToPhase()', () => {
 
     it('calculates movement duration excluding holds', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1500, phase: MovementPhase.HOLD, position: 0.5, velocity: 0, force: 100 },
-        { sequence: 2, timestamp: 2000, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1500,
+          phase: MovementPhase.HOLD,
+          position: 0.5,
+          velocity: 0,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.5,
+          force: 100,
+        },
       ];
       const phase = buildPhase(samples);
 
@@ -250,9 +334,30 @@ describe('addSampleToPhase()', () => {
   describe('velocity calculations', () => {
     it('calculates mean velocity', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.2, force: 100 },
-        { sequence: 1, timestamp: 1100, phase: MovementPhase.CONCENTRIC, position: 0.5, velocity: 0.6, force: 100 },
-        { sequence: 2, timestamp: 1200, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.4, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.2,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1100,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.5,
+          velocity: 0.6,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 1200,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.4,
+          force: 100,
+        },
       ];
       const phase = buildPhase(samples);
 
@@ -262,9 +367,30 @@ describe('addSampleToPhase()', () => {
 
     it('calculates peak velocity', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.2, force: 100 },
-        { sequence: 1, timestamp: 1100, phase: MovementPhase.CONCENTRIC, position: 0.5, velocity: 0.8, force: 100 },
-        { sequence: 2, timestamp: 1200, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.4, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.2,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1100,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.5,
+          velocity: 0.8,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 1200,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.4,
+          force: 100,
+        },
       ];
       const phase = buildPhase(samples);
 
@@ -275,9 +401,30 @@ describe('addSampleToPhase()', () => {
   describe('force calculations', () => {
     it('calculates mean force', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1100, phase: MovementPhase.CONCENTRIC, position: 0.5, velocity: 0.5, force: 150 },
-        { sequence: 2, timestamp: 1200, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 200 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1100,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.5,
+          velocity: 0.5,
+          force: 150,
+        },
+        {
+          sequence: 2,
+          timestamp: 1200,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.5,
+          force: 200,
+        },
       ];
       const phase = buildPhase(samples);
 
@@ -287,9 +434,30 @@ describe('addSampleToPhase()', () => {
 
     it('calculates peak force', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1100, phase: MovementPhase.CONCENTRIC, position: 0.5, velocity: 0.5, force: 250 },
-        { sequence: 2, timestamp: 1200, phase: MovementPhase.CONCENTRIC, position: 1, velocity: 0.5, force: 150 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1100,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.5,
+          velocity: 0.5,
+          force: 250,
+        },
+        {
+          sequence: 2,
+          timestamp: 1200,
+          phase: MovementPhase.CONCENTRIC,
+          position: 1,
+          velocity: 0.5,
+          force: 150,
+        },
       ];
       const phase = buildPhase(samples);
 
@@ -300,9 +468,30 @@ describe('addSampleToPhase()', () => {
   describe('position tracking', () => {
     it('captures start and end positions', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0.1, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1100, phase: MovementPhase.CONCENTRIC, position: 0.5, velocity: 0.5, force: 100 },
-        { sequence: 2, timestamp: 1200, phase: MovementPhase.CONCENTRIC, position: 0.9, velocity: 0.5, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.1,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1100,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.5,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 1200,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.9,
+          velocity: 0.5,
+          force: 100,
+        },
       ];
       const phase = buildPhase(samples);
 
@@ -312,8 +501,22 @@ describe('addSampleToPhase()', () => {
 
     it('calculates range of motion', () => {
       const samples: WorkoutSample[] = [
-        { sequence: 0, timestamp: 1000, phase: MovementPhase.CONCENTRIC, position: 0.1, velocity: 0.5, force: 100 },
-        { sequence: 1, timestamp: 1200, phase: MovementPhase.CONCENTRIC, position: 0.9, velocity: 0.5, force: 100 },
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.1,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1200,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.9,
+          velocity: 0.5,
+          force: 100,
+        },
       ];
       const phase = buildPhase(samples);
 

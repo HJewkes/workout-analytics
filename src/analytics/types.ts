@@ -5,13 +5,12 @@
  * and technique baseline definitions.
  */
 
+import { type StreamingDistribution, getMean, getZScore, getStdDev } from '@/stats/distribution';
 import {
-  type StreamingDistribution,
-  getMean,
-  getZScore,
-  getStdDev,
-} from '@/stats/distribution';
-import { classifyByBreakpoints, DEFAULT_OUTLIER_SCHEME, DEFAULT_CONFIDENCE_SCHEME } from '@/stats/schemes';
+  classifyByBreakpoints,
+  DEFAULT_OUTLIER_SCHEME,
+  DEFAULT_CONFIDENCE_SCHEME,
+} from '@/stats/schemes';
 import type { BreakpointScheme } from '@/stats/schemes';
 
 // =============================================================================

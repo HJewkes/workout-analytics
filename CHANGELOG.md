@@ -4,6 +4,20 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.0
+
+### Added
+
+- New subpath: `@voltras/workout-analytics/store/sqlite-expo` — Expo / React Native SQLite driver via the `expo-sqlite@^15` peer.
+  - Factory: `createSqliteExpoStore({ path })` mirrors the Node factory's open / pragmas / migrations sequence.
+  - Concurrency: the driver wraps an internal Promise mutex so concurrent transactions serialize without a BEGIN-BEGIN race (v5R-1 / AC-32). Unlike `better-sqlite3`'s synchronous `db.transaction`, `expo-sqlite` is async-throughout, so this serialization is enforced in JS.
+  - Verification: the driver type-resolves at build time and is exercised by the package's shared store conformance suite (`runStoreTests`) on Expo SDK 54+ targets. Plain Node CI skips the runtime suite — `expo-sqlite` is a React Native native module. Functional verification on devices/simulators is owned by `voltras/mobile`.
+
+### Notes
+
+- `package.json#exports` now has 5 subpath keys (`.`, `./schema`, `./store`, `./store/sqlite-node`, `./store/sqlite-expo`).
+- No changes to `peerDependencies` — `expo-sqlite@^15` was already declared as an optional peer in 1.0.0.
+
 ## 1.0.0
 
 ### Breaking

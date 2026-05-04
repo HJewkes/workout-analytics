@@ -56,7 +56,7 @@ export interface FittingResult {
 function weightedLeastSquares(
   xs: number[],
   ys: number[],
-  weights: number[],
+  weights: number[]
 ): { slope: number; intercept: number } {
   const n = xs.length;
   if (n === 0) return { slope: 0, intercept: 0 };
@@ -96,7 +96,7 @@ function computeWeightedRSquared(
   ys: number[],
   weights: number[],
   slope: number,
-  intercept: number,
+  intercept: number
 ): number {
   const n = xs.length;
   if (n < 2) return 0;
@@ -128,7 +128,7 @@ function computeUncertainty(
   ys: number[],
   weights: number[],
   slope: number,
-  intercept: number,
+  intercept: number
 ): { slope: number; intercept: number } {
   const n = xs.length;
   if (n < 3) return { slope: Infinity, intercept: Infinity };
@@ -193,7 +193,7 @@ function huberWeight(residual: number, delta: number): number {
  */
 export function fitLVProfile(
   dataPoints: LoadVelocityDataPoint[],
-  options?: FittingOptions,
+  options?: FittingOptions
 ): FittingResult {
   if (dataPoints.length === 0) {
     return {
@@ -210,7 +210,7 @@ export function fitLVProfile(
   if (options?.maxAge !== undefined) {
     const now = Date.now();
     filtered = dataPoints.filter(
-      (dp) => dp.timestamp === undefined || now - dp.timestamp <= options.maxAge!,
+      (dp) => dp.timestamp === undefined || now - dp.timestamp <= options.maxAge!
     );
   }
 
