@@ -53,6 +53,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - name: Build migrations bundle
+        run: npm run migrations:build
+      - name: Verify migrations bundle is up to date
+        run: |
+          if ! git diff --exit-code src/schema/_generated.ts; then
+            echo "::error::src/schema/_generated.ts is out of date. Run 'npm run migrations:build' locally and commit the result."
+            exit 1
+          fi
       - run: npm run test:coverage
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -61,7 +69,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  # Build verification
+  # Build verification (ESM-only)
   build:
     runs-on: ubuntu-latest
     steps:
@@ -72,14 +80,14 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
-      - name: Verify build output
+      - name: Verify ESM-only build output
         run: |
           test -f dist/esm/index.js || (echo "ESM build missing" && exit 1)
-          test -f dist/cjs/index.js || (echo "CJS build missing" && exit 1)
           test -f dist/types/index.d.ts || (echo "Types missing" && exit 1)
-          echo "Build verification passed"
+          test ! -d dist/cjs || (echo "CJS build should not exist (ESM-only)" && exit 1)
+          echo "ESM-only build verification passed"
 
-  # Test on multiple Node versions
+  # Test on multiple Node versions (NF-01)
   node-matrix:
     runs-on: ubuntu-latest
     strategy:
@@ -93,4 +101,12 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
+      - name: Build migrations bundle
+        run: npm run migrations:build
+      - name: Verify migrations bundle is up to date
+        run: |
+          if ! git diff --exit-code src/schema/_generated.ts; then
+            echo "::error::src/schema/_generated.ts is out of date. Run 'npm run migrations:build' locally and commit the result."
+            exit 1
+          fi
       - run: npm run test

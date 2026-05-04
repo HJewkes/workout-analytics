@@ -1,38 +1,43 @@
 {
   "name": "@voltras/workout-analytics",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Hardware-agnostic workout analytics library for analyzing reps, sets, estimating RPE/RIR, calculating strength (1RM), velocity profiles, and fatigue estimates",
-  "main": "./dist/cjs/index.js",
+  "type": "module",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/types/index.d.ts",
-        "default": "./dist/esm/index.js"
-      },
-      "require": {
-        "types": "./dist/types/index.d.ts",
-        "default": "./dist/cjs/index.js"
-      }
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    },
+    "./schema": {
+      "types": "./dist/types/schema/index.d.ts",
+      "import": "./dist/esm/schema/index.js"
+    },
+    "./store": {
+      "types": "./dist/types/store/index.d.ts",
+      "import": "./dist/esm/store/index.js"
+    },
+    "./store/sqlite-node": {
+      "types": "./dist/types/store/sqlite-node/index.d.ts",
+      "import": "./dist/esm/store/sqlite-node/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "npm run clean && npm run build:esm && npm run build:cjs",
-    "build:esm": "tsc -p tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json && tsc-alias -p tsconfig.cjs.json",
+    "build": "npm run clean && tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "migrations:build": "node scripts/migrations-build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src v0",
-    "lint:fix": "eslint src v0 --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"v0/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"v0/**/*.ts\"",
-    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "exercises:analyze": "tsx scripts/analyze/index.ts",
     "exercises:collect": "tsx scripts/collect/index.ts",
     "exercises:process": "tsx scripts/process/index.ts",
@@ -44,11 +49,27 @@
     "prepublishOnly": "npm run clean && npm run build && npm run test",
     "prepare": "husky"
   },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "peerDependencies": {
+    "better-sqlite3": "^11",
+    "expo-sqlite": "^15"
+  },
+  "peerDependenciesMeta": {
+    "better-sqlite3": {
+      "optional": true
+    },
+    "expo-sqlite": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
     "@types/node": "^20.0.0",
     "@vitest/coverage-v8": "^4.0.0",
+    "better-sqlite3": "^11.10.0",
     "eslint": "^9.18.0",
     "husky": "^9.1.0",
     "lint-staged": "^15.3.0",

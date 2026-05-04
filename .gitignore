@@ -37,3 +37,12 @@ docs/api/
 data/exercises/raw/
 data/exercises/metadata/
 data/exercises/research/
+
+# Planning workflow artifacts (working state, not committed)
+.plans/
+
+# Brain (orchestration tool) local state — never committed
+.brain/
+
+# Git worktrees created by orchestration — local-only, not part of repo history
+.worktrees/

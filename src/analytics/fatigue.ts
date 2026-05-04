@@ -6,7 +6,7 @@
  */
 
 import type { Set } from '@/models/set';
-import { getRepMeanVelocity, getRepRangeOfMotion } from '@/models/rep';
+import { getRepRangeOfMotion } from '@/models/rep';
 import type { ChangeResult } from '@/analytics/types';
 import { computeChange } from '@/analytics/types';
 import { getRepConcentricTime } from '@/analytics/rep-analytics';
@@ -25,8 +25,6 @@ import {
   buildDistribution,
   getCV,
   getZScore,
-  getStdDev,
-  getMean,
 } from '@/stats/distribution';
 import {
   interpolate,

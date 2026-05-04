@@ -4,6 +4,39 @@ A hardware-agnostic TypeScript library for analyzing workout telemetry data. Pro
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## Breaking changes (1.0.0)
+
+`@voltras/workout-analytics` is now **ESM-only**. The dual CJS/ESM build has been dropped.
+
+- `package.json#type` is `"module"`; only `dist/esm/` and `dist/types/` ship.
+- Consumers on ESM (Node 20+ with `"type": "module"`, modern bundlers, or React Native + Metro): no action required.
+- Consumers on CJS: either migrate the consumer to ESM or use a dynamic import:
+  ```js
+  const wa = await import('@voltras/workout-analytics');
+  ```
+- New subpath exports landed in 1.0.0 (PR1):
+  - `@voltras/workout-analytics` — the existing analytics surface
+  - `@voltras/workout-analytics/schema` — schema types and validators
+  - `@voltras/workout-analytics/store` — `SessionStore` interface, `StoreError`, in-memory store
+  - `@voltras/workout-analytics/store/sqlite-node` — Node SQLite driver (peer: `better-sqlite3@^11`)
+- The Expo driver subpath (`@voltras/workout-analytics/store/sqlite-expo`) follows in 1.1.x.
+
+### Subpath usage examples
+
+```ts
+import { sessionSchema } from '@voltras/workout-analytics/schema';
+import type { SessionStore } from '@voltras/workout-analytics/store';
+import { createMemoryStore } from '@voltras/workout-analytics/store';
+import { createNodeSQLiteStore } from '@voltras/workout-analytics/store/sqlite-node';
+```
+
+The SQLite drivers are declared as **optional peer dependencies**. Install only the driver you need:
+
+```bash
+npm install @voltras/workout-analytics better-sqlite3   # Node target
+npm install @voltras/workout-analytics expo-sqlite       # Expo / React Native target
+```
+
 ## Features
 
 - **Real-time Processing**: Stream `WorkoutSample` data and get automatic rep/set boundaries
