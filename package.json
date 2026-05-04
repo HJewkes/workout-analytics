@@ -34,7 +34,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "npm run clean && tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json && tsc-alias -p tsconfig.json --resolve-full-paths",
     "migrations:build": "node scripts/migrations-build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
