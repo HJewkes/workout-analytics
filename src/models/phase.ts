@@ -65,6 +65,13 @@ export function addSampleToPhase(phase: Phase, sample: WorkoutSample): Phase {
   const timeDelta = isFirst ? 0 : sample.timestamp - phase.endTime;
 
   const sampleLoad = sample.load ?? 0;
+  // Defensive: WorkoutSample.velocity contract is magnitude (non-negative).
+  // SDK 0.6.0 decoder fix made device velocity signed (eccentric < 0). If a
+  // buggy adapter forwards the signed value directly, raw Math.max would
+  // zero out peak velocity (Math.max(0, -1.2) === 0). Normalize here so
+  // peaks and means stay correct; a properly-implemented adapter passes
+  // magnitudes and this is a no-op.
+  const sampleVelocity = Math.abs(sample.velocity);
 
   return {
     samples: [...phase.samples, sample],
@@ -72,12 +79,12 @@ export function addSampleToPhase(phase: Phase, sample: WorkoutSample): Phase {
     endTime: sample.timestamp,
     startPosition: isFirst ? sample.position : phase.startPosition,
     endPosition: sample.position,
-    _totalVelocity: isHold ? phase._totalVelocity : phase._totalVelocity + sample.velocity,
+    _totalVelocity: isHold ? phase._totalVelocity : phase._totalVelocity + sampleVelocity,
     _totalForce: isHold ? phase._totalForce : phase._totalForce + sample.force,
     _totalLoad: isHold ? phase._totalLoad : phase._totalLoad + sampleLoad,
     _movementSampleCount: isHold ? phase._movementSampleCount : phase._movementSampleCount + 1,
     _totalHoldDuration: phase._totalHoldDuration + (isHold ? timeDelta : 0),
-    peakVelocity: isHold ? phase.peakVelocity : Math.max(phase.peakVelocity, sample.velocity),
+    peakVelocity: isHold ? phase.peakVelocity : Math.max(phase.peakVelocity, sampleVelocity),
     peakForce: isHold ? phase.peakForce : Math.max(phase.peakForce, sample.force),
     peakLoad: isHold ? phase.peakLoad : Math.max(phase.peakLoad, sampleLoad),
   };

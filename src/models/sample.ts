@@ -20,7 +20,18 @@ export interface WorkoutSample {
   /** Position in range of motion (0 = start, 1 = full extension) */
   position: number;
 
-  /** Instantaneous velocity (m/s, always positive) */
+  /**
+   * Instantaneous velocity magnitude in m/s.
+   *
+   * MUST be non-negative. Direction of motion is encoded by `phase`
+   * (CONCENTRIC vs ECCENTRIC), not by velocity sign. Adapters converting
+   * signed device velocity (e.g. SDK 0.6.0+ where eccentric velocity is
+   * reported as negative) MUST apply `Math.abs` at the boundary.
+   *
+   * Phase aggregation defensively normalizes via `Math.abs` so a buggy
+   * adapter does not silently zero peak velocity, but consumers should
+   * treat this field as magnitude-only.
+   */
   velocity: number;
 
   /** Force reading (lbs, absolute value) */
