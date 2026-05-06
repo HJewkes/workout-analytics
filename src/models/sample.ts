@@ -34,7 +34,17 @@ export interface WorkoutSample {
    */
   velocity: number;
 
-  /** Force reading (lbs, absolute value) */
+  /**
+   * Force reading in pounds (lbs).
+   *
+   * MUST be in lbs, NOT tenths-of-lbs. Adapters reading device frames
+   * that report force as uint16 tenths-of-lbs (e.g. SDK 0.6.0+) MUST
+   * divide by 10 before populating this field. Passing inflated (10x)
+   * values silently scales `getRepWork` / `getRepImpulse` /
+   * `getRepMeanConcentricPower` by 10x with no runtime error.
+   *
+   * Always non-negative.
+   */
   force: number;
 
   /** Instantaneous load/resistance (lbs). Calculated from device settings + position + phase.
