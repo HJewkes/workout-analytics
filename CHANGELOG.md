@@ -13,6 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Concurrency: the driver wraps an internal Promise mutex so concurrent transactions serialize without a BEGIN-BEGIN race (v5R-1 / AC-32). Unlike `better-sqlite3`'s synchronous `db.transaction`, `expo-sqlite` is async-throughout, so this serialization is enforced in JS.
   - Verification: the driver type-resolves at build time and is exercised by the package's shared store conformance suite (`runStoreTests`) on Expo SDK 54+ targets. Plain Node CI skips the runtime suite — `expo-sqlite` is a React Native native module. Functional verification on devices/simulators is owned by `voltras/mobile`.
 
+### Fixed
+
+- SDK 0.6.0 contract tightening:
+  - Velocity aggregation in `phase.ts:addSampleToPhase` now normalizes input via `Math.abs`, hardening the documented magnitude-only contract on `WorkoutSample.velocity`. Eccentric peaks no longer silently zero if a buggy adapter forwards SDK 0.6.0's signed `int16` velocity.
+  - Tightened JSDoc on `WorkoutSample.force`/`velocity`, `getRepImpulse`, `getRepWork`, `getRepMeanConcentricPower` to call out the lbs unit unambiguously and document the silent 10× inflation hazard if an adapter forwards device tenths-of-lbs without dividing.
+  - Adapter relocation, `DeviceAssertedSet`, and `repDurationMs` integration are deferred to 2.0.0.
+
 ### Notes
 
 - `package.json#exports` now has 5 subpath keys (`.`, `./schema`, `./store`, `./store/sqlite-node`, `./store/sqlite-expo`).
