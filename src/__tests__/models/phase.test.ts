@@ -396,6 +396,45 @@ describe('addSampleToPhase()', () => {
 
       expect(phase.peakVelocity).toBe(0.8);
     });
+
+    // Regression: SDK 0.6.0 made device velocity signed (eccentric < 0).
+    // WorkoutSample.velocity is contracted as magnitude, but a buggy adapter
+    // could forward the signed value. Phase aggregation must normalize via
+    // Math.abs so peak velocity is not silently zeroed by Math.max(0, -x).
+    it('normalizes signed velocity to magnitude (defensive)', () => {
+      const samples: WorkoutSample[] = [
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 1,
+          velocity: -0.3, // signed input from buggy adapter
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1100,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0.5,
+          velocity: -1.2, // peak (magnitude)
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 1200,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0,
+          velocity: -0.6,
+          force: 100,
+        },
+      ];
+      const phase = buildPhase(samples);
+
+      // Without Math.abs hardening, peakVelocity would be 0 (Math.max(0, -1.2) === 0)
+      expect(phase.peakVelocity).toBeCloseTo(1.2, 5);
+      // Mean is the magnitude-mean: (0.3 + 1.2 + 0.6) / 3 = 0.7
+      expect(getPhaseMeanVelocity(phase)).toBeCloseTo(0.7, 5);
+    });
   });
 
   describe('force calculations', () => {

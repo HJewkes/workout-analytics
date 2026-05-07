@@ -20,10 +20,31 @@ export interface WorkoutSample {
   /** Position in range of motion (0 = start, 1 = full extension) */
   position: number;
 
-  /** Instantaneous velocity (m/s, always positive) */
+  /**
+   * Instantaneous velocity magnitude in m/s.
+   *
+   * MUST be non-negative. Direction of motion is encoded by `phase`
+   * (CONCENTRIC vs ECCENTRIC), not by velocity sign. Adapters converting
+   * signed device velocity (e.g. SDK 0.6.0+ where eccentric velocity is
+   * reported as negative) MUST apply `Math.abs` at the boundary.
+   *
+   * Phase aggregation defensively normalizes via `Math.abs` so a buggy
+   * adapter does not silently zero peak velocity, but consumers should
+   * treat this field as magnitude-only.
+   */
   velocity: number;
 
-  /** Force reading (lbs, absolute value) */
+  /**
+   * Force reading in pounds (lbs).
+   *
+   * MUST be in lbs, NOT tenths-of-lbs. Adapters reading device frames
+   * that report force as uint16 tenths-of-lbs (e.g. SDK 0.6.0+) MUST
+   * divide by 10 before populating this field. Passing inflated (10x)
+   * values silently scales `getRepWork` / `getRepImpulse` /
+   * `getRepMeanConcentricPower` by 10x with no runtime error.
+   *
+   * Always non-negative.
+   */
   force: number;
 
   /** Instantaneous load/resistance (lbs). Calculated from device settings + position + phase.

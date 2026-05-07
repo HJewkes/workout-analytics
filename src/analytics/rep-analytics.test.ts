@@ -303,7 +303,7 @@ describe('getRepEccentricTime()', () => {
 describe('getRepImpulse()', () => {
   it('computes impulse for constant force', () => {
     const rep = createTestRep();
-    // Concentric: 100N × 1s = 100 N·s
+    // Concentric: 100 lbs × 1s = 100 lbs·s
     expect(getRepImpulse(rep)).toBeCloseTo(100, 0);
   });
 
@@ -314,7 +314,7 @@ describe('getRepImpulse()', () => {
     // Segment 2: (100+150)/2 × 0.5 = 62.5
     // Segment 3: (150+100)/2 × 0.5 = 62.5
     // Segment 4: (100+50)/2 × 0.5 = 37.5
-    // Total: 200 N·s
+    // Total: 200 lbs·s
     expect(getRepImpulse(rep)).toBeCloseTo(200, 0);
   });
 
@@ -344,7 +344,7 @@ describe('getRepConcentricImpulse()', () => {
 describe('getRepEccentricImpulse()', () => {
   it('computes eccentric impulse', () => {
     const rep = createTestRep();
-    // Eccentric: 80N × 2s = 160 N·s
+    // Eccentric: 80 lbs × 2s = 160 lbs·s
     expect(getRepEccentricImpulse(rep)).toBeCloseTo(160, 0);
   });
 });
@@ -356,18 +356,18 @@ describe('getRepEccentricImpulse()', () => {
 describe('getRepWork()', () => {
   it('computes work for constant force', () => {
     const rep = createTestRep();
-    // Concentric: 100N × 1m = 100 J
+    // Concentric: 100 lbs × 1 (position-unit) = 100 lbs·position
     expect(getRepWork(rep)).toBeCloseTo(100, 0);
   });
 
   it('computes work for varying force', () => {
     const rep = createVaryingForceRep();
     // Position moves from 0 to 1 in 0.25 increments
-    // Segment 1: (50+100)/2 × 0.25 = 18.75 J
-    // Segment 2: (100+150)/2 × 0.25 = 31.25 J
-    // Segment 3: (150+100)/2 × 0.25 = 31.25 J
-    // Segment 4: (100+50)/2 × 0.25 = 18.75 J
-    // Total: 100 J
+    // Segment 1: (50+100)/2 × 0.25 = 18.75
+    // Segment 2: (100+150)/2 × 0.25 = 31.25
+    // Segment 3: (150+100)/2 × 0.25 = 31.25
+    // Segment 4: (100+50)/2 × 0.25 = 18.75
+    // Total: 100 lbs·position
     expect(getRepWork(rep)).toBeCloseTo(100, 0);
   });
 
@@ -397,7 +397,7 @@ describe('getRepConcentricWork()', () => {
 describe('getRepEccentricWork()', () => {
   it('computes eccentric work', () => {
     const rep = createTestRep();
-    // Eccentric: 80N × 1m = 80 J
+    // Eccentric: 80 lbs × 1 (position-unit) = 80 lbs·position
     expect(getRepEccentricWork(rep)).toBeCloseTo(80, 0);
   });
 });
@@ -409,7 +409,7 @@ describe('getRepEccentricWork()', () => {
 describe('getRepMeanConcentricPower()', () => {
   it('computes mean power (work / time)', () => {
     const rep = createTestRep();
-    // Work: 100 J, Time: 1 s → Power: 100 W
+    // Work: 100 lbs·position, Time: 1 s → Power: 100 lbs·position/s
     expect(getRepMeanConcentricPower(rep)).toBeCloseTo(100, 0);
   });
 
@@ -423,5 +423,64 @@ describe('getRepMeanEccentricPower()', () => {
     const rep = createTestRep();
     // Work: 80 J, Time: 2 s → Power: 40 W
     expect(getRepMeanEccentricPower(rep)).toBeCloseTo(40, 0);
+  });
+});
+
+// =============================================================================
+// Force-Unit Contract Tests
+//
+// WorkoutSample.force is contracted as lbs (NOT tenths-of-lbs). SDK 0.6.0
+// device frames report force as uint16 tenths; an adapter that forwards the
+// raw value without /10 inflates these integrals 10x. These tests pin the
+// expected output magnitude given known lbs input — failing loudly if the
+// math ever drifts and serving as documentation for the unit contract.
+// =============================================================================
+
+describe('force-unit contract (lbs in → lbs·s, lbs·m out)', () => {
+  function buildConstantForceRep(forceLbs: number): Rep {
+    const samples: WorkoutSample[] = [
+      {
+        sequence: 0,
+        timestamp: 1000,
+        phase: MovementPhase.CONCENTRIC,
+        position: 0,
+        velocity: 0.5,
+        force: forceLbs,
+      },
+      {
+        sequence: 1,
+        timestamp: 2000,
+        phase: MovementPhase.CONCENTRIC,
+        position: 1.0,
+        velocity: 0.5,
+        force: forceLbs,
+      },
+    ];
+    return buildRep(1, samples);
+  }
+
+  it('getRepImpulse preserves input scale (100 lbs over 1s = 100 lbs·s)', () => {
+    const rep = buildConstantForceRep(100);
+    expect(getRepImpulse(rep)).toBeCloseTo(100, 5);
+  });
+
+  it('getRepWork preserves input scale (100 lbs over 1m = 100 lbs·m)', () => {
+    const rep = buildConstantForceRep(100);
+    expect(getRepWork(rep)).toBeCloseTo(100, 5);
+  });
+
+  it('getRepMeanConcentricPower preserves input scale (100 lbs·m / 1s = 100 lbs·m/s)', () => {
+    const rep = buildConstantForceRep(100);
+    expect(getRepMeanConcentricPower(rep)).toBeCloseTo(100, 5);
+  });
+
+  it('inflated force (tenths-of-lbs leaked through) inflates outputs 10x — guard', () => {
+    // If an adapter forgets to divide by 10, a 100 lbs reading arrives as 1000.
+    // Outputs scale linearly. This test documents the silent-failure mode so
+    // any future hardening (e.g. runtime range check) can be hung off it.
+    const correctRep = buildConstantForceRep(100);
+    const inflatedRep = buildConstantForceRep(1000);
+    expect(getRepImpulse(inflatedRep)).toBeCloseTo(getRepImpulse(correctRep) * 10, 5);
+    expect(getRepWork(inflatedRep)).toBeCloseTo(getRepWork(correctRep) * 10, 5);
   });
 });

@@ -86,7 +86,11 @@ export function getRepEccentricTime(rep: Rep): number {
  *
  * Impulse = ∫ F dt ≈ Σ (F_avg × Δt)
  *
- * Returns impulse in N·s (Newton-seconds).
+ * Units: WorkoutSample.force is contracted as lbs (NOT tenths-of-lbs;
+ * see `models/sample.ts`). Output is therefore in lbs·s. The library
+ * does NOT convert to N·s — callers requiring SI units must scale by
+ * 4.448. If an adapter passes inflated tenths-of-lbs values, this
+ * function silently returns 10x the true impulse.
  */
 export function getRepImpulse(rep: Rep): number {
   const samples = rep.concentric.samples;
@@ -118,9 +122,15 @@ export function getRepImpulse(rep: Rep): number {
  *
  * Work = ∫ F dx ≈ Σ (F_avg × Δx)
  *
- * Returns work estimate in Joules (if force is in N and position in meters).
+ * Units: WorkoutSample.force is in lbs (NOT tenths-of-lbs;
+ * see `models/sample.ts`) and `position` is the normalized cable position
+ * (0..1). Output is therefore in lbs·position-units, NOT Joules. Callers
+ * requiring Joules must scale force to N (×4.448) and position to meters
+ * of cable travel.
+ *
  * Note: This is an approximation since we're using cable position, not true
- * displacement of the load.
+ * displacement of the load. If an adapter passes inflated tenths-of-lbs
+ * values, this function silently returns 10x the true work.
  */
 export function getRepWork(rep: Rep): number {
   const samples = rep.concentric.samples;
@@ -224,7 +234,12 @@ export function getRepEccentricWork(rep: Rep): number {
 
 /**
  * Compute mean concentric power (work / time).
- * Returns power in Watts (if work is in J and time in s).
+ *
+ * Units: derived from `getRepWork` (lbs·position-units) divided by
+ * concentric time (seconds). Output is therefore in lbs·position-units
+ * per second, NOT Watts. Callers requiring Watts must scale per the
+ * unit notes on `getRepWork`. Inherits the same 10x silent-inflation
+ * failure mode if an adapter passes tenths-of-lbs.
  */
 export function getRepMeanConcentricPower(rep: Rep): number {
   const time = getRepConcentricTime(rep);
