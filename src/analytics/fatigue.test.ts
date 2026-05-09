@@ -23,6 +23,10 @@ import {
   isSetFatigued,
   getSetFatigueSummary,
   DEFAULT_FATIGUE_WEIGHTS,
+  computeVBTSetFatigueIndex,
+  updateSessionFatigueState,
+  VBT_DEFAULT_FATIGUE_WEIGHTS,
+  VBT_DEFAULT_FATIGUE_LAMBDA,
 } from '@/analytics/fatigue';
 import { createInterpolationScheme, createBreakpointScheme } from '@/stats/schemes';
 import { createSet, addSampleToSet } from '@/models/set';
@@ -638,5 +642,187 @@ describe('getSetEccentricControl()', () => {
     expect(control.score).toBeCloseTo(100, 0);
     expect(control.eccentricChangePct).toBeCloseTo(0, 1);
     expect(control.formWarning).toBeNull();
+  });
+});
+
+// =============================================================================
+// VBT Spec §6.2 — computeVBTSetFatigueIndex Tests
+// =============================================================================
+
+describe('computeVBTSetFatigueIndex()', () => {
+  it('returns ~0 for a set with zero velocity loss and consistent reps', () => {
+    const set = createConsistentSet();
+    const result = computeVBTSetFatigueIndex(set);
+
+    expect(result.fatigueIndex).toBeCloseTo(0, 5);
+    expect(result.velLossPct).toBeCloseTo(0, 5);
+    expect(result.tempoCrepRatio).toBeCloseTo(0, 5);
+    expect(result.romRatio).toBeCloseTo(0, 5);
+  });
+
+  it('applies pure velocity loss with default weights (no tempo/ROM change)', () => {
+    // Build a 2-rep set where only velocity declines (same ROM + tempo)
+    const samples: WorkoutSample[] = [
+      ...createRepSamples(0, 1000, 0.6, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.42, 1.0, 1000), // 30% velocity loss, same ROM+tempo
+    ];
+    const set = buildSet(samples);
+    const result = computeVBTSetFatigueIndex(set);
+
+    // velLossPct = (0.6 - 0.42) / 0.6 = 0.30
+    // tempoCrepRatio = 0, romRatio = 0
+    // fatigueIndex = 0.30 * 0.70 + 0 * 0.15 + 0 * 0.15 = 0.21
+    expect(result.velLossPct).toBeCloseTo(0.3, 5);
+    expect(result.tempoCrepRatio).toBeCloseTo(0, 5);
+    expect(result.romRatio).toBeCloseTo(0, 5);
+    expect(result.fatigueIndex).toBeCloseTo(0.21, 5);
+  });
+
+  it('blends all three augmentations with default weights', () => {
+    // Rep 1: vel=0.6, rom=1.0, conTime=1000ms
+    // Rep 2: vel=0.42, rom=0.9, conTime=1200ms  (30% vel loss, 10% ROM shrink, 20% tempo creep)
+    const samples: WorkoutSample[] = [
+      ...createRepSamples(0, 1000, 0.6, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.42, 0.9, 1200),
+    ];
+    const set = buildSet(samples);
+    const result = computeVBTSetFatigueIndex(set);
+
+    expect(result.velLossPct).toBeCloseTo(0.3, 5);
+    // tempoCreep = (1.2 - 1.0) / 1.0 = 0.2  (times are in seconds from getRepConcentricTime)
+    expect(result.tempoCrepRatio).toBeCloseTo(0.2, 3);
+    // romRatio = (1.0 - 0.9) / 1.0 = 0.1
+    expect(result.romRatio).toBeCloseTo(0.1, 5);
+    // fatigueIndex = 0.3*0.7 + 0.2*0.15 + 0.1*0.15 = 0.21 + 0.03 + 0.015 = 0.255
+    expect(result.fatigueIndex).toBeCloseTo(0.255, 3);
+  });
+
+  it('clamps fatigueIndex to 1.0 when inputs are extreme', () => {
+    // Artificially enormous velocity loss: velLossPct should be clamped pre-blend
+    // Use a set with very high velocity first and near-zero last
+    const samples: WorkoutSample[] = [
+      ...createRepSamples(0, 1000, 1.0, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.01, 0.01, 5000), // extreme degradation
+    ];
+    const set = buildSet(samples);
+    const result = computeVBTSetFatigueIndex(set);
+
+    expect(result.fatigueIndex).toBeLessThanOrEqual(1.0);
+    expect(result.fatigueIndex).toBeGreaterThan(0);
+  });
+
+  it('returns tempoCrepRatio=null and romRatio=null for a single-rep set', () => {
+    const set = buildSet(createRepSamples(0, 1000, 0.5, 1.0, 1000));
+    const result = computeVBTSetFatigueIndex(set);
+
+    expect(result.tempoCrepRatio).toBeNull();
+    expect(result.romRatio).toBeNull();
+    // With both augmentations missing, their weights shift to velLoss → weight = 1.0
+    // velLossPct = 0, so fatigueIndex = 0
+    expect(result.fatigueIndex).toBeCloseTo(0, 5);
+  });
+
+  it('redistributes weight to velocity when augmentations are unavailable', () => {
+    // Single-rep: can't compute tempo/ROM, all weight goes to velocity.
+    const samples: WorkoutSample[] = [
+      ...createRepSamples(0, 1000, 0.6, 1.0, 1000),
+    ];
+    const set = buildSet(samples);
+    const result = computeVBTSetFatigueIndex(set, { velLossWeight: 0.7, tempoCrepWeight: 0.15, romShrinkWeight: 0.15 });
+
+    // fatigueIndex = velLossPct * 1.0 (redistributed) = 0 * 1.0 = 0
+    expect(result.fatigueIndex).toBeCloseTo(0, 5);
+  });
+
+  it('applies custom weights correctly', () => {
+    // 2-rep set: 30% vel loss, zero tempo/ROM change
+    const samples: WorkoutSample[] = [
+      ...createRepSamples(0, 1000, 0.6, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.42, 1.0, 1000),
+    ];
+    const set = buildSet(samples);
+
+    // All weight on velLoss
+    const result = computeVBTSetFatigueIndex(set, { velLossWeight: 1.0, tempoCrepWeight: 0, romShrinkWeight: 0 });
+    expect(result.fatigueIndex).toBeCloseTo(0.3, 5);
+
+    // All weight on tempo (which is 0) → fatigueIndex ≈ 0
+    const resultTempoOnly = computeVBTSetFatigueIndex(set, { velLossWeight: 0, tempoCrepWeight: 1.0, romShrinkWeight: 0 });
+    expect(resultTempoOnly.fatigueIndex).toBeCloseTo(0, 5);
+  });
+
+  it('reports default weight constants', () => {
+    expect(VBT_DEFAULT_FATIGUE_WEIGHTS.velLoss).toBe(0.7);
+    expect(VBT_DEFAULT_FATIGUE_WEIGHTS.tempoCreep).toBe(0.15);
+    expect(VBT_DEFAULT_FATIGUE_WEIGHTS.romShrink).toBe(0.15);
+    const sum =
+      VBT_DEFAULT_FATIGUE_WEIGHTS.velLoss +
+      VBT_DEFAULT_FATIGUE_WEIGHTS.tempoCreep +
+      VBT_DEFAULT_FATIGUE_WEIGHTS.romShrink;
+    expect(sum).toBeCloseTo(1, 10);
+  });
+});
+
+// =============================================================================
+// VBT Spec §6.3 — updateSessionFatigueState Tests
+// =============================================================================
+
+describe('updateSessionFatigueState()', () => {
+  it('computes initial state from zero: prevF=0, fiSet=0.5, intensity=0.8, λ=0.4', () => {
+    // F = 0.4 * (0.5 * 0.8) + 0.6 * 0 = 0.4 * 0.4 = 0.16
+    const f = updateSessionFatigueState(0, 0.5, 0.8, 0.4);
+    expect(f).toBeCloseTo(0.16, 10);
+  });
+
+  it('approaches a steady-state asymptote under sustained heavy load', () => {
+    // Asymptote: F* = λ × fiSet × intensity / (1 - (1-λ)) = fiSet × intensity
+    // With fiSet=0.8, intensity=1.0: F* = 0.8 * 1.0 = 0.8
+    let f = 0;
+    for (let i = 0; i < 50; i++) {
+      f = updateSessionFatigueState(f, 0.8, 1.0, 0.4);
+    }
+    expect(f).toBeCloseTo(0.8, 2);
+  });
+
+  it('accumulates slowly under light intensity', () => {
+    // Low intensity (min=0.3): fiSet=0.8 × intensity=0.3 → weighted=0.24
+    // After one update from 0: 0.4 * 0.24 = 0.096
+    const fLight = updateSessionFatigueState(0, 0.8, 0.3, 0.4);
+    const fHeavy = updateSessionFatigueState(0, 0.8, 1.0, 0.4);
+    expect(fLight).toBeLessThan(fHeavy);
+    expect(fLight).toBeCloseTo(0.4 * (0.8 * 0.3), 10);
+  });
+
+  it('uses default lambda constant when not provided', () => {
+    const explicit = updateSessionFatigueState(0, 0.5, 0.8, VBT_DEFAULT_FATIGUE_LAMBDA);
+    const implicit = updateSessionFatigueState(0, 0.5, 0.8);
+    expect(implicit).toBeCloseTo(explicit, 10);
+  });
+
+  it('applies custom lambda — higher lambda tracks changes faster', () => {
+    const fastLambda = updateSessionFatigueState(0, 0.6, 1.0, 0.8);
+    const slowLambda = updateSessionFatigueState(0, 0.6, 1.0, 0.2);
+    // Higher lambda → jumps higher on first update
+    expect(fastLambda).toBeGreaterThan(slowLambda);
+    // Fast: 0.8 * 0.6, Slow: 0.2 * 0.6
+    expect(fastLambda).toBeCloseTo(0.48, 10);
+    expect(slowLambda).toBeCloseTo(0.12, 10);
+  });
+
+  it('clamps intensity below 0.3 to 0.3', () => {
+    const withZeroIntensity = updateSessionFatigueState(0, 0.8, 0.0, 0.4);
+    const withMinIntensity = updateSessionFatigueState(0, 0.8, 0.3, 0.4);
+    expect(withZeroIntensity).toBeCloseTo(withMinIntensity, 10);
+  });
+
+  it('clamps output to [0, 1]', () => {
+    // Even with extreme inputs the output must stay in range
+    const f = updateSessionFatigueState(1.0, 1.0, 1.0, 1.0);
+    expect(f).toBeGreaterThanOrEqual(0);
+    expect(f).toBeLessThanOrEqual(1);
+
+    const fZero = updateSessionFatigueState(0, 0, 0, 0);
+    expect(fZero).toBeGreaterThanOrEqual(0);
+    expect(fZero).toBeLessThanOrEqual(1);
   });
 });

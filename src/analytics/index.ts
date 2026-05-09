@@ -94,7 +94,10 @@ export {
   type OutlierRep,
   type FatigueSummary,
   type EccentricControl,
+  type VBTSetFatigueIndexResult,
   DEFAULT_FATIGUE_WEIGHTS,
+  VBT_DEFAULT_FATIGUE_WEIGHTS,
+  VBT_DEFAULT_FATIGUE_LAMBDA,
   getSetVelocityChange,
   getSetTempoChange,
   getSetROMChange,
@@ -111,6 +114,8 @@ export {
   estimateSetRIR,
   isSetFatigued,
   getSetFatigueSummary,
+  computeVBTSetFatigueIndex,
+  updateSessionFatigueState,
 } from './fatigue';
 
 // Intensity
