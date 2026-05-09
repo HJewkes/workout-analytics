@@ -46,3 +46,14 @@ export {
 
 // Advanced Profile Fitting
 export { type FittingOptions, type FittingResult, fitLVProfile } from './profile-fitting';
+
+// Intra-Set Expected Velocity
+export {
+  DEFAULT_FIRST_N_REPS,
+  computeExpectedFromFirstNReps,
+  createFirstNRepsStrategy,
+  type IntraSetExpectedVelocitySource,
+  type IntraSetExpectedVelocity,
+  type IntraSetExpectedVelocityStrategy,
+  type FirstNRepsStrategyOptions,
+} from './expected-velocity-intra-set';
