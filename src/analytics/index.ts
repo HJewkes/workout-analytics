@@ -126,6 +126,14 @@ export {
   getSetStimulusScore,
 } from './intensity';
 
+// Coverage
+export {
+  type SetSummary,
+  type CoverageBin,
+  buildCoverageMap,
+  detectStaleBins,
+} from './coverage';
+
 // Session
 export {
   type StrengthEstimate,

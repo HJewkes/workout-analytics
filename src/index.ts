@@ -312,3 +312,11 @@ export {
   hasExercise,
   getExerciseCount,
 } from './exercises';
+
+// Analytics - Coverage (autoregulation explorer, §9.1-§9.2)
+export {
+  type SetSummary,
+  type CoverageBin as AnalyticsCoverageBin,
+  buildCoverageMap,
+  detectStaleBins,
+} from './analytics';
