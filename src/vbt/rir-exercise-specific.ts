@@ -84,15 +84,16 @@ export interface ExerciseRIREstimate {
 /**
  * Default profile for cable compound exercises (rows, pulldowns, cable press, etc.).
  *
- * Coefficients are PLACEHOLDER values — calibrated values from real data live in
- * voltra-private/research/<TBD>.
+ * @experimental Coefficients are placeholder values pending calibration from
+ * real-device session data. Calibrated values will land in
+ * voltra-private/research/ and be promoted to a future minor release.
  *
  * Shape logic: high RIR at high v_ratio + low velLossPct (fresh, fast reps),
  * low RIR at low v_ratio + high velLossPct (fatigued, slow reps).
  */
 export const DEFAULT_CABLE_COMPOUND_PROFILE: ExerciseVBTProfile = {
   exerciseTypeId: 'cable-compound',
-  // PLACEHOLDER — calibrated values from real data live in voltra-private/research/<TBD>
+  // Placeholder coefficients — calibration deferred pending real-device session data.
   coefficients: { c0: 8.0, c1: -3.0, c2: -0.10, c3: -2.0 },
   stderr: 0.8,
 };
@@ -100,15 +101,16 @@ export const DEFAULT_CABLE_COMPOUND_PROFILE: ExerciseVBTProfile = {
 /**
  * Default profile for cable isolation exercises (curls, tricep pushdowns, flyes, etc.).
  *
+ * @experimental Coefficients are placeholder values pending calibration from
+ * real-device session data. Calibrated values will land in
+ * voltra-private/research/ and be promoted to a future minor release.
+ *
  * Isolation exercises show lower absolute velocities and a steeper velocity-loss
  * curve vs compound movements, reflected in the slightly more conservative coefficients.
- *
- * Coefficients are PLACEHOLDER values — calibrated values from real data live in
- * voltra-private/research/<TBD>.
  */
 export const DEFAULT_CABLE_ISOLATION_PROFILE: ExerciseVBTProfile = {
   exerciseTypeId: 'cable-isolation',
-  // PLACEHOLDER — calibrated values from real data live in voltra-private/research/<TBD>
+  // Placeholder coefficients — calibration deferred pending real-device session data.
   coefficients: { c0: 7.5, c1: -2.5, c2: -0.08, c3: -1.5 },
   stderr: 0.9,
 };

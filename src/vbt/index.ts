@@ -55,6 +55,13 @@ export {
 // Advanced Profile Fitting
 export { type FittingOptions, type FittingResult, fitLVProfile } from './profile-fitting';
 
+// Bayesian LV Profile Fitting
+export {
+  type BayesianLVPrior,
+  type BayesianLVPosterior,
+  fitLVProfileBayesian,
+} from './profile-fitting-bayesian';
+
 // Intra-Set Expected Velocity
 export {
   DEFAULT_FIRST_N_REPS,

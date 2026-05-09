@@ -9,14 +9,10 @@
  * This file deliberately does NOT depend on the sample-based `Set` model;
  * those primitives belong in set-analytics / session.ts.
  *
- * NOTE: `MetricTimeSeries` / `MetricTimeSeriesPoint` will eventually move to
- * `src/analytics/trend.ts` (parallel branch from VLT-02 T23). They are
- * defined here inline until that branch lands; the trend module can re-
- * export from here to avoid a breaking change.
  */
 
 // =============================================================================
-// MetricTimeSeries Types (inline — to be re-exported from trend.ts when T23 lands)
+// MetricTimeSeries Types
 // =============================================================================
 
 /**

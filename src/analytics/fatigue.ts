@@ -250,6 +250,13 @@ export const DEFAULT_FATIGUE_WEIGHTS = {
  * - Tempo creep (positive change is bad - getting slower)
  * - ROM decay (negative change is bad)
  */
+/**
+ * @deprecated Use {@link computeVBTSetFatigueIndex} instead.
+ *
+ * This is the legacy heuristic that returns 0-100; the VBT-spec replacement
+ * returns 0-1. Coexists during migration window. New code should not use
+ * this function.
+ */
 export function getSetFatigueIndex(
   set: Set,
   weights: { velocity: number; tempo: number; rom: number } = DEFAULT_FATIGUE_WEIGHTS

@@ -269,7 +269,15 @@ export {
 } from './vbt';
 
 // VBT - Baseline
-export { type VelocityBaseline, buildBaseline, getExpectedVelocity } from './vbt';
+export {
+  type VelocityBaseline,
+  type SerializedBaseline,
+  buildBaseline,
+  getExpectedVelocity,
+  updateBaselineWithPoint,
+  serializeBaseline,
+  deserializeBaseline,
+} from './vbt';
 
 // VBT - e1RM
 export {
@@ -289,6 +297,13 @@ export {
 
 // VBT - Advanced Fitting
 export { type FittingOptions, type FittingResult, fitLVProfile } from './vbt';
+
+// VBT - Bayesian LV Profile Fitting
+export {
+  type BayesianLVPrior,
+  type BayesianLVPosterior,
+  fitLVProfileBayesian,
+} from './vbt';
 
 // VBT - Exercise-Specific RIR Estimation
 export {
@@ -329,4 +344,13 @@ export {
   type CoverageBin as AnalyticsCoverageBin,
   buildCoverageMap,
   detectStaleBins,
+} from './analytics';
+
+// Analytics - Time Series (cross-session aggregation, T25)
+export {
+  type MetricTimeSeries,
+  type MetricTimeSeriesPoint,
+  type ProcessedSession,
+  type ProcessedSet,
+  buildTimeSeries,
 } from './analytics';
