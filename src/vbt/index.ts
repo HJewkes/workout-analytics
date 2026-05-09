@@ -65,3 +65,15 @@ export {
   type IntraSetExpectedVelocityStrategy,
   type FirstNRepsStrategyOptions,
 } from './expected-velocity-intra-set';
+
+// Exercise-Specific RIR Estimation
+export {
+  type ExerciseTypeId,
+  type ExerciseVBTProfile,
+  type RIREstimateInputs,
+  type ExerciseRIREstimate,
+  estimateRIRWithProfile,
+  DEFAULT_CABLE_COMPOUND_PROFILE,
+  DEFAULT_CABLE_ISOLATION_PROFILE,
+  DEFAULT_FALLBACK_PROFILE,
+} from './rir-exercise-specific';

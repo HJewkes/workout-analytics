@@ -280,6 +280,18 @@ export {
 // VBT - Advanced Fitting
 export { type FittingOptions, type FittingResult, fitLVProfile } from './vbt';
 
+// VBT - Exercise-Specific RIR Estimation
+export {
+  type ExerciseTypeId,
+  type ExerciseVBTProfile,
+  type RIREstimateInputs,
+  type ExerciseRIREstimate,
+  estimateRIRWithProfile,
+  DEFAULT_CABLE_COMPOUND_PROFILE,
+  DEFAULT_CABLE_ISOLATION_PROFILE,
+  DEFAULT_FALLBACK_PROFILE,
+} from './vbt';
+
 // Exercises
 export {
   type Exercise,
