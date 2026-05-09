@@ -132,3 +132,13 @@ export {
   computeVolume,
   computeEffectiveVolume,
 } from './session';
+
+// Trend
+export {
+  type TimeSeriesPoint,
+  type TimeSeries,
+  type TrendAnalysis,
+  type PlateauDetection,
+  analyzeTrend,
+  detectPlateau,
+} from './trend';

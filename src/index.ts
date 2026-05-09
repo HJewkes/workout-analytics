@@ -226,6 +226,16 @@ export {
   computeEffectiveVolume,
 } from './analytics';
 
+// Analytics - Trend
+export {
+  type TimeSeriesPoint,
+  type TimeSeries,
+  type TrendAnalysis,
+  type PlateauDetection,
+  analyzeTrend,
+  detectPlateau,
+} from './analytics';
+
 // VBT - Constants
 export {
   VELOCITY_AT_PERCENT_1RM,
