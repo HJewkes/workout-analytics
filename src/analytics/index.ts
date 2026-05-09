@@ -162,3 +162,18 @@ export {
   analyzeTrend,
   detectPlateau,
 } from './trend';
+
+// Time Series (cross-session aggregation)
+export {
+  type MetricKey,
+  type BuildTimeSeriesConfig,
+  type WeeklySummary,
+  type VolumeByMuscleGroup,
+  type ProcessedSession,
+  type ProcessedSet,
+  type MetricTimeSeries,
+  type MetricTimeSeriesPoint,
+  buildTimeSeries,
+  getWeeklySummaries,
+  getVolumeByMuscleGroup,
+} from './time-series';
