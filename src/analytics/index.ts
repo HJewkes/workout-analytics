@@ -132,3 +132,10 @@ export {
   computeVolume,
   computeEffectiveVolume,
 } from './session';
+
+// Readiness Adjustments
+export {
+  type ReadinessAdjustments,
+  type ReadinessAdjustmentInputs,
+  computeReadinessAdjustments,
+} from './readiness-adjustments';
