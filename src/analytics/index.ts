@@ -132,3 +132,18 @@ export {
   computeVolume,
   computeEffectiveVolume,
 } from './session';
+
+// Time Series (cross-session aggregation)
+export {
+  type MetricKey,
+  type BuildTimeSeriesConfig,
+  type WeeklySummary,
+  type VolumeByMuscleGroup,
+  type ProcessedSession,
+  type ProcessedSet,
+  type TimeSeries,
+  type TimeSeriesPoint,
+  buildTimeSeries,
+  getWeeklySummaries,
+  getVolumeByMuscleGroup,
+} from './time-series';
