@@ -9,20 +9,20 @@
  * This file deliberately does NOT depend on the sample-based `Set` model;
  * those primitives belong in set-analytics / session.ts.
  *
- * NOTE: `TimeSeries` / `TimeSeriesPoint` will eventually move to
+ * NOTE: `MetricTimeSeries` / `MetricTimeSeriesPoint` will eventually move to
  * `src/analytics/trend.ts` (parallel branch from VLT-02 T23). They are
  * defined here inline until that branch lands; the trend module can re-
  * export from here to avoid a breaking change.
  */
 
 // =============================================================================
-// TimeSeries Types (inline — to be re-exported from trend.ts when T23 lands)
+// MetricTimeSeries Types (inline — to be re-exported from trend.ts when T23 lands)
 // =============================================================================
 
 /**
  * A single point in a time series.
  */
-export interface TimeSeriesPoint<T = number> {
+export interface MetricTimeSeriesPoint<T = number> {
   /** ISO timestamp of the bucket (start of bucket for day/week, session start for session). */
   timestamp: string;
   /** Aggregated value for this bucket. */
@@ -34,11 +34,11 @@ export interface TimeSeriesPoint<T = number> {
 /**
  * Ordered series of metric values over time.
  */
-export interface TimeSeries<T = number> {
+export interface MetricTimeSeries<T = number> {
   metric: MetricKey;
   bucketBy: 'session' | 'day' | 'week';
   exerciseId?: string;
-  points: ReadonlyArray<TimeSeriesPoint<T>>;
+  points: ReadonlyArray<MetricTimeSeriesPoint<T>>;
 }
 
 // =============================================================================
@@ -268,7 +268,7 @@ function bucketTimestamp(iso: string, bucketBy: 'session' | 'day' | 'week'): str
 export function buildTimeSeries(
   sessions: ReadonlyArray<ProcessedSession>,
   config: BuildTimeSeriesConfig
-): TimeSeries {
+): MetricTimeSeries {
   const bucketBy = config.bucketBy ?? 'session';
   const filtered = filterSessions(sessions, {
     exerciseId: config.exerciseId,
@@ -298,7 +298,7 @@ export function buildTimeSeries(
     }
   }
 
-  const points: TimeSeriesPoint[] = Array.from(buckets.values())
+  const points: MetricTimeSeriesPoint[] = Array.from(buckets.values())
     .map((b) => ({
       timestamp: b.timestamp,
       value: combineBucket(config.metric, b.values),
