@@ -231,6 +231,13 @@ export {
   computeEffectiveVolume,
 } from './analytics';
 
+// Analytics - Readiness Adjustments
+export {
+  type ReadinessAdjustments,
+  type ReadinessAdjustmentInputs,
+  computeReadinessAdjustments,
+} from './analytics';
+
 // VBT - Constants
 export {
   VELOCITY_AT_PERCENT_1RM,
