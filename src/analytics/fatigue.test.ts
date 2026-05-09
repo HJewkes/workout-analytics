@@ -23,7 +23,7 @@ import {
   isSetFatigued,
   getSetFatigueSummary,
   DEFAULT_FATIGUE_WEIGHTS,
-  computeSetFatigueIndex,
+  computeVBTSetFatigueIndex,
   updateSessionFatigueState,
   VBT_DEFAULT_FATIGUE_WEIGHTS,
   VBT_DEFAULT_FATIGUE_LAMBDA,
@@ -646,13 +646,13 @@ describe('getSetEccentricControl()', () => {
 });
 
 // =============================================================================
-// VBT Spec §6.2 — computeSetFatigueIndex Tests
+// VBT Spec §6.2 — computeVBTSetFatigueIndex Tests
 // =============================================================================
 
-describe('computeSetFatigueIndex()', () => {
+describe('computeVBTSetFatigueIndex()', () => {
   it('returns ~0 for a set with zero velocity loss and consistent reps', () => {
     const set = createConsistentSet();
-    const result = computeSetFatigueIndex(set);
+    const result = computeVBTSetFatigueIndex(set);
 
     expect(result.fatigueIndex).toBeCloseTo(0, 5);
     expect(result.velLossPct).toBeCloseTo(0, 5);
@@ -667,7 +667,7 @@ describe('computeSetFatigueIndex()', () => {
       ...createRepSamples(4, 4000, 0.42, 1.0, 1000), // 30% velocity loss, same ROM+tempo
     ];
     const set = buildSet(samples);
-    const result = computeSetFatigueIndex(set);
+    const result = computeVBTSetFatigueIndex(set);
 
     // velLossPct = (0.6 - 0.42) / 0.6 = 0.30
     // tempoCrepRatio = 0, romRatio = 0
@@ -686,7 +686,7 @@ describe('computeSetFatigueIndex()', () => {
       ...createRepSamples(4, 4000, 0.42, 0.9, 1200),
     ];
     const set = buildSet(samples);
-    const result = computeSetFatigueIndex(set);
+    const result = computeVBTSetFatigueIndex(set);
 
     expect(result.velLossPct).toBeCloseTo(0.3, 5);
     // tempoCreep = (1.2 - 1.0) / 1.0 = 0.2  (times are in seconds from getRepConcentricTime)
@@ -705,7 +705,7 @@ describe('computeSetFatigueIndex()', () => {
       ...createRepSamples(4, 4000, 0.01, 0.01, 5000), // extreme degradation
     ];
     const set = buildSet(samples);
-    const result = computeSetFatigueIndex(set);
+    const result = computeVBTSetFatigueIndex(set);
 
     expect(result.fatigueIndex).toBeLessThanOrEqual(1.0);
     expect(result.fatigueIndex).toBeGreaterThan(0);
@@ -713,7 +713,7 @@ describe('computeSetFatigueIndex()', () => {
 
   it('returns tempoCrepRatio=null and romRatio=null for a single-rep set', () => {
     const set = buildSet(createRepSamples(0, 1000, 0.5, 1.0, 1000));
-    const result = computeSetFatigueIndex(set);
+    const result = computeVBTSetFatigueIndex(set);
 
     expect(result.tempoCrepRatio).toBeNull();
     expect(result.romRatio).toBeNull();
@@ -728,7 +728,7 @@ describe('computeSetFatigueIndex()', () => {
       ...createRepSamples(0, 1000, 0.6, 1.0, 1000),
     ];
     const set = buildSet(samples);
-    const result = computeSetFatigueIndex(set, { velLossWeight: 0.7, tempoCrepWeight: 0.15, romShrinkWeight: 0.15 });
+    const result = computeVBTSetFatigueIndex(set, { velLossWeight: 0.7, tempoCrepWeight: 0.15, romShrinkWeight: 0.15 });
 
     // fatigueIndex = velLossPct * 1.0 (redistributed) = 0 * 1.0 = 0
     expect(result.fatigueIndex).toBeCloseTo(0, 5);
@@ -743,11 +743,11 @@ describe('computeSetFatigueIndex()', () => {
     const set = buildSet(samples);
 
     // All weight on velLoss
-    const result = computeSetFatigueIndex(set, { velLossWeight: 1.0, tempoCrepWeight: 0, romShrinkWeight: 0 });
+    const result = computeVBTSetFatigueIndex(set, { velLossWeight: 1.0, tempoCrepWeight: 0, romShrinkWeight: 0 });
     expect(result.fatigueIndex).toBeCloseTo(0.3, 5);
 
     // All weight on tempo (which is 0) → fatigueIndex ≈ 0
-    const resultTempoOnly = computeSetFatigueIndex(set, { velLossWeight: 0, tempoCrepWeight: 1.0, romShrinkWeight: 0 });
+    const resultTempoOnly = computeVBTSetFatigueIndex(set, { velLossWeight: 0, tempoCrepWeight: 1.0, romShrinkWeight: 0 });
     expect(resultTempoOnly.fatigueIndex).toBeCloseTo(0, 5);
   });
 

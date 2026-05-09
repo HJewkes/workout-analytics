@@ -94,7 +94,7 @@ export {
   type OutlierRep,
   type FatigueSummary,
   type EccentricControl,
-  type SetFatigueIndexResult,
+  type VBTSetFatigueIndexResult,
   DEFAULT_FATIGUE_WEIGHTS,
   VBT_DEFAULT_FATIGUE_WEIGHTS,
   VBT_DEFAULT_FATIGUE_LAMBDA,
@@ -114,7 +114,7 @@ export {
   estimateSetRIR,
   isSetFatigued,
   getSetFatigueSummary,
-  computeSetFatigueIndex,
+  computeVBTSetFatigueIndex,
   updateSessionFatigueState,
 } from './fatigue';
 

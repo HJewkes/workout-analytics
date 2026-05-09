@@ -509,9 +509,9 @@ export const VBT_DEFAULT_FATIGUE_WEIGHTS = {
 } as const;
 
 /**
- * Result of computeSetFatigueIndex per VBT autoregulation spec §6.2.
+ * Result of computeVBTSetFatigueIndex per VBT autoregulation spec §6.2.
  */
-export interface SetFatigueIndexResult {
+export interface VBTSetFatigueIndexResult {
   /** Composite fatigue index in [0, 1]. */
   fatigueIndex: number;
   /** Velocity loss ratio in [0, 1]: (V1 - VLast) / V1. */
@@ -542,14 +542,14 @@ export interface SetFatigueIndexResult {
  *
  * Returns `fatigueIndex` clamped to [0, 1].
  */
-export function computeSetFatigueIndex(
+export function computeVBTSetFatigueIndex(
   set: Set,
   opts?: {
     velLossWeight?: number;
     tempoCrepWeight?: number;
     romShrinkWeight?: number;
   }
-): SetFatigueIndexResult {
+): VBTSetFatigueIndexResult {
   const wVel = opts?.velLossWeight ?? VBT_DEFAULT_FATIGUE_WEIGHTS.velLoss;
   const wTempo = opts?.tempoCrepWeight ?? VBT_DEFAULT_FATIGUE_WEIGHTS.tempoCreep;
   const wRom = opts?.romShrinkWeight ?? VBT_DEFAULT_FATIGUE_WEIGHTS.romShrink;
@@ -620,7 +620,7 @@ export const VBT_DEFAULT_FATIGUE_LAMBDA = 0.4;
  * Both inputs and output are clamped to [0, 1].
  *
  * @param prevF - Previous session fatigue state in [0, 1].
- * @param fiSet - Set fatigue index from computeSetFatigueIndex in [0, 1].
+ * @param fiSet - Set fatigue index from computeVBTSetFatigueIndex in [0, 1].
  * @param intensityRatio - workingWeight / e1RM, clamped internally to [0.3, 1.0].
  * @param lambda - EWMA decay coefficient (default 0.4).
  * @returns Updated session fatigue state in [0, 1].
