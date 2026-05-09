@@ -26,7 +26,15 @@ export {
 } from './profile';
 
 // Baseline
-export { type VelocityBaseline, buildBaseline, getExpectedVelocity } from './baseline';
+export {
+  type VelocityBaseline,
+  type SerializedBaseline,
+  buildBaseline,
+  getExpectedVelocity,
+  updateBaselineWithPoint,
+  serializeBaseline,
+  deserializeBaseline,
+} from './baseline';
 
 // e1RM Estimation
 export {
