@@ -250,6 +250,13 @@ export const DEFAULT_FATIGUE_WEIGHTS = {
  * - Tempo creep (positive change is bad - getting slower)
  * - ROM decay (negative change is bad)
  */
+/**
+ * @deprecated Use {@link computeVBTSetFatigueIndex} instead.
+ *
+ * This is the legacy heuristic that returns 0-100; the VBT-spec replacement
+ * returns 0-1. Coexists during migration window. New code should not use
+ * this function.
+ */
 export function getSetFatigueIndex(
   set: Set,
   weights: { velocity: number; tempo: number; rom: number } = DEFAULT_FATIGUE_WEIGHTS
@@ -492,4 +499,151 @@ export function getSetFatigueSummary(set: Set): FatigueSummary {
     consistency: consistency.overall,
     fatigueLevel,
   };
+}
+
+// =============================================================================
+// VBT Autoregulation Spec §6.2 — Set-Level Fatigue Index
+// =============================================================================
+
+/**
+ * Default weights for VBT spec fatigue index (§6.2).
+ * Velocity loss is the primary signal; tempo creep and ROM shrinkage augment it.
+ */
+export const VBT_DEFAULT_FATIGUE_WEIGHTS = {
+  velLoss: 0.7,
+  tempoCreep: 0.15,
+  romShrink: 0.15,
+} as const;
+
+/**
+ * Result of computeVBTSetFatigueIndex per VBT autoregulation spec §6.2.
+ */
+export interface VBTSetFatigueIndexResult {
+  /** Composite fatigue index in [0, 1]. */
+  fatigueIndex: number;
+  /** Velocity loss ratio in [0, 1]: (V1 - VLast) / V1. */
+  velLossPct: number;
+  /**
+   * Concentric tempo creep ratio: (t_con_last - t_con_first) / t_con_first.
+   * Null when the set has fewer than 2 reps or t_con_first is zero.
+   */
+  tempoCrepRatio: number | null;
+  /**
+   * ROM shrinkage ratio: max(0, (rom_first - rom_last) / rom_first).
+   * Null when the set has fewer than 2 reps or rom_first is zero.
+   */
+  romRatio: number | null;
+}
+
+/**
+ * Compute set-level fatigue index per VBT autoregulation spec §6.2.
+ *
+ * Base signal: velocity loss percentage expressed as a ratio (0..1).
+ * Augmentations (both clamped to [0, 1] before weighting):
+ *   - Tempo creep: concentric time increase from first to last rep.
+ *   - ROM shrinkage: range-of-motion decrease from first to last rep.
+ *
+ * When an augmentation cannot be computed (single-rep set, zero baseline),
+ * its weight is redistributed proportionally to the remaining components
+ * so the weights always sum to 1.
+ *
+ * Returns `fatigueIndex` clamped to [0, 1].
+ */
+export function computeVBTSetFatigueIndex(
+  set: Set,
+  opts?: {
+    velLossWeight?: number;
+    tempoCrepWeight?: number;
+    romShrinkWeight?: number;
+  }
+): VBTSetFatigueIndexResult {
+  const wVel = opts?.velLossWeight ?? VBT_DEFAULT_FATIGUE_WEIGHTS.velLoss;
+  const wTempo = opts?.tempoCrepWeight ?? VBT_DEFAULT_FATIGUE_WEIGHTS.tempoCreep;
+  const wRom = opts?.romShrinkWeight ?? VBT_DEFAULT_FATIGUE_WEIGHTS.romShrink;
+
+  // Velocity loss: already 0-100 from getSetVelocityLossPct; convert to 0..1 ratio.
+  const velLossRaw = getSetVelocityLossPct(set) / 100;
+  const velLossPct = Math.min(1, Math.max(0, velLossRaw));
+
+  // Tempo creep and ROM: require at least 2 reps.
+  let tempoCrepRatio: number | null = null;
+  let romRatio: number | null = null;
+
+  const firstRep = set.reps[0];
+  const lastRep = set.reps.at(-1);
+
+  if (firstRep && lastRep && set.reps.length >= 2) {
+    const tFirst = getRepConcentricTime(firstRep);
+    const tLast = getRepConcentricTime(lastRep);
+    if (tFirst > 0) {
+      tempoCrepRatio = Math.min(1, Math.max(0, (tLast - tFirst) / tFirst));
+    }
+
+    const romFirst = getRepRangeOfMotion(firstRep);
+    const romLast = getRepRangeOfMotion(lastRep);
+    if (romFirst > 0) {
+      romRatio = Math.min(1, Math.max(0, (romFirst - romLast) / romFirst));
+    }
+  }
+
+  // Redistribute weight from unavailable components.
+  const tempoAvail = tempoCrepRatio !== null;
+  const romAvail = romRatio !== null;
+
+  const effectiveWTempo = tempoAvail ? wTempo : 0;
+  const effectiveWRom = romAvail ? wRom : 0;
+  const missing = (tempoAvail ? 0 : wTempo) + (romAvail ? 0 : wRom);
+  // Distribute missing weight back to velocity (primary signal).
+  const effectiveWVel = wVel + missing;
+
+  const fatigueIndex = Math.min(
+    1,
+    Math.max(
+      0,
+      velLossPct * effectiveWVel +
+        (tempoCrepRatio ?? 0) * effectiveWTempo +
+        (romRatio ?? 0) * effectiveWRom
+    )
+  );
+
+  return { fatigueIndex, velLossPct, tempoCrepRatio, romRatio };
+}
+
+// =============================================================================
+// VBT Autoregulation Spec §6.3 — Within-Session Fatigue State
+// =============================================================================
+
+/** Default EWMA decay per spec (tracks changes over ~2-3 sets). */
+export const VBT_DEFAULT_FATIGUE_LAMBDA = 0.4;
+
+/**
+ * Update within-session fatigue state (EWMA) per VBT autoregulation spec §6.3.
+ *
+ * F_new = λ × (FI_set × intensityRatio) + (1 − λ) × F_prev
+ *
+ * intensityRatio is the set's working weight relative to estimated 1RM,
+ * clamped to [0.3, 1.0]. Heavier sets carry proportionally more fatigue weight.
+ *
+ * Both inputs and output are clamped to [0, 1].
+ *
+ * @param prevF - Previous session fatigue state in [0, 1].
+ * @param fiSet - Set fatigue index from computeVBTSetFatigueIndex in [0, 1].
+ * @param intensityRatio - workingWeight / e1RM, clamped internally to [0.3, 1.0].
+ * @param lambda - EWMA decay coefficient (default 0.4).
+ * @returns Updated session fatigue state in [0, 1].
+ */
+export function updateSessionFatigueState(
+  prevF: number,
+  fiSet: number,
+  intensityRatio: number,
+  lambda: number = VBT_DEFAULT_FATIGUE_LAMBDA
+): number {
+  const clampedPrevF = Math.min(1, Math.max(0, prevF));
+  const clampedFiSet = Math.min(1, Math.max(0, fiSet));
+  const clampedIntensity = Math.min(1.0, Math.max(0.3, intensityRatio));
+
+  const weighted = clampedFiSet * clampedIntensity;
+  const nextF = lambda * weighted + (1 - lambda) * clampedPrevF;
+
+  return Math.min(1, Math.max(0, nextF));
 }

@@ -26,7 +26,15 @@ export {
 } from './profile';
 
 // Baseline
-export { type VelocityBaseline, buildBaseline, getExpectedVelocity } from './baseline';
+export {
+  type VelocityBaseline,
+  type SerializedBaseline,
+  buildBaseline,
+  getExpectedVelocity,
+  updateBaselineWithPoint,
+  serializeBaseline,
+  deserializeBaseline,
+} from './baseline';
 
 // e1RM Estimation
 export {
@@ -46,3 +54,33 @@ export {
 
 // Advanced Profile Fitting
 export { type FittingOptions, type FittingResult, fitLVProfile } from './profile-fitting';
+
+// Bayesian LV Profile Fitting
+export {
+  type BayesianLVPrior,
+  type BayesianLVPosterior,
+  fitLVProfileBayesian,
+} from './profile-fitting-bayesian';
+
+// Intra-Set Expected Velocity
+export {
+  DEFAULT_FIRST_N_REPS,
+  computeExpectedFromFirstNReps,
+  createFirstNRepsStrategy,
+  type IntraSetExpectedVelocitySource,
+  type IntraSetExpectedVelocity,
+  type IntraSetExpectedVelocityStrategy,
+  type FirstNRepsStrategyOptions,
+} from './expected-velocity-intra-set';
+
+// Exercise-Specific RIR Estimation
+export {
+  type ExerciseTypeId,
+  type ExerciseVBTProfile,
+  type RIREstimateInputs,
+  type ExerciseRIREstimate,
+  estimateRIRWithProfile,
+  DEFAULT_CABLE_COMPOUND_PROFILE,
+  DEFAULT_CABLE_ISOLATION_PROFILE,
+  DEFAULT_FALLBACK_PROFILE,
+} from './rir-exercise-specific';

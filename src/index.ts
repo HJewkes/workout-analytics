@@ -187,7 +187,10 @@ export {
   type OutlierRep,
   type FatigueSummary,
   type EccentricControl,
+  type VBTSetFatigueIndexResult,
   DEFAULT_FATIGUE_WEIGHTS,
+  VBT_DEFAULT_FATIGUE_WEIGHTS,
+  VBT_DEFAULT_FATIGUE_LAMBDA,
   getSetVelocityChange,
   getSetTempoChange,
   getSetROMChange,
@@ -204,6 +207,8 @@ export {
   estimateSetRIR,
   isSetFatigued,
   getSetFatigueSummary,
+  computeVBTSetFatigueIndex,
+  updateSessionFatigueState,
 } from './analytics';
 
 // Analytics - Intensity
@@ -224,6 +229,23 @@ export {
   computeSessionFatigue,
   computeVolume,
   computeEffectiveVolume,
+} from './analytics';
+
+// Analytics - Readiness Adjustments
+export {
+  type ReadinessAdjustments,
+  type ReadinessAdjustmentInputs,
+  computeReadinessAdjustments,
+} from './analytics';
+
+// Analytics - Trend
+export {
+  type TimeSeriesPoint,
+  type TimeSeries,
+  type TrendAnalysis,
+  type PlateauDetection,
+  analyzeTrend,
+  detectPlateau,
 } from './analytics';
 
 // VBT - Constants
@@ -247,7 +269,15 @@ export {
 } from './vbt';
 
 // VBT - Baseline
-export { type VelocityBaseline, buildBaseline, getExpectedVelocity } from './vbt';
+export {
+  type VelocityBaseline,
+  type SerializedBaseline,
+  buildBaseline,
+  getExpectedVelocity,
+  updateBaselineWithPoint,
+  serializeBaseline,
+  deserializeBaseline,
+} from './vbt';
 
 // VBT - e1RM
 export {
@@ -267,6 +297,21 @@ export {
 
 // VBT - Advanced Fitting
 export { type FittingOptions, type FittingResult, fitLVProfile } from './vbt';
+
+// VBT - Bayesian LV Profile Fitting
+export { type BayesianLVPrior, type BayesianLVPosterior, fitLVProfileBayesian } from './vbt';
+
+// VBT - Exercise-Specific RIR Estimation
+export {
+  type ExerciseTypeId,
+  type ExerciseVBTProfile,
+  type RIREstimateInputs,
+  type ExerciseRIREstimate,
+  estimateRIRWithProfile,
+  DEFAULT_CABLE_COMPOUND_PROFILE,
+  DEFAULT_CABLE_ISOLATION_PROFILE,
+  DEFAULT_FALLBACK_PROFILE,
+} from './vbt';
 
 // Exercises
 export {
@@ -288,3 +333,20 @@ export {
   hasExercise,
   getExerciseCount,
 } from './exercises';
+
+// Analytics - Coverage (autoregulation explorer, §9.1-§9.2)
+export {
+  type SetSummary,
+  type CoverageBin as AnalyticsCoverageBin,
+  buildCoverageMap,
+  detectStaleBins,
+} from './analytics';
+
+// Analytics - Time Series (cross-session aggregation, T25)
+export {
+  type MetricTimeSeries,
+  type MetricTimeSeriesPoint,
+  type ProcessedSession,
+  type ProcessedSet,
+  buildTimeSeries,
+} from './analytics';

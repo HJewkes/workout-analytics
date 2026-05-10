@@ -94,7 +94,10 @@ export {
   type OutlierRep,
   type FatigueSummary,
   type EccentricControl,
+  type VBTSetFatigueIndexResult,
   DEFAULT_FATIGUE_WEIGHTS,
+  VBT_DEFAULT_FATIGUE_WEIGHTS,
+  VBT_DEFAULT_FATIGUE_LAMBDA,
   getSetVelocityChange,
   getSetTempoChange,
   getSetROMChange,
@@ -111,6 +114,8 @@ export {
   estimateSetRIR,
   isSetFatigued,
   getSetFatigueSummary,
+  computeVBTSetFatigueIndex,
+  updateSessionFatigueState,
 } from './fatigue';
 
 // Intensity
@@ -120,6 +125,9 @@ export {
   getSetIntensityScore,
   getSetStimulusScore,
 } from './intensity';
+
+// Coverage
+export { type SetSummary, type CoverageBin, buildCoverageMap, detectStaleBins } from './coverage';
 
 // Session
 export {
@@ -132,3 +140,35 @@ export {
   computeVolume,
   computeEffectiveVolume,
 } from './session';
+
+// Readiness Adjustments
+export {
+  type ReadinessAdjustments,
+  type ReadinessAdjustmentInputs,
+  computeReadinessAdjustments,
+} from './readiness-adjustments';
+
+// Trend
+export {
+  type TimeSeriesPoint,
+  type TimeSeries,
+  type TrendAnalysis,
+  type PlateauDetection,
+  analyzeTrend,
+  detectPlateau,
+} from './trend';
+
+// Time Series (cross-session aggregation)
+export {
+  type MetricKey,
+  type BuildTimeSeriesConfig,
+  type WeeklySummary,
+  type VolumeByMuscleGroup,
+  type ProcessedSession,
+  type ProcessedSet,
+  type MetricTimeSeries,
+  type MetricTimeSeriesPoint,
+  buildTimeSeries,
+  getWeeklySummaries,
+  getVolumeByMuscleGroup,
+} from './time-series';
