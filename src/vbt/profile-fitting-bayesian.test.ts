@@ -131,10 +131,18 @@ describe('fitLVProfileBayesian', () => {
       const data = syntheticData(1.5, -0.007, loads, 0);
 
       const tightNoiseResult = fitLVProfileBayesian(data, {
-        meanA: 1.5, meanB: -0.007, varA: 2.0, varB: 0.005, sigma2: 0.001,
+        meanA: 1.5,
+        meanB: -0.007,
+        varA: 2.0,
+        varB: 0.005,
+        sigma2: 0.001,
       });
       const looseNoiseResult = fitLVProfileBayesian(data, {
-        meanA: 1.5, meanB: -0.007, varA: 2.0, varB: 0.005, sigma2: 0.5,
+        meanA: 1.5,
+        meanB: -0.007,
+        varA: 2.0,
+        varB: 0.005,
+        sigma2: 0.5,
       });
 
       // With higher assumed observation noise, data is trusted less → more posterior variance.

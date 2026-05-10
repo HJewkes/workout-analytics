@@ -59,10 +59,7 @@ function toDays(ts: string): number {
  * Returns { slope, intercept, rSquared }. All zeros when n < 2 or x has no
  * variance (all identical timestamps).
  */
-function ols(
-  x: number[],
-  y: number[]
-): { slope: number; intercept: number; rSquared: number } {
+function ols(x: number[], y: number[]): { slope: number; intercept: number; rSquared: number } {
   const n = x.length;
   if (n < 2) return { slope: 0, intercept: n === 1 ? y[0] : 0, rSquared: 0 };
 
@@ -218,9 +215,7 @@ export function detectPlateau(
   if (series.length === 1) return none('only one data point');
 
   // Sort ascending by timestamp so indices are chronological
-  const sorted = [...series].sort(
-    (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime()
-  );
+  const sorted = [...series].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
 
   const days = sorted.map((p) => toDays(p.ts));
   const dayOffset = days[0];

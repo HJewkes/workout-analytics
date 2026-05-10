@@ -48,7 +48,7 @@ const HIGH_CONF_INPUTS: RIREstimateInputs = {
 const LOW_CONF_INPUTS: RIREstimateInputs = {
   peakVelocity: 0.2,
   baselineMaxVelocity: 1.0, // vRatio = 0.2 — below outer window
-  velLossPct: 80,            // above outer window
+  velLossPct: 80, // above outer window
   repIndex: 1,
   repsInSet: 8,
 };
@@ -124,7 +124,7 @@ describe('estimateRIRWithProfile — range', () => {
     const result = estimateRIRWithProfile(HIGH_CONF_INPUTS, profile);
 
     // Implementation: range.high = roundHalf(rir + halfBand) where halfBand = roundHalf(1.96*stderr)
-    const halfBand = Math.round(1.96 * stderr * 2) / 2;           // inner round
+    const halfBand = Math.round(1.96 * stderr * 2) / 2; // inner round
     const expectedHigh = Math.round((result.rir + halfBand) * 2) / 2; // outer round
     expect(result.range.high).toBeCloseTo(expectedHigh, 5);
   });
@@ -166,9 +166,9 @@ describe('estimateRIRWithProfile — confidence', () => {
   it('yields "medium" confidence for mid-window inputs', () => {
     // velLossPct in [5,70] AND vRatio in [0.3,1.1] but outside high window
     const midInputs: RIREstimateInputs = {
-      peakVelocity: 0.35,          // vRatio = 0.35 — in medium window, not high
+      peakVelocity: 0.35, // vRatio = 0.35 — in medium window, not high
       baselineMaxVelocity: 1.0,
-      velLossPct: 60,              // in medium window [5,70], not high [10,50]
+      velLossPct: 60, // in medium window [5,70], not high [10,50]
       repIndex: 3,
       repsInSet: 8,
     };
@@ -252,11 +252,11 @@ describe('estimateRIRWithProfile — edge cases', () => {
   it('higher repIndex (later in set) yields lower RIR than earlier rep (all else equal)', () => {
     const earlyRep = estimateRIRWithProfile(
       { ...HIGH_CONF_INPUTS, repIndex: 1 },
-      DEFAULT_CABLE_COMPOUND_PROFILE,
+      DEFAULT_CABLE_COMPOUND_PROFILE
     );
     const lateRep = estimateRIRWithProfile(
       { ...HIGH_CONF_INPUTS, repIndex: 7 },
-      DEFAULT_CABLE_COMPOUND_PROFILE,
+      DEFAULT_CABLE_COMPOUND_PROFILE
     );
     expect(earlyRep.rir).toBeGreaterThan(lateRep.rir);
   });

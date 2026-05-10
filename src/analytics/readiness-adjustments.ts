@@ -106,7 +106,13 @@ const MAX_DAYS_SINCE_TRAINED = 21;
 export function computeReadinessAdjustments(
   inputs: ReadinessAdjustmentInputs
 ): ReadinessAdjustments {
-  const { readiness, plannedWeightLbs, plannedSets, recentFatigue = 0, daysSinceLastTrained } = inputs;
+  const {
+    readiness,
+    plannedWeightLbs,
+    plannedSets,
+    recentFatigue = 0,
+    daysSinceLastTrained,
+  } = inputs;
   const { velocityRatio, confidence: rawConfidence } = readiness;
 
   // Map numeric confidence to categorical
@@ -115,7 +121,7 @@ export function computeReadinessAdjustments(
   // Priority 1: long layoff override — recommend deload regardless of readiness
   if (daysSinceLastTrained !== undefined && daysSinceLastTrained > MAX_DAYS_SINCE_TRAINED) {
     return {
-      weightAdjustmentLbs: -Math.round(plannedWeightLbs * 0.1 / 5) * 5, // ~10 % deload, 5 lb steps
+      weightAdjustmentLbs: -Math.round((plannedWeightLbs * 0.1) / 5) * 5, // ~10 % deload, 5 lb steps
       volumeAdjustmentSets: -1,
       recommendation: 'rest_day',
       confidence: 'medium',
@@ -127,10 +133,11 @@ export function computeReadinessAdjustments(
   if (velocityRatio < RATIO.criticalLow) {
     return {
       weightAdjustmentLbs: -10,
-      volumeAdjustmentSets: -(Math.max(0, plannedSets - 1)),
+      volumeAdjustmentSets: -Math.max(0, plannedSets - 1),
       recommendation: 'rest_day',
       confidence,
-      reasoning: 'Velocity severely below baseline — body needs recovery; consider a full rest day or very light technique work',
+      reasoning:
+        'Velocity severely below baseline — body needs recovery; consider a full rest day or very light technique work',
     };
   }
 
@@ -148,7 +155,8 @@ export function computeReadinessAdjustments(
   // Priority 4: moderate shortfall — reduce load
   if (velocityRatio < RATIO.reduceLoad) {
     // Scale reduction linearly in the 0.4-0.6 band: 0.4 → -10, 0.6 → -5
-    const bandProgress = (velocityRatio - RATIO.reduceVolume) / (RATIO.reduceLoad - RATIO.reduceVolume); // 0..1
+    const bandProgress =
+      (velocityRatio - RATIO.reduceVolume) / (RATIO.reduceLoad - RATIO.reduceVolume); // 0..1
     const lbReduction = Math.round((10 - bandProgress * 5) / 5) * 5; // 5 or 10
     return {
       weightAdjustmentLbs: -lbReduction,

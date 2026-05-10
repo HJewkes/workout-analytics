@@ -84,11 +84,7 @@ function resolvePrior(prior?: BayesianLVPrior): ResolvedPrior {
  * Invert a 2×2 symmetric positive-definite matrix [[a,b],[b,d]].
  * Returns [[a,b],[b,d]]^-1. Throws if the matrix is singular (det ≈ 0).
  */
-function invert2x2(
-  a: number,
-  b: number,
-  d: number
-): { a: number; b: number; d: number } {
+function invert2x2(a: number, b: number, d: number): { a: number; b: number; d: number } {
   const det = a * d - b * b;
   if (Math.abs(det) < 1e-15) {
     // Degenerate: return near-zero precision → near-infinite variance (prior dominates).
@@ -101,11 +97,7 @@ function invert2x2(
 /**
  * Compute unweighted R² for the line `velocity = a + b*load` against data.
  */
-function computeRSquared(
-  data: LoadVelocityDataPoint[],
-  a: number,
-  b: number
-): number {
+function computeRSquared(data: LoadVelocityDataPoint[], a: number, b: number): number {
   const n = data.length;
   if (n < 2) return 0;
 

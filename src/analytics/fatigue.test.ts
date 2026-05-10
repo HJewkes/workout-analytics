@@ -724,11 +724,13 @@ describe('computeVBTSetFatigueIndex()', () => {
 
   it('redistributes weight to velocity when augmentations are unavailable', () => {
     // Single-rep: can't compute tempo/ROM, all weight goes to velocity.
-    const samples: WorkoutSample[] = [
-      ...createRepSamples(0, 1000, 0.6, 1.0, 1000),
-    ];
+    const samples: WorkoutSample[] = [...createRepSamples(0, 1000, 0.6, 1.0, 1000)];
     const set = buildSet(samples);
-    const result = computeVBTSetFatigueIndex(set, { velLossWeight: 0.7, tempoCrepWeight: 0.15, romShrinkWeight: 0.15 });
+    const result = computeVBTSetFatigueIndex(set, {
+      velLossWeight: 0.7,
+      tempoCrepWeight: 0.15,
+      romShrinkWeight: 0.15,
+    });
 
     // fatigueIndex = velLossPct * 1.0 (redistributed) = 0 * 1.0 = 0
     expect(result.fatigueIndex).toBeCloseTo(0, 5);
@@ -743,11 +745,19 @@ describe('computeVBTSetFatigueIndex()', () => {
     const set = buildSet(samples);
 
     // All weight on velLoss
-    const result = computeVBTSetFatigueIndex(set, { velLossWeight: 1.0, tempoCrepWeight: 0, romShrinkWeight: 0 });
+    const result = computeVBTSetFatigueIndex(set, {
+      velLossWeight: 1.0,
+      tempoCrepWeight: 0,
+      romShrinkWeight: 0,
+    });
     expect(result.fatigueIndex).toBeCloseTo(0.3, 5);
 
     // All weight on tempo (which is 0) → fatigueIndex ≈ 0
-    const resultTempoOnly = computeVBTSetFatigueIndex(set, { velLossWeight: 0, tempoCrepWeight: 1.0, romShrinkWeight: 0 });
+    const resultTempoOnly = computeVBTSetFatigueIndex(set, {
+      velLossWeight: 0,
+      tempoCrepWeight: 1.0,
+      romShrinkWeight: 0,
+    });
     expect(resultTempoOnly.fatigueIndex).toBeCloseTo(0, 5);
   });
 

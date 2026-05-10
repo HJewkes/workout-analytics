@@ -127,12 +127,7 @@ export {
 } from './intensity';
 
 // Coverage
-export {
-  type SetSummary,
-  type CoverageBin,
-  buildCoverageMap,
-  detectStaleBins,
-} from './coverage';
+export { type SetSummary, type CoverageBin, buildCoverageMap, detectStaleBins } from './coverage';
 
 // Session
 export {

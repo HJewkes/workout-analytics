@@ -299,11 +299,7 @@ export {
 export { type FittingOptions, type FittingResult, fitLVProfile } from './vbt';
 
 // VBT - Bayesian LV Profile Fitting
-export {
-  type BayesianLVPrior,
-  type BayesianLVPosterior,
-  fitLVProfileBayesian,
-} from './vbt';
+export { type BayesianLVPrior, type BayesianLVPosterior, fitLVProfileBayesian } from './vbt';
 
 // VBT - Exercise-Specific RIR Estimation
 export {

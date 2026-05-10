@@ -208,10 +208,7 @@ describe('detectPlateau', () => {
 
     it('is not flagged when the most recent point has a big spike', () => {
       // 20 stable days at ~100, then a large spike on day 21
-      const stable = Array.from(
-        { length: 20 },
-        (_, i) => [i, 100 + (i % 2)] as [number, number]
-      );
+      const stable = Array.from({ length: 20 }, (_, i) => [i, 100 + (i % 2)] as [number, number]);
       stable.push([21, 500]); // spike
       const result = detectPlateau(makeSeries(stable), 5, 14);
       // The spike breaks the plateau at the recent end
@@ -230,7 +227,14 @@ describe('detectPlateau', () => {
     });
 
     it('returns varianceThresholdPct matching the argument', () => {
-      const result = detectPlateau(makeSeries([[0, 100], [1, 100]]), 8, 14);
+      const result = detectPlateau(
+        makeSeries([
+          [0, 100],
+          [1, 100],
+        ]),
+        8,
+        14
+      );
       expect(result.varianceThresholdPct).toBe(8);
     });
   });
@@ -254,18 +258,14 @@ describe('detectPlateau', () => {
 
   describe('minDays sensitivity', () => {
     it('a 14-day stable run does not satisfy a 30-day minDays requirement', () => {
-      const series = makeSeries(
-        Array.from({ length: 15 }, (_, i) => [i, 100] as [number, number])
-      );
+      const series = makeSeries(Array.from({ length: 15 }, (_, i) => [i, 100] as [number, number]));
       const result = detectPlateau(series, 5, 30);
       expect(result.isPlateau).toBe(false);
       expect(result.plateauDays).toBeLessThan(30);
     });
 
     it('a 14-day stable run satisfies a 10-day minDays requirement', () => {
-      const series = makeSeries(
-        Array.from({ length: 15 }, (_, i) => [i, 100] as [number, number])
-      );
+      const series = makeSeries(Array.from({ length: 15 }, (_, i) => [i, 100] as [number, number]));
       const result = detectPlateau(series, 5, 10);
       expect(result.isPlateau).toBe(true);
     });

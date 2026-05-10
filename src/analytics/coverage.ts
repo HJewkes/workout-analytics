@@ -166,8 +166,7 @@ export function detectStaleBins(
 
   for (let i = 0; i < coverage.length; i++) {
     const bin = coverage[i];
-    const stale =
-      bin.lastSeenAt === null || nowMs - Date.parse(bin.lastSeenAt) > thresholdMs;
+    const stale = bin.lastSeenAt === null || nowMs - Date.parse(bin.lastSeenAt) > thresholdMs;
     // CoverageBin is readonly, so replace the object
     coverage[i] = { ...bin, isStale: stale };
   }

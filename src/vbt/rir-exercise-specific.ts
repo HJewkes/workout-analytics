@@ -94,7 +94,7 @@ export interface ExerciseRIREstimate {
 export const DEFAULT_CABLE_COMPOUND_PROFILE: ExerciseVBTProfile = {
   exerciseTypeId: 'cable-compound',
   // Placeholder coefficients — calibration deferred pending real-device session data.
-  coefficients: { c0: 8.0, c1: -3.0, c2: -0.10, c3: -2.0 },
+  coefficients: { c0: 8.0, c1: -3.0, c2: -0.1, c3: -2.0 },
   stderr: 0.8,
 };
 
@@ -156,7 +156,7 @@ function computeConfidence(vRatio: number, velLossPct: number): 'high' | 'medium
  */
 export function estimateRIRWithProfile(
   inputs: RIREstimateInputs,
-  exerciseProfile?: ExerciseVBTProfile,
+  exerciseProfile?: ExerciseVBTProfile
 ): ExerciseRIREstimate {
   const profile = exerciseProfile ?? DEFAULT_FALLBACK_PROFILE;
   const { c0, c1, c2, c3 } = profile.coefficients;

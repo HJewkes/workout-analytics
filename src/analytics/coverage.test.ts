@@ -74,13 +74,13 @@ describe('buildCoverageMap', () => {
   it('sets distributed across bins → correct counts per bin', () => {
     const e1RM = 100;
     const sets = [
-      makeSet(45, 1),  // 45% → bin 0 [40,50)
-      makeSet(55, 1),  // 55% → bin 1 [50,60)
-      makeSet(65, 1),  // 65% → bin 2 [60,70)
-      makeSet(65, 2),  // also bin 2
-      makeSet(75, 1),  // 75% → bin 3 [70,80)
-      makeSet(85, 1),  // 85% → bin 4 [80,90)
-      makeSet(95, 1),  // 95% → bin 5 [90,100)
+      makeSet(45, 1), // 45% → bin 0 [40,50)
+      makeSet(55, 1), // 55% → bin 1 [50,60)
+      makeSet(65, 1), // 65% → bin 2 [60,70)
+      makeSet(65, 2), // also bin 2
+      makeSet(75, 1), // 75% → bin 3 [70,80)
+      makeSet(85, 1), // 85% → bin 4 [80,90)
+      makeSet(95, 1), // 95% → bin 5 [90,100)
     ];
     const bins = buildCoverageMap(sets, e1RM);
     expect(bins[0].pointCount).toBe(1);
@@ -202,7 +202,7 @@ describe('detectStaleBins', () => {
     const bins = buildCoverageMap(sets, e1RM, { lookbackDays: 90 });
     const result = detectStaleBins(bins, 21);
     expect(result[2].isStale).toBe(false); // 10 days old, within 21
-    expect(result[3].isStale).toBe(true);  // 30 days old, beyond 21
+    expect(result[3].isStale).toBe(true); // 30 days old, beyond 21
   });
 
   it('custom staleness threshold is respected', () => {
