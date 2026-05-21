@@ -25,7 +25,6 @@ export interface Phase {
   readonly _totalVelocity: number;
   readonly _totalForce: number;
   readonly _totalLoad: number;
-  readonly _totalPower: number; // sum of |velocity| * force across movement samples
   readonly _movementSampleCount: number;
   readonly _totalHoldDuration: number; // in ms
   /**
@@ -61,7 +60,6 @@ export const EMPTY_PHASE: Phase = Object.freeze({
   _totalVelocity: 0,
   _totalForce: 0,
   _totalLoad: 0,
-  _totalPower: 0,
   _movementSampleCount: 0,
   _totalHoldDuration: 0,
   _peakVelocityTime: 0,
@@ -103,7 +101,6 @@ export function addSampleToPhase(phase: Phase, sample: WorkoutSample): Phase {
     _totalVelocity: isHold ? phase._totalVelocity : phase._totalVelocity + sampleVelocity,
     _totalForce: isHold ? phase._totalForce : phase._totalForce + sample.force,
     _totalLoad: isHold ? phase._totalLoad : phase._totalLoad + sampleLoad,
-    _totalPower: isHold ? phase._totalPower : phase._totalPower + sampleVelocity * sample.force,
     _movementSampleCount: isHold ? phase._movementSampleCount : phase._movementSampleCount + 1,
     _totalHoldDuration: phase._totalHoldDuration + (isHold ? timeDelta : 0),
     _peakVelocityTime: isNewPeak ? sample.timestamp : phase._peakVelocityTime,
@@ -156,35 +153,6 @@ export function getPhaseMeanLoad(phase: Phase): number {
 
 export function getPhasePeakLoad(phase: Phase): number {
   return phase.peakLoad;
-}
-
-/**
- * Mean instantaneous power across the phase's movement samples, in
- * `mm/s × force-units`. Computed as `mean(|velocity| × force)` (NOT
- * `mean(velocity) × mean(force)`, which underestimates when force and
- * velocity correlate within a phase). Returns 0 when no movement samples
- * were captured. Unit choice is intentional: consumers responsible for the
- * mm/s → m/s conversion at their serialization boundary (mirrors the
- * existing peak/mean velocity convention).
- */
-export function getPhaseMeanPower(phase: Phase): number {
-  if (phase._movementSampleCount === 0) return 0;
-  return phase._totalPower / phase._movementSampleCount;
-}
-
-/**
- * Phase impulse — `∫ force dt` approximated under the uniform-sampling
- * assumption already baked into the running aggregates (mean force ×
- * movement duration). Units: `force-units × seconds`. Returns 0 for a
- * phase with no movement samples or zero movement duration.
- *
- * The cleaner alternative — accumulating `force × dt` per sample at write
- * time — was not chosen because BLE telemetry isn't perfectly periodic and
- * the existing means already use sample-count weighting; deriving impulse
- * the same way keeps the metric internally consistent with `meanForce`.
- */
-export function getPhaseImpulse(phase: Phase): number {
-  return getPhaseMeanForce(phase) * getPhaseMovementDuration(phase);
 }
 
 /**

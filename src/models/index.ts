@@ -27,8 +27,6 @@ export {
   getPhaseMeanVelocity,
   getPhaseMeanForce,
   getPhaseMeanLoad,
-  getPhaseMeanPower,
-  getPhaseImpulse,
   getPhasePeakLoad,
   getPhaseRangeOfMotion,
   getPhaseTimeToPeakVelocityMs,

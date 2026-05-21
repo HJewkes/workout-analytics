@@ -14,8 +14,6 @@ import {
   getPhaseMovementDuration,
   getPhaseMeanVelocity,
   getPhaseMeanForce,
-  getPhaseImpulse,
-  getPhaseMeanPower,
   getPhaseTimeToPeakVelocityMs,
   getPhaseVelocityDropPct,
   getPhaseVelocityEnvelope,
@@ -592,125 +590,6 @@ describe('addSampleToPhase()', () => {
 // Telemetry-enrichment helpers (impulse, meanPower, timeToPeakVelocity,
 // velocityDropPct, velocityEnvelope)
 // =============================================================================
-
-describe('getPhaseImpulse()', () => {
-  it('returns 0 for an empty phase', () => {
-    expect(getPhaseImpulse(EMPTY_PHASE)).toBe(0);
-  });
-
-  it('returns 0 when all samples are hold/idle (no movement duration)', () => {
-    const holds: WorkoutSample[] = [
-      {
-        sequence: 0,
-        timestamp: 1000,
-        phase: MovementPhase.HOLD,
-        position: 0,
-        velocity: 0,
-        force: 100,
-      },
-      {
-        sequence: 1,
-        timestamp: 1500,
-        phase: MovementPhase.HOLD,
-        position: 0,
-        velocity: 0,
-        force: 100,
-      },
-    ];
-    const phase = buildPhase(holds);
-    expect(getPhaseImpulse(phase)).toBe(0);
-  });
-
-  it('equals meanForce × movementDuration', () => {
-    const samples = createConcentricSamples(10, { baseForce: 200 });
-    const phase = buildPhase(samples);
-    const expected = getPhaseMeanForce(phase) * getPhaseMovementDuration(phase);
-    expect(getPhaseImpulse(phase)).toBeCloseTo(expected, 6);
-  });
-
-  it('scales with force when movement duration is held constant', () => {
-    const light = buildPhase(createConcentricSamples(10, { baseForce: 100 }));
-    const heavy = buildPhase(createConcentricSamples(10, { baseForce: 300 }));
-    expect(getPhaseImpulse(heavy)).toBeGreaterThan(getPhaseImpulse(light) * 2);
-  });
-});
-
-describe('getPhaseMeanPower()', () => {
-  it('returns 0 for an empty phase', () => {
-    expect(getPhaseMeanPower(EMPTY_PHASE)).toBe(0);
-  });
-
-  it('equals mean(|velocity| × force) over movement samples', () => {
-    const samples: WorkoutSample[] = [
-      // Three movement samples with known F, V so the mean is hand-checkable.
-      {
-        sequence: 0,
-        timestamp: 1000,
-        phase: MovementPhase.CONCENTRIC,
-        position: 0,
-        velocity: 0.5,
-        force: 100,
-      },
-      {
-        sequence: 1,
-        timestamp: 1100,
-        phase: MovementPhase.CONCENTRIC,
-        position: 0.1,
-        velocity: 0.7,
-        force: 200,
-      },
-      {
-        sequence: 2,
-        timestamp: 1200,
-        phase: MovementPhase.CONCENTRIC,
-        position: 0.2,
-        velocity: 0.3,
-        force: 150,
-      },
-    ];
-    const phase = buildPhase(samples);
-    // (0.5*100 + 0.7*200 + 0.3*150) / 3 = (50 + 140 + 45) / 3 = 235 / 3
-    expect(getPhaseMeanPower(phase)).toBeCloseTo(235 / 3, 6);
-  });
-
-  it('excludes hold/idle samples from the mean', () => {
-    const samples: WorkoutSample[] = [
-      {
-        sequence: 0,
-        timestamp: 1000,
-        phase: MovementPhase.CONCENTRIC,
-        position: 0,
-        velocity: 1,
-        force: 100,
-      },
-      {
-        sequence: 1,
-        timestamp: 1100,
-        phase: MovementPhase.HOLD,
-        position: 0.1,
-        velocity: 0,
-        force: 100,
-      },
-    ];
-    const phase = buildPhase(samples);
-    expect(getPhaseMeanPower(phase)).toBe(100); // movement sample only
-  });
-
-  it('uses |velocity| so a negative-signed sample still contributes positively', () => {
-    const samples: WorkoutSample[] = [
-      {
-        sequence: 0,
-        timestamp: 1000,
-        phase: MovementPhase.ECCENTRIC,
-        position: 1,
-        velocity: -0.5,
-        force: 100,
-      },
-    ];
-    const phase = buildPhase(samples);
-    expect(getPhaseMeanPower(phase)).toBe(50);
-  });
-});
 
 describe('getPhaseTimeToPeakVelocityMs()', () => {
   it('returns 0 for an empty phase', () => {
