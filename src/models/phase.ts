@@ -227,7 +227,7 @@ export function getPhaseVelocityDropPct(phase: Phase): number {
  */
 export function getPhaseVelocityEnvelope(phase: Phase): [number, number, number, number] {
   const movementSamples = phase.samples.filter(
-    (s) => s.phase !== MovementPhase.HOLD && s.phase !== MovementPhase.IDLE,
+    (s) => s.phase !== MovementPhase.HOLD && s.phase !== MovementPhase.IDLE
   );
   if (movementSamples.length < 2) return [0, 0, 0, 0];
 
