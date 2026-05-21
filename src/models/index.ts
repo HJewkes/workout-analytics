@@ -27,8 +27,13 @@ export {
   getPhaseMeanVelocity,
   getPhaseMeanForce,
   getPhaseMeanLoad,
+  getPhaseMeanPower,
+  getPhaseImpulse,
   getPhasePeakLoad,
   getPhaseRangeOfMotion,
+  getPhaseTimeToPeakVelocityMs,
+  getPhaseVelocityDropPct,
+  getPhaseVelocityEnvelope,
 } from './phase';
 
 // Rep
@@ -38,6 +43,8 @@ export {
   isInEccentricPhase,
   getRepDuration,
   getRepTempo,
+  getRepTempoRatio,
+  getRepHoldTopMs,
   getRepMeanVelocity,
   getRepPeakVelocity,
   getRepPeakForce,

@@ -25,8 +25,22 @@ export interface Phase {
   readonly _totalVelocity: number;
   readonly _totalForce: number;
   readonly _totalLoad: number;
+  readonly _totalPower: number; // sum of |velocity| * force across movement samples
   readonly _movementSampleCount: number;
   readonly _totalHoldDuration: number; // in ms
+  /**
+   * Timestamp (ms) of the sample that set the current `peakVelocity`. Held at
+   * 0 until the first movement sample arrives. Updated only when a new peak
+   * is set, so the value points at the actual moment peak velocity occurred.
+   */
+  readonly _peakVelocityTime: number;
+  /**
+   * `|velocity|` of the most recent movement sample, in mm/s. Used by
+   * `getPhaseVelocityDropPct` to compute the start→end falloff without
+   * re-walking the samples array. Held at 0 across hold/idle samples so a
+   * trailing hold doesn't reset the recorded movement velocity.
+   */
+  readonly _lastMovementVelocity: number;
 
   // Peaks
   readonly peakVelocity: number;
@@ -47,8 +61,11 @@ export const EMPTY_PHASE: Phase = Object.freeze({
   _totalVelocity: 0,
   _totalForce: 0,
   _totalLoad: 0,
+  _totalPower: 0,
   _movementSampleCount: 0,
   _totalHoldDuration: 0,
+  _peakVelocityTime: 0,
+  _lastMovementVelocity: 0,
   peakVelocity: 0,
   peakForce: 0,
   peakLoad: 0,
@@ -72,6 +89,10 @@ export function addSampleToPhase(phase: Phase, sample: WorkoutSample): Phase {
   // peaks and means stay correct; a properly-implemented adapter passes
   // magnitudes and this is a no-op.
   const sampleVelocity = Math.abs(sample.velocity);
+  // New peak iff this is a movement sample AND it strictly beats the running
+  // max. Track timestamp + last-velocity in lockstep so the time-to-peak and
+  // velocity-drop helpers stay O(1).
+  const isNewPeak = !isHold && sampleVelocity > phase.peakVelocity;
 
   return {
     samples: [...phase.samples, sample],
@@ -82,8 +103,11 @@ export function addSampleToPhase(phase: Phase, sample: WorkoutSample): Phase {
     _totalVelocity: isHold ? phase._totalVelocity : phase._totalVelocity + sampleVelocity,
     _totalForce: isHold ? phase._totalForce : phase._totalForce + sample.force,
     _totalLoad: isHold ? phase._totalLoad : phase._totalLoad + sampleLoad,
+    _totalPower: isHold ? phase._totalPower : phase._totalPower + sampleVelocity * sample.force,
     _movementSampleCount: isHold ? phase._movementSampleCount : phase._movementSampleCount + 1,
     _totalHoldDuration: phase._totalHoldDuration + (isHold ? timeDelta : 0),
+    _peakVelocityTime: isNewPeak ? sample.timestamp : phase._peakVelocityTime,
+    _lastMovementVelocity: isHold ? phase._lastMovementVelocity : sampleVelocity,
     peakVelocity: isHold ? phase.peakVelocity : Math.max(phase.peakVelocity, sampleVelocity),
     peakForce: isHold ? phase.peakForce : Math.max(phase.peakForce, sample.force),
     peakLoad: isHold ? phase.peakLoad : Math.max(phase.peakLoad, sampleLoad),
@@ -132,4 +156,102 @@ export function getPhaseMeanLoad(phase: Phase): number {
 
 export function getPhasePeakLoad(phase: Phase): number {
   return phase.peakLoad;
+}
+
+/**
+ * Mean instantaneous power across the phase's movement samples, in
+ * `mm/s × force-units`. Computed as `mean(|velocity| × force)` (NOT
+ * `mean(velocity) × mean(force)`, which underestimates when force and
+ * velocity correlate within a phase). Returns 0 when no movement samples
+ * were captured. Unit choice is intentional: consumers responsible for the
+ * mm/s → m/s conversion at their serialization boundary (mirrors the
+ * existing peak/mean velocity convention).
+ */
+export function getPhaseMeanPower(phase: Phase): number {
+  if (phase._movementSampleCount === 0) return 0;
+  return phase._totalPower / phase._movementSampleCount;
+}
+
+/**
+ * Phase impulse — `∫ force dt` approximated under the uniform-sampling
+ * assumption already baked into the running aggregates (mean force ×
+ * movement duration). Units: `force-units × seconds`. Returns 0 for a
+ * phase with no movement samples or zero movement duration.
+ *
+ * The cleaner alternative — accumulating `force × dt` per sample at write
+ * time — was not chosen because BLE telemetry isn't perfectly periodic and
+ * the existing means already use sample-count weighting; deriving impulse
+ * the same way keeps the metric internally consistent with `meanForce`.
+ */
+export function getPhaseImpulse(phase: Phase): number {
+  return getPhaseMeanForce(phase) * getPhaseMovementDuration(phase);
+}
+
+/**
+ * Time (ms) from the phase's start to the sample at which peak velocity
+ * was set. Returns 0 when the phase has no movement samples. Useful for
+ * power-coaching cues — "your bar peaked at 35% through the pull" vs
+ * "60% through" tells a different intent story than peak velocity alone.
+ */
+export function getPhaseTimeToPeakVelocityMs(phase: Phase): number {
+  if (phase._movementSampleCount === 0) return 0;
+  return phase._peakVelocityTime - phase.startTime;
+}
+
+/**
+ * Velocity drop from peak to end-of-movement, as a percentage. Computed
+ * `(peakVelocity − lastMovementVelocity) / peakVelocity × 100`. A positive
+ * value means the bar slowed before phase end (typical for grinder reps);
+ * 0 means the phase ended at peak velocity (often the case for fast,
+ * explosive concentric pulls that don't decelerate before the eccentric
+ * starts). Returns 0 when `peakVelocity` is 0 to avoid divide-by-zero.
+ */
+export function getPhaseVelocityDropPct(phase: Phase): number {
+  if (phase.peakVelocity <= 0) return 0;
+  const drop = phase.peakVelocity - phase._lastMovementVelocity;
+  return (drop / phase.peakVelocity) * 100;
+}
+
+/**
+ * Four-point velocity envelope sampled at 25 / 50 / 75 / 100% of the
+ * phase's MOVEMENT span (hold/idle samples excluded so a paused-rep
+ * doesn't dilute the curve). Each entry is the `|velocity|` of the
+ * movement sample whose timestamp is closest to the target time. Returns
+ * `[0, 0, 0, 0]` when the phase has fewer than two movement samples
+ * (the envelope is undefined for a single-point or empty phase).
+ *
+ * Compressing the velocity-time curve to four points is a deliberate
+ * tradeoff: a coaching surface can reason about "did the bar slow ¾
+ * through the concentric" without consuming the full 40 Hz sample stream.
+ * Anything sub-quarter resolution starts to be noise on BLE telemetry.
+ */
+export function getPhaseVelocityEnvelope(phase: Phase): [number, number, number, number] {
+  const movementSamples = phase.samples.filter(
+    (s) => s.phase !== MovementPhase.HOLD && s.phase !== MovementPhase.IDLE
+  );
+  if (movementSamples.length < 2) return [0, 0, 0, 0];
+
+  const tStart = movementSamples[0].timestamp;
+  const tEnd = movementSamples[movementSamples.length - 1].timestamp;
+  const span = tEnd - tStart;
+  if (span <= 0) return [0, 0, 0, 0];
+
+  const targets = [0.25, 0.5, 0.75, 1.0].map((p) => tStart + p * span);
+  // For each target time, walk forward until we find the movement sample
+  // whose timestamp is closest. The targets list is monotonically increasing
+  // so we can advance a shared cursor instead of re-scanning the whole
+  // array — keeps this O(N) over phase samples, not O(N·4).
+  const envelope: number[] = [];
+  let cursor = 0;
+  for (const target of targets) {
+    while (
+      cursor + 1 < movementSamples.length &&
+      Math.abs(movementSamples[cursor + 1].timestamp - target) <
+        Math.abs(movementSamples[cursor].timestamp - target)
+    ) {
+      cursor += 1;
+    }
+    envelope.push(Math.abs(movementSamples[cursor].velocity));
+  }
+  return envelope as [number, number, number, number];
 }
