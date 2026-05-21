@@ -108,3 +108,42 @@ export function getRepMeanLoad(rep: Rep): number {
 export function getRepPeakLoad(rep: Rep): number {
   return Math.max(rep.concentric.peakLoad, rep.eccentric.peakLoad);
 }
+
+/**
+ * Ratio of eccentric movement duration to concentric movement duration.
+ * A standard tempo discipline cue — bodybuilding programming typically
+ * targets ratios in the 2.0-3.0 range (2-3 s eccentric, 1 s concentric),
+ * while explosive power work runs closer to 1.0. Hold time is excluded
+ * from both numerator and denominator (uses `getPhaseMovementDuration`),
+ * so a "pause at the top" doesn't inflate the eccentric side.
+ *
+ * Returns 0 when the concentric phase has no movement (a phase that
+ * never actually started would otherwise blow up to Infinity). 0 is the
+ * same sentinel the existing duration helpers use for "no data here."
+ */
+export function getRepTempoRatio(rep: Rep): number {
+  const concDur = getPhaseMovementDuration(rep.concentric);
+  const eccDur = getPhaseMovementDuration(rep.eccentric);
+  if (concDur <= 0) return 0;
+  return eccDur / concDur;
+}
+
+/**
+ * Hold time at the top of the rep — the gap between the last concentric
+ * sample and the first eccentric sample. Returns 0 when the eccentric
+ * phase never started (rep N at set close, which is finalized via
+ * SetSummary rather than a phase transition).
+ *
+ * Derived from inter-phase timestamps rather than from
+ * `getPhaseHoldDuration(rep.concentric)` so it isolates the deliberate
+ * pause between phases from any mid-concentric pauses the user may have
+ * taken (which `getPhaseHoldDuration` lumps together). The two values
+ * agree on a typical no-mid-pause rep; this helper is the precise one
+ * for coaching cues like "you didn't pause at the top."
+ */
+export function getRepHoldTopMs(rep: Rep): number {
+  if (rep.eccentric.samples.length === 0) return 0;
+  if (rep.concentric.samples.length === 0) return 0;
+  const gap = rep.eccentric.startTime - rep.concentric.endTime;
+  return gap > 0 ? gap : 0;
+}
