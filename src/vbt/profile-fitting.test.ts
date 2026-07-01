@@ -120,6 +120,30 @@ describe('fitLVProfile with quality weighting', () => {
     expect(result.dataPointsUsed).toBe(3);
     expect(result.rSquared).toBeGreaterThan(0);
   });
+
+  it('maps quality weights per occurrence for duplicate-by-reference points', () => {
+    // Regression: quality weights were mapped back via `dataPoints.indexOf`,
+    // which collides duplicate object references onto the first index — so the
+    // second occurrence silently inherited the first's (near-zero) weight.
+    // Here the SAME `offLine` object appears twice: its first slot is weighted
+    // ~0, its second slot heavily. Only if each occurrence keeps its own weight
+    // does the off-line point pull the fit's intercept up.
+    const offLine = { load: 50, velocity: 5.0 };
+    const data: LoadVelocityDataPoint[] = [
+      { load: 0, velocity: 1.0 },
+      { load: 100, velocity: 1.0 },
+      offLine,
+      offLine,
+    ];
+    const qualityWeights = [1, 1, 1e-6, 100];
+
+    const result = fitLVProfile(data, { weightByQuality: true, qualityWeights });
+
+    // With the second occurrence correctly weighted 100, the (50, 5.0) point
+    // dominates and lifts the intercept toward ~4.9. With the buggy indexOf
+    // mapping both occurrences get ~1e-6 and the intercept stays ~1.0.
+    expect(result.intercept).toBeGreaterThan(4);
+  });
 });
 
 // =============================================================================

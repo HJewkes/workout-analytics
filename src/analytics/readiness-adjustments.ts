@@ -65,7 +65,18 @@ export interface ReadinessAdjustmentInputs {
 // Constants
 // =============================================================================
 
-/** Velocity-ratio thresholds — kept in sync with computeReadiness. */
+/**
+ * Velocity-ratio thresholds for adjustment banding.
+ *
+ * NOTE: these deliberately do NOT match computeReadiness's zone cutoffs
+ * (green >= 0.95, yellow >= 0.85, red < 0.85). This surface is a coarser,
+ * action-oriented banding that only starts pulling load/volume well below
+ * baseline and treats ratio >= 0.8 as a 'push' candidate. The overlap band
+ * 0.80–0.85 is intentional but worth knowing: computeReadiness labels it
+ * 'red' while this function will still recommend 'push' when fatigue is low.
+ * The banding is locked by tests — change thresholds and behaviour, not just
+ * the numbers here.
+ */
 const RATIO = {
   /** Below this: rest_day override. */
   criticalLow: 0.2,
