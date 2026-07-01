@@ -200,19 +200,20 @@ export function getSetEccentricControlScore(set: Set): number {
  * Get a form warning string if eccentric control is deteriorating.
  *
  * Returns null if form looks acceptable.
+ *
+ * Note: control score is derived from eccentricChangePct as
+ * `100 - eccentricChangePct * 2` (clamped to [0, 100]), so any
+ * eccentricChangePct > 30 already forces controlScore < 40. The
+ * control-score guard below therefore always wins first; see the
+ * "control-score guard wins" test for coverage of this behavior.
  */
 export function getSetFormWarning(set: Set): string | null {
   if (set.reps.length < 2) return null;
 
-  const eccentricChangePct = getSetEccentricVelocityChangePct(set);
   const controlScore = getSetEccentricControlScore(set);
-  const velocityLossPct = getSetVelocityLossPct(set);
 
   if (controlScore < 40) {
     return 'Eccentric control declining - slow the negative';
-  }
-  if (eccentricChangePct > 30 && velocityLossPct > 10) {
-    return 'Grinding with loss of control - consider ending set';
   }
   return null;
 }

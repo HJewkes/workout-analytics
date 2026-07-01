@@ -610,8 +610,12 @@ describe('getSetFormWarning()', () => {
     expect(getSetFormWarning(set)).toBeNull();
   });
 
-  it('returns grinding warning when eccentric speeds up with concentric decline', () => {
-    // Eccentric change > 30%, velocity loss > 10%
+  it('returns the control-score warning (not a "grinding" warning) whenever eccentricChangePct > 30', () => {
+    // controlScore = 100 - eccentricChangePct * 2 (clamped to [0, 100]), so
+    // eccentricChangePct > 30 always forces controlScore < 40. The
+    // controlScore < 40 guard is checked first and returns early, which
+    // makes any would-be "grinding" branch keyed on eccentricChangePct > 30
+    // unreachable. This test locks that guard-wins behavior.
     const samples: WorkoutSample[] = [
       ...createRepSamplesEcc(0, 1000, 0.6, 0.3, 1.0, 1000),
       ...createRepSamplesEcc(4, 4000, 0.5, 0.45, 1.0, 1200),
@@ -620,8 +624,8 @@ describe('getSetFormWarning()', () => {
     const warning = getSetFormWarning(set);
 
     // eccentric change = (0.45 - 0.3) / 0.3 * 100 = 50%, control score = 100 - 50*2 = 0
-    // Since control score < 40, we get the "declining" warning
-    expect(warning).not.toBeNull();
+    // Since control score < 40, we get the "declining" warning, never a "grinding" one.
+    expect(warning).toBe('Eccentric control declining - slow the negative');
   });
 });
 
