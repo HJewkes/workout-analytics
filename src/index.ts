@@ -253,6 +253,17 @@ export {
   detectPlateau,
 } from './analytics';
 
+// Analytics - State-Space Strength Model
+export {
+  type StrengthState,
+  type StateSpaceStrengthModelOptions,
+  StateSpaceStrengthModel,
+  DEFAULT_PROCESS_NOISE_LEVEL,
+  DEFAULT_PROCESS_NOISE_TREND,
+  DEFAULT_OBSERVATION_NOISE,
+  DEFAULT_DIFFUSE_VARIANCE,
+} from './analytics';
+
 // VBT - Constants
 export {
   VELOCITY_AT_PERCENT_1RM,
