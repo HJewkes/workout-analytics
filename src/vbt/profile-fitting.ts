@@ -205,13 +205,18 @@ export function fitLVProfile(
     };
   }
 
-  // Filter by max age
+  // Filter by max age, retaining each surviving point's original index so
+  // quality weights map back correctly even when data points are duplicate
+  // object references (indexOf would collide both onto the first index).
   let filtered = dataPoints;
+  let origIndices = dataPoints.map((_, i) => i);
   if (options?.maxAge !== undefined) {
     const now = Date.now();
-    filtered = dataPoints.filter(
-      (dp) => dp.timestamp === undefined || now - dp.timestamp <= options.maxAge!
-    );
+    const kept = dataPoints
+      .map((dp, i) => ({ dp, i }))
+      .filter(({ dp }) => dp.timestamp === undefined || now - dp.timestamp <= options.maxAge!);
+    filtered = kept.map(({ dp }) => dp);
+    origIndices = kept.map(({ i }) => i);
   }
 
   if (filtered.length === 0) {
@@ -246,9 +251,9 @@ export function fitLVProfile(
 
   // Apply quality weighting
   if (options?.weightByQuality && options.qualityWeights) {
-    // Map quality weights back to filtered indices
+    // Map quality weights back via each point's retained original index.
     for (let i = 0; i < filtered.length; i++) {
-      const origIndex = dataPoints.indexOf(filtered[i]);
+      const origIndex = origIndices[i];
       if (origIndex >= 0 && origIndex < options.qualityWeights.length) {
         weights[i] *= options.qualityWeights[origIndex];
       }
