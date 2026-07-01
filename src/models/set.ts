@@ -1,8 +1,12 @@
 /**
  * Set - a collection of reps within a workout.
  *
- * Set manages rep boundaries based on phase transitions.
- * New rep starts when eccentric → concentric transition is detected.
+ * By default Set manages rep boundaries internally from phase transitions:
+ * a new rep starts when an eccentric → concentric transition is detected.
+ * Callers with an authoritative external rep source (e.g. a device's own
+ * rep-completion events) can instead drive boundaries explicitly via
+ * {@link AddSampleToSetOptions.repBoundary}, in which case the internal
+ * phase-transition heuristic is bypassed.
  */
 import {
   type Rep,
@@ -41,22 +45,57 @@ export function createSet(loadSettings?: LoadSettings): Set {
 }
 
 /**
- * Add sample to set, returns NEW set (immutable).
- * Handles rep boundary detection: new rep starts on eccentric → concentric transition.
+ * Options for {@link addSampleToSet}.
  */
-export function addSampleToSet(set: Set, sample: WorkoutSample): Set {
-  const lastRep = set.reps.at(-1);
+export interface AddSampleToSetOptions {
+  /**
+   * Override the internal eccentric → concentric boundary detection with an
+   * authoritative external rep source:
+   *   - `true`  — this sample begins a new rep (creating rep 1 if none exists).
+   *   - `false` — this sample belongs to the current rep; do not start a new
+   *     one even across a phase transition. Ignored (sample dropped) before the
+   *     first rep exists, mirroring the pre-first-rep default.
+   *   - `undefined` — use the internal phase-transition detection (default,
+   *     byte-identical to the pre-option behaviour).
+   */
+  repBoundary?: boolean;
+}
 
-  // No rep yet - need CONCENTRIC to start first rep
+/**
+ * Add sample to set, returns NEW set (immutable).
+ * Handles rep boundary detection: by default a new rep starts on an
+ * eccentric → concentric transition; pass {@link AddSampleToSetOptions.repBoundary}
+ * to drive boundaries from an external (e.g. firmware) rep source instead.
+ */
+export function addSampleToSet(
+  set: Set,
+  sample: WorkoutSample,
+  options?: AddSampleToSetOptions,
+): Set {
+  const lastRep = set.reps.at(-1);
+  const externalBoundary = options?.repBoundary;
+
+  // No rep yet - start rep 1 on an explicit boundary, or (default) on the
+  // first CONCENTRIC sample. An explicit `false` keeps ignoring pre-rep samples.
   if (!lastRep) {
-    if (sample.phase === MovementPhase.CONCENTRIC) {
+    const startsFirstRep =
+      externalBoundary === true ||
+      (externalBoundary === undefined && sample.phase === MovementPhase.CONCENTRIC);
+    if (startsFirstRep) {
       return { ...set, reps: [addSampleToRep(createRep(1), sample)] };
     }
     return set; // Ignore samples before first rep
   }
 
-  // Eccentric → Concentric = new rep
-  if (isInEccentricPhase(lastRep) && sample.phase === MovementPhase.CONCENTRIC) {
+  // New rep: forced by an external boundary, or (default) the internal
+  // eccentric → concentric transition. An explicit `false` pins the sample to
+  // the current rep even across a phase transition.
+  const startsNewRep =
+    externalBoundary === true ||
+    (externalBoundary === undefined &&
+      isInEccentricPhase(lastRep) &&
+      sample.phase === MovementPhase.CONCENTRIC);
+  if (startsNewRep) {
     return { ...set, reps: [...set.reps, addSampleToRep(createRep(set.reps.length + 1), sample)] };
   }
 

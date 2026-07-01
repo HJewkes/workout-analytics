@@ -9,7 +9,7 @@ export { MovementPhase, PhaseNames } from './types';
 export type { WorkoutSample } from './sample';
 export type { Phase } from './phase';
 export type { Rep } from './rep';
-export type { Set } from './set';
+export type { Set, AddSampleToSetOptions } from './set';
 export type { TempoParts } from './tempo';
 export type { LoadSettings } from './load';
 
