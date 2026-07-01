@@ -159,7 +159,7 @@ describe('addSampleToSet()', () => {
       set = addSampleToSet(
         set,
         { ...conc(0), phase: MovementPhase.ECCENTRIC, position: 1 },
-        { repBoundary: true },
+        { repBoundary: true }
       );
       expect(set.reps.map((r) => r.repNumber)).toEqual([1]);
     });

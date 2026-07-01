@@ -70,7 +70,7 @@ export interface AddSampleToSetOptions {
 export function addSampleToSet(
   set: Set,
   sample: WorkoutSample,
-  options?: AddSampleToSetOptions,
+  options?: AddSampleToSetOptions
 ): Set {
   const lastRep = set.reps.at(-1);
   const externalBoundary = options?.repBoundary;
