@@ -836,3 +836,85 @@ describe('updateSessionFatigueState()', () => {
     expect(fZero).toBeLessThanOrEqual(1);
   });
 });
+
+// =============================================================================
+// Branch-coverage top-ups for confidence / level thresholds and outlier metrics
+// =============================================================================
+
+describe('getSetFatigueIndex() confidence tiers', () => {
+  it('reports medium confidence for a 2-rep set (>=2 but <4 reps)', () => {
+    // 4+ reps → high, single rep → low; a 2-rep set exercises the middle tier.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.6, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.5, 0.95, 1200),
+    ]);
+    const fatigue = getSetFatigueIndex(set);
+    expect(set.reps).toHaveLength(2);
+    expect(fatigue.confidence).toBe('medium');
+  });
+
+  it('reports medium confidence for a 3-rep set', () => {
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.6, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.55, 0.98, 1100),
+      ...createRepSamples(8, 7000, 0.5, 0.95, 1200),
+    ]);
+    const fatigue = getSetFatigueIndex(set);
+    expect(set.reps).toHaveLength(3);
+    expect(fatigue.confidence).toBe('medium');
+  });
+});
+
+describe('findOutlierReps() per-metric detection', () => {
+  it('flags a ROM outlier while velocity and tempo stay constant', () => {
+    // All reps share velocity 0.5 and 1s concentric time (zero variance → no
+    // velocity/tempo outliers), but rep 5 collapses to a tiny ROM.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.5, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.5, 1.0, 1000),
+      ...createRepSamples(8, 7000, 0.5, 1.0, 1000),
+      ...createRepSamples(12, 10000, 0.5, 1.0, 1000),
+      ...createRepSamples(16, 13000, 0.5, 0.1, 1000), // Rep 5: tiny ROM
+      ...createRepSamples(20, 16000, 0.5, 1.0, 1000),
+    ]);
+    const outliers = findOutlierReps(set);
+
+    const romOutlier = outliers.find((o) => o.metric === 'rom' && o.repNumber === 5);
+    expect(romOutlier).toBeDefined();
+    expect(romOutlier!.direction).toBe('low');
+    expect(outliers.some((o) => o.metric === 'velocity')).toBe(false);
+    expect(outliers.some((o) => o.metric === 'tempo')).toBe(false);
+  });
+
+  it('flags a tempo outlier while velocity and ROM stay constant', () => {
+    // Rep 5 has a 5s concentric time vs 1s for the rest → tempo outlier only.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.5, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.5, 1.0, 1000),
+      ...createRepSamples(8, 7000, 0.5, 1.0, 1000),
+      ...createRepSamples(12, 10000, 0.5, 1.0, 1000),
+      ...createRepSamples(16, 13000, 0.5, 1.0, 5000), // Rep 5: very slow concentric
+      ...createRepSamples(20, 22000, 0.5, 1.0, 1000),
+    ]);
+    const outliers = findOutlierReps(set);
+
+    const tempoOutlier = outliers.find((o) => o.metric === 'tempo' && o.repNumber === 5);
+    expect(tempoOutlier).toBeDefined();
+    expect(tempoOutlier!.direction).toBe('high');
+    expect(outliers.some((o) => o.metric === 'velocity')).toBe(false);
+    expect(outliers.some((o) => o.metric === 'rom')).toBe(false);
+  });
+});
+
+describe('getSetFatigueSummary() moderate level', () => {
+  it('classifies a set with ~20% velocity loss as moderate fatigue', () => {
+    // velocityLossPct in [15, 30) → moderate (below 15 = low, >=30 = high).
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.5, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.4, 1.0, 1000), // 20% velocity loss
+    ]);
+    const summary = getSetFatigueSummary(set);
+    expect(summary.velocityLossPct).toBeCloseTo(20, 5);
+    expect(summary.fatigueLevel).toBe('moderate');
+  });
+});

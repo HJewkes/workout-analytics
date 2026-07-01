@@ -259,4 +259,60 @@ describe('getSetStimulusScore', () => {
     expect(withROM).toBeGreaterThan(0);
     expect(withoutROM).toBeGreaterThan(0);
   });
+
+  it('applies TUT multiplier when enabled', () => {
+    // buildFatigueSet reps each have concentric 0.5s + eccentric 1.0s = 1.5s TUT.
+    // With expectedTUT = 3.0, tutFactor = 1.5 / 3.0 = 0.5 for every rep, so the
+    // TUT-weighted score should be exactly half the un-multiplied score.
+    const set = buildFatigueSet(5);
+    const withoutTUT = getSetStimulusScore(set, 80, { setRIR: 1 });
+    const withTUT = getSetStimulusScore(set, 80, {
+      setRIR: 1,
+      includeTimeUnderTension: true,
+      expectedTUT: 3.0,
+    });
+    expect(withTUT).toBeCloseTo(withoutTUT * 0.5, 4);
+  });
+
+  it('ignores TUT multiplier when expectedTUT is not positive', () => {
+    // Guard `options.expectedTUT > 0` must skip the multiplier for 0/undefined.
+    const set = buildFatigueSet(5);
+    const baseline = getSetStimulusScore(set, 80, { setRIR: 1 });
+    const withZeroExpectedTUT = getSetStimulusScore(set, 80, {
+      setRIR: 1,
+      includeTimeUnderTension: true,
+      expectedTUT: 0,
+    });
+    expect(withZeroExpectedTUT).toBeCloseTo(baseline, 6);
+  });
+});
+
+// =============================================================================
+// estimatePerRepRIR — velocity fallback path
+// =============================================================================
+
+describe('estimatePerRepRIR (no velocity decay fallback)', () => {
+  /** Build a multi-rep set where every rep has identical velocity. */
+  function buildConstantVelocitySet(numReps: number, velocity = 0.5, rom = 200): Set {
+    const samples: WorkoutSample[] = [];
+    for (let i = 0; i < numReps; i++) {
+      samples.push(...createRepSamples(i * 10, i * 3000, velocity, rom));
+    }
+    return buildSet(samples);
+  }
+
+  it('falls back to linear +1-per-rep when there is no velocity loss', () => {
+    // totalVelocityLoss = v0 - vLast = 0, so the velocity-proportional path is
+    // skipped and each earlier rep gets setRIR + (remaining reps to failure).
+    const set = buildConstantVelocitySet(3);
+    const rirs = estimatePerRepRIR(set, 1);
+    expect(rirs).toEqual([3, 2, 1]);
+  });
+
+  it('clamps linear-fallback RIR at 0 for a deep set with low set RIR', () => {
+    const set = buildConstantVelocitySet(3);
+    // setRIR 0 → linear values [2, 1, 0]; none should go negative.
+    const rirs = estimatePerRepRIR(set, 0);
+    expect(rirs).toEqual([2, 1, 0]);
+  });
 });
