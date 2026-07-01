@@ -158,6 +158,17 @@ export {
   detectPlateau,
 } from './trend';
 
+// State-Space Strength Model
+export {
+  type StrengthState,
+  type StateSpaceStrengthModelOptions,
+  StateSpaceStrengthModel,
+  DEFAULT_PROCESS_NOISE_LEVEL,
+  DEFAULT_PROCESS_NOISE_TREND,
+  DEFAULT_OBSERVATION_NOISE,
+  DEFAULT_DIFFUSE_VARIANCE,
+} from './state-space-strength';
+
 // Time Series (cross-session aggregation)
 export {
   type MetricKey,
