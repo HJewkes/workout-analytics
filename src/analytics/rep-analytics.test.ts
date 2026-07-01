@@ -17,8 +17,10 @@ import {
   getRepWork,
   getRepConcentricImpulse,
   getRepEccentricImpulse,
+  getRepTotalImpulse,
   getRepConcentricWork,
   getRepEccentricWork,
+  getRepTotalWork,
   getRepMeanConcentricPower,
   getRepMeanEccentricPower,
 } from '@/analytics/rep-analytics';
@@ -482,5 +484,94 @@ describe('force-unit contract (lbs in → lbs·s, lbs·m out)', () => {
     const inflatedRep = buildConstantForceRep(1000);
     expect(getRepImpulse(inflatedRep)).toBeCloseTo(getRepImpulse(correctRep) * 10, 5);
     expect(getRepWork(inflatedRep)).toBeCloseTo(getRepWork(correctRep) * 10, 5);
+  });
+});
+
+// =============================================================================
+// Total (Both-Phase) Kinetics Tests
+//
+// getRepTotalImpulse / getRepTotalWork sum the concentric and eccentric phase
+// contributions. These branch-coverage top-up tests pin the sum against the
+// individually verified per-phase values from createTestRep().
+// =============================================================================
+
+describe('getRepTotalImpulse()', () => {
+  it('sums concentric and eccentric impulse', () => {
+    const rep = createTestRep();
+    // Concentric: 100 lbs × 1s = 100 lbs·s; Eccentric: 80 lbs × 2s = 160 lbs·s
+    expect(getRepTotalImpulse(rep)).toBeCloseTo(260, 0);
+    expect(getRepTotalImpulse(rep)).toBeCloseTo(
+      getRepConcentricImpulse(rep) + getRepEccentricImpulse(rep),
+      5
+    );
+  });
+
+  it('returns 0 for an empty rep (no samples in either phase)', () => {
+    expect(getRepTotalImpulse(createEmptyRep())).toBe(0);
+  });
+});
+
+describe('getRepTotalWork()', () => {
+  it('sums concentric and eccentric work', () => {
+    const rep = createTestRep();
+    // Concentric: 100 lbs·position; Eccentric: 80 lbs·position
+    expect(getRepTotalWork(rep)).toBeCloseTo(180, 0);
+    expect(getRepTotalWork(rep)).toBeCloseTo(
+      getRepConcentricWork(rep) + getRepEccentricWork(rep),
+      5
+    );
+  });
+
+  it('returns 0 for an empty rep (no samples in either phase)', () => {
+    expect(getRepTotalWork(createEmptyRep())).toBe(0);
+  });
+});
+
+// =============================================================================
+// Eccentric Kinetics With Insufficient Eccentric Samples
+//
+// A rep that never entered (or barely entered) the eccentric phase has < 2
+// eccentric samples. Both integrals must short-circuit to 0 rather than throw
+// or read undefined samples.
+// =============================================================================
+
+describe('eccentric kinetics with < 2 eccentric samples', () => {
+  /** Rep with two concentric samples but no eccentric movement recorded. */
+  function createConcentricOnlyRep(): Rep {
+    const samples: WorkoutSample[] = [
+      {
+        sequence: 0,
+        timestamp: 1000,
+        phase: MovementPhase.CONCENTRIC,
+        position: 0,
+        velocity: 0.5,
+        force: 100,
+      },
+      {
+        sequence: 1,
+        timestamp: 2000,
+        phase: MovementPhase.CONCENTRIC,
+        position: 1.0,
+        velocity: 0.5,
+        force: 100,
+      },
+    ];
+    return buildRep(1, samples);
+  }
+
+  it('getRepEccentricImpulse returns 0 when eccentric has no samples', () => {
+    expect(getRepEccentricImpulse(createConcentricOnlyRep())).toBe(0);
+  });
+
+  it('getRepEccentricWork returns 0 when eccentric has no samples', () => {
+    expect(getRepEccentricWork(createConcentricOnlyRep())).toBe(0);
+  });
+
+  it('getRepEccentricImpulse returns 0 for an empty rep', () => {
+    expect(getRepEccentricImpulse(createEmptyRep())).toBe(0);
+  });
+
+  it('getRepEccentricWork returns 0 for an empty rep', () => {
+    expect(getRepEccentricWork(createEmptyRep())).toBe(0);
   });
 });
