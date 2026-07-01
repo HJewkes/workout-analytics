@@ -13,10 +13,14 @@ import {
   getSetRepCount,
   getSetDuration,
   getSetTimeUnderTension,
+  getSetLoad,
+  getSetMeanLoad,
+  getSetPeakLoad,
 } from '@/models/set';
 import { MovementPhase } from '@/models';
 import type { WorkoutSample } from '@/models/sample';
 import type { Set } from '@/models/set';
+import type { LoadSettings } from '@/models/load';
 
 // =============================================================================
 // Test Helpers
@@ -372,5 +376,102 @@ describe('Set metrics', () => {
     expect(getSetRepCount(set)).toBe(0);
     expect(getSetDuration(set)).toBe(0);
     expect(getSetTimeUnderTension(set)).toBe(0);
+  });
+});
+
+// =============================================================================
+// Load Helper Tests
+// =============================================================================
+
+/** Build a single sample carrying an explicit `load` value. */
+function loadedSample(
+  sequence: number,
+  timestamp: number,
+  phase: MovementPhase,
+  position: number,
+  load?: number
+): WorkoutSample {
+  return {
+    sequence,
+    timestamp,
+    phase,
+    position,
+    velocity: phase === MovementPhase.IDLE ? 0 : 0.5,
+    force: 100,
+    load,
+  };
+}
+
+describe('getSetLoad()', () => {
+  it('returns 0 when the set has no loadSettings', () => {
+    const set = createSet();
+
+    expect(getSetLoad(set)).toBe(0);
+  });
+
+  it('returns the base weight from loadSettings, ignoring chains and eccentric', () => {
+    const loadSettings: LoadSettings = { weight: 135, chains: 20, eccentric: 10 };
+    const set = createSet(loadSettings);
+
+    expect(getSetLoad(set)).toBe(135);
+  });
+});
+
+describe('getSetMeanLoad()', () => {
+  it('returns 0 for a set with no reps', () => {
+    const set = createSet();
+
+    expect(getSetMeanLoad(set)).toBe(0);
+  });
+
+  it('returns 0 when reps exist but samples carry no load data', () => {
+    let set = createSet();
+    set = addSampleToSet(set, loadedSample(0, 1000, MovementPhase.CONCENTRIC, 0, undefined));
+    set = addSampleToSet(set, loadedSample(1, 1090, MovementPhase.CONCENTRIC, 1, undefined));
+    set = addSampleToSet(set, loadedSample(2, 1180, MovementPhase.ECCENTRIC, 1, undefined));
+
+    expect(getSetMeanLoad(set)).toBe(0);
+  });
+
+  it('averages per-rep concentric mean load across all reps', () => {
+    let set = createSet();
+    // Rep 1: concentric loads 100, 200 -> mean 150
+    set = addSampleToSet(set, loadedSample(0, 1000, MovementPhase.CONCENTRIC, 0, 100));
+    set = addSampleToSet(set, loadedSample(1, 1090, MovementPhase.CONCENTRIC, 1, 200));
+    set = addSampleToSet(set, loadedSample(2, 1180, MovementPhase.ECCENTRIC, 1, 999)); // eccentric ignored by mean
+    // Rep 2 (new rep on eccentric -> concentric transition): concentric loads 50, 50 -> mean 50
+    set = addSampleToSet(set, loadedSample(3, 1270, MovementPhase.CONCENTRIC, 0, 50));
+    set = addSampleToSet(set, loadedSample(4, 1360, MovementPhase.CONCENTRIC, 1, 50));
+
+    // (150 + 50) / 2 == 100
+    expect(getSetMeanLoad(set)).toBe(100);
+  });
+});
+
+describe('getSetPeakLoad()', () => {
+  it('returns 0 for a set with no reps', () => {
+    const set = createSet();
+
+    expect(getSetPeakLoad(set)).toBe(0);
+  });
+
+  it('returns 0 when reps exist but samples carry no load data', () => {
+    let set = createSet();
+    set = addSampleToSet(set, loadedSample(0, 1000, MovementPhase.CONCENTRIC, 0, undefined));
+    set = addSampleToSet(set, loadedSample(1, 1090, MovementPhase.ECCENTRIC, 1, undefined));
+
+    expect(getSetPeakLoad(set)).toBe(0);
+  });
+
+  it('takes the max across both concentric and eccentric phases, and across reps', () => {
+    let set = createSet();
+    // Rep 1: concentric peak 120, eccentric peak 300
+    set = addSampleToSet(set, loadedSample(0, 1000, MovementPhase.CONCENTRIC, 0, 120));
+    set = addSampleToSet(set, loadedSample(1, 1090, MovementPhase.ECCENTRIC, 1, 300));
+    // Rep 2: concentric peak 400 (new max), eccentric peak 60
+    set = addSampleToSet(set, loadedSample(2, 1180, MovementPhase.CONCENTRIC, 0, 400));
+    set = addSampleToSet(set, loadedSample(3, 1270, MovementPhase.ECCENTRIC, 1, 60));
+
+    expect(getSetPeakLoad(set)).toBe(400);
   });
 });
