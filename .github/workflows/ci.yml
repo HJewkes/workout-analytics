@@ -30,7 +30,11 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
-      - run: npm audit --audit-level=critical
+      # Audit only production dependencies — this is a published library, so its
+      # security surface is what ships to consumers (currently just zod). Dev-only
+      # advisories (vitest, expo-sqlite→react-native, etc.) don't reach consumers
+      # and shouldn't gate releases.
+      - run: npm audit --omit=dev --audit-level=critical
 
   # Lint and type checking
   lint:
