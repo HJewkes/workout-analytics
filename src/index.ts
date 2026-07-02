@@ -55,6 +55,7 @@ export {
 
   // Set
   type Set,
+  type AddSampleToSetOptions,
   createSet,
   addSampleToSet,
   completeSet,

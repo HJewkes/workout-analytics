@@ -125,6 +125,85 @@ describe('addSampleToSet()', () => {
     });
   });
 
+  describe('external rep boundaries (repBoundary option)', () => {
+    const conc = (seq: number): WorkoutSample => ({
+      sequence: seq,
+      timestamp: 1000 + seq * 90,
+      phase: MovementPhase.CONCENTRIC,
+      position: 0,
+      velocity: 0.5,
+      force: 100,
+    });
+
+    it('repBoundary:true forces a new rep without an eccentric→concentric transition', () => {
+      // Two CONCENTRIC-only samples: internal detection would keep them in one
+      // rep, but an explicit boundary on the 2nd starts rep 2.
+      let set = createSet();
+      set = addSampleToSet(set, conc(0), { repBoundary: true });
+      set = addSampleToSet(set, conc(1), { repBoundary: true });
+      expect(set.reps.map((r) => r.repNumber)).toEqual([1, 2]);
+    });
+
+    it('repBoundary:false keeps samples in the current rep across a phase transition', () => {
+      // A real eccentric→concentric transition that internal detection WOULD
+      // split — suppressed by an explicit false so the firmware owns boundaries.
+      let set = createSet();
+      set = addSampleToSet(set, conc(0)); // rep 1 (default)
+      set = addSampleToSet(set, { ...conc(1), phase: MovementPhase.ECCENTRIC, position: 1 });
+      set = addSampleToSet(set, conc(2), { repBoundary: false }); // would-be new rep, pinned
+      expect(set.reps.length).toBe(1);
+    });
+
+    it('repBoundary:true starts the first rep even on a non-concentric sample', () => {
+      let set = createSet();
+      set = addSampleToSet(
+        set,
+        { ...conc(0), phase: MovementPhase.ECCENTRIC, position: 1 },
+        { repBoundary: true }
+      );
+      expect(set.reps.map((r) => r.repNumber)).toEqual([1]);
+    });
+
+    it('repBoundary:false drops samples before the first rep', () => {
+      let set = createSet();
+      set = addSampleToSet(set, conc(0), { repBoundary: false });
+      expect(set.reps.length).toBe(0);
+    });
+
+    it('undefined repBoundary is identical to the default internal detection', () => {
+      const samples = createSampleSequence([
+        { phase: MovementPhase.CONCENTRIC, count: 3 },
+        { phase: MovementPhase.ECCENTRIC, count: 3 },
+        { phase: MovementPhase.CONCENTRIC, count: 3 },
+        { phase: MovementPhase.ECCENTRIC, count: 3 },
+      ]);
+      let withEmptyOptions = createSet();
+      let withoutOption = createSet();
+      for (const s of samples) {
+        withEmptyOptions = addSampleToSet(withEmptyOptions, s, {});
+        withoutOption = addSampleToSet(withoutOption, s);
+      }
+      expect(withEmptyOptions).toEqual(withoutOption);
+      expect(withoutOption.reps.length).toBe(2);
+    });
+
+    it('drives rep count purely from firmware boundaries regardless of phase pattern', () => {
+      // Firmware asserts 3 rep starts across a noisy/irregular phase stream.
+      let set = createSet();
+      const seq = [
+        { s: conc(0), b: true }, // rep 1
+        { s: { ...conc(1), phase: MovementPhase.ECCENTRIC }, b: false },
+        { s: { ...conc(2), phase: MovementPhase.CONCENTRIC }, b: true }, // rep 2
+        { s: { ...conc(3), phase: MovementPhase.IDLE }, b: false },
+        { s: { ...conc(4), phase: MovementPhase.CONCENTRIC }, b: true }, // rep 3
+      ];
+      for (const { s, b } of seq) {
+        set = addSampleToSet(set, s, { repBoundary: b });
+      }
+      expect(set.reps.map((r) => r.repNumber)).toEqual([1, 2, 3]);
+    });
+  });
+
   describe('full rep cycle', () => {
     it('builds rep with concentric and eccentric phases', () => {
       const samples = createSampleSequence([
