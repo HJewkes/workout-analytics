@@ -12,6 +12,7 @@ import {
   getPhaseMovementDuration,
   getPhaseMeanVelocity,
   getPhaseMeanLoad,
+  getPhaseRangeOfMotion,
 } from '@/models/phase';
 import type { WorkoutSample } from '@/models/sample';
 import { MovementPhase } from '@/models/types';
@@ -93,8 +94,19 @@ export function getRepPeakForce(rep: Rep): number {
   return Math.max(rep.concentric.peakForce, rep.eccentric.peakForce);
 }
 
+/**
+ * Rep range of motion = the displacement the load traversed during the
+ * concentric phase (|end − start|), NOT the absolute peak position.
+ *
+ * WA-02.03: this previously returned `rep.concentric.endPosition` (absolute
+ * position from machine zero), which over-reports ROM by the concentric start
+ * offset for any rep that doesn't begin at 0 — partial reps, positional drift,
+ * non-zero rest position — the exact cases fatigue/partial-rep detection relies
+ * on. "Range of motion" is a span, not a coordinate; delegate to the phase-level
+ * displacement metric that the rest of the package already uses and tests.
+ */
 export function getRepRangeOfMotion(rep: Rep): number {
-  return rep.concentric.endPosition;
+  return getPhaseRangeOfMotion(rep.concentric);
 }
 
 export function getRepSamples(rep: Rep): readonly WorkoutSample[] {

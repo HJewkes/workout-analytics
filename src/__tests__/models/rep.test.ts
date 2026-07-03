@@ -415,6 +415,49 @@ describe('addSampleToRep()', () => {
 
       expect(getRepRangeOfMotion(rep)).toBe(0.95);
     });
+
+    it('computes rangeOfMotion as displacement, not absolute peak position (WA-02.03)', () => {
+      // Concentric runs 0.1 → 0.9: ROM is the 0.8 traversed, NOT the 0.9 peak.
+      // A non-zero start (partial rep / drift / non-zero rest) is exactly what
+      // the old absolute-endPosition implementation over-reported.
+      const samples: WorkoutSample[] = [
+        {
+          sequence: 0,
+          timestamp: 1000,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.1,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 1,
+          timestamp: 1500,
+          phase: MovementPhase.CONCENTRIC,
+          position: 0.9,
+          velocity: 0.5,
+          force: 100,
+        },
+        {
+          sequence: 2,
+          timestamp: 2000,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0.9,
+          velocity: 0.3,
+          force: 100,
+        },
+        {
+          sequence: 3,
+          timestamp: 2500,
+          phase: MovementPhase.ECCENTRIC,
+          position: 0.1,
+          velocity: 0.3,
+          force: 100,
+        },
+      ];
+      const rep = buildRep(1, samples);
+
+      expect(getRepRangeOfMotion(rep)).toBeCloseTo(0.8, 5);
+    });
   });
 
   describe('tempo formatting', () => {
