@@ -69,6 +69,8 @@ Source: `src/analytics/set-analytics.ts`. Re-exported via `src/index.ts:138-160`
 
 ### Range of motion
 
+All ROM metrics are **displacement traversed** during the concentric phase (`|end − start| position`), not absolute top-of-rep position — via `getRepRangeOfMotion` → `getPhaseRangeOfMotion(concentric)`. This matters for partial reps / non-zero-start reps, where absolute position over-reports (WA-02.03).
+
 | Function | Returns | Source line |
 | --- | --- | --- |
 | `getSetMeanROM(set)` | `number` | `:148-152` |

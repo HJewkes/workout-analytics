@@ -141,7 +141,7 @@ Derived metrics (all O(1), `src/models/rep.ts:69-110`):
 - `getRepMeanVelocity` — concentric only (primary VBT signal).
 - `getRepPeakVelocity` — concentric peak.
 - `getRepPeakForce` — max across BOTH phases.
-- `getRepRangeOfMotion` — `concentric.endPosition` (i.e. position at top of rep).
+- `getRepRangeOfMotion` — concentric **displacement traversed**, `getPhaseRangeOfMotion(concentric)` = `|endPosition − startPosition|`. ROM is a span, not a coordinate; it is NOT the absolute top-of-rep position (that over-reports by the concentric start offset on any rep not beginning at 0 — WA-02.03).
 - `getRepSamples` — concat of both phases' samples.
 - `getRepMeanLoad` — concentric mean. `getRepPeakLoad` — max across both phases.
 
