@@ -4,6 +4,12 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- `getRepRangeOfMotion` now returns the concentric **displacement traversed** (`|endPosition − startPosition|`, via `getPhaseRangeOfMotion(concentric)`) instead of the absolute `concentric.endPosition`. The absolute value over-reported ROM by the concentric start offset for any rep not beginning at position 0 (partial reps, positional drift, non-zero rest), inflating every downstream ROM consumer — set-level ROM, ROM change/CoV/outliers, the fatigue `romRatio`, and partial-rep / stimulus scoring. "Range of motion" is a span, not a coordinate. Values are unchanged for reps that start at 0. (WA-02.03)
+
 ## 1.1.0
 
 ### Added
