@@ -183,3 +183,17 @@ export {
   getWeeklySummaries,
   getVolumeByMuscleGroup,
 } from './time-series';
+
+// View-Model Derivations (exact, unrounded metrics for rendering workout views)
+export {
+  type E1RMSetInput,
+  type VolumeLandmarks,
+  type VolumeStatusName,
+  estimateSetRpe,
+  getSetRepPeakVelocities,
+  getSetTempoSeconds,
+  bestE1RMAcrossSets,
+  isNewE1RM,
+  weightDeviationRatio,
+  classifyWeeklyVolume,
+} from './view-model';

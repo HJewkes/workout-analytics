@@ -367,3 +367,17 @@ export {
   type ProcessedSet,
   buildTimeSeries,
 } from './analytics';
+
+// Analytics - View-Model Derivations (exact, unrounded metrics for workout views)
+export {
+  type E1RMSetInput,
+  type VolumeLandmarks,
+  type VolumeStatusName,
+  estimateSetRpe,
+  getSetRepPeakVelocities,
+  getSetTempoSeconds,
+  bestE1RMAcrossSets,
+  isNewE1RM,
+  weightDeviationRatio,
+  classifyWeeklyVolume,
+} from './analytics';
