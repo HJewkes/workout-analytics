@@ -177,6 +177,23 @@ describe('estimatePerRepRIR', () => {
     expect(rirs).toHaveLength(5);
     rirs.forEach((rir) => expect(rir).toBeGreaterThanOrEqual(0));
   });
+
+  it('anchors decay at the best rep, not the first, on a non-monotonic set', () => {
+    // Reps 0.5, 0.7 (best), 0.6 — a submaximal opening rep (WA-D01). Decay is
+    // measured from the fastest rep, so the best rep (index 1) carries the
+    // highest RIR and the submaximal first rep is not the reference.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.5, 200),
+      ...createRepSamples(10, 3000, 0.7, 200),
+      ...createRepSamples(20, 6000, 0.6, 200),
+    ]);
+    const rirs = estimatePerRepRIR(set, 1);
+    expect(rirs).toHaveLength(3);
+    rirs.forEach((rir) => expect(rir).toBeGreaterThanOrEqual(0));
+    // The fastest rep sits highest on the decay curve.
+    expect(rirs[1]).toBe(Math.max(...rirs));
+    expect(rirs[1]).toBeGreaterThan(rirs[0]);
+  });
 });
 
 // =============================================================================

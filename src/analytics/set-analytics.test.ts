@@ -180,7 +180,7 @@ describe('getSetBestRepVelocity()', () => {
 describe('getSetVelocityLossPct()', () => {
   it('computes velocity loss percentage', () => {
     const set = createDecliningSet();
-    // (0.6 - 0.4) / 0.6 × 100 = 33.33%
+    // best (=first) 0.6, last 0.4: (0.6 - 0.4) / 0.6 × 100 = 33.33%
     expect(getSetVelocityLossPct(set)).toBeCloseTo(33.33, 1);
   });
 
@@ -197,15 +197,58 @@ describe('getSetVelocityLossPct()', () => {
     expect(getSetVelocityLossPct(createSingleRepSet())).toBe(0);
   });
 
-  it('handles negative loss (velocity increase)', () => {
-    // Create set where velocity increases
-    const samples: WorkoutSample[] = [
+  it('matches legacy first-to-last on a monotonically declining set (best == first)', () => {
+    // WA-D01 regression: when rep 1 is the fastest, best-anchored VL is
+    // identical to the old first-anchored value.
+    const set = createDecliningSet();
+    const firstAnchored = ((0.6 - 0.4) / 0.6) * 100;
+    expect(getSetVelocityLossPct(set)).toBeCloseTo(firstAnchored, 5);
+  });
+
+  it('is non-negative when the set speeds up (no more negative "sped up" branch)', () => {
+    // Slow start then faster: best is the LAST rep, so loss is 0 — not -50%.
+    const set = buildSet([
       ...createRepSamples(0, 1000, 0.4, 1.0),
       ...createRepSamples(4, 3000, 0.6, 1.0),
-    ];
-    const set = buildSet(samples);
-    // (0.4 - 0.6) / 0.4 × 100 = -50%
-    expect(getSetVelocityLossPct(set)).toBeCloseTo(-50, 1);
+    ]);
+    expect(getSetVelocityLossPct(set)).toBeCloseTo(0, 5);
+  });
+
+  it('anchors at the best rep for a slow-start → rise → drop set', () => {
+    // Reps: 0.5, 0.7 (best), 0.6. best-to-last = (0.7 - 0.6) / 0.7 = 14.29%.
+    // Legacy first-to-last would have reported only (0.5 - 0.6)/0.5 = -20%.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.5, 1.0),
+      ...createRepSamples(4, 3000, 0.7, 1.0),
+      ...createRepSamples(8, 5000, 0.6, 1.0),
+    ]);
+    expect(getSetVelocityLossPct(set)).toBeCloseTo((0.1 / 0.7) * 100, 3);
+  });
+
+  it('reports deeper loss than first-anchored on a submaximal opening rep', () => {
+    // Engagement-artifact shape: slow rep 1, faster rep 2, then fatigue.
+    // best = 0.8 (rep 2), last = 0.5 → 37.5%. First-anchored = (0.6-0.5)/0.6 = 16.7%.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.6, 1.0),
+      ...createRepSamples(4, 3000, 0.8, 1.0),
+      ...createRepSamples(8, 5000, 0.5, 1.0),
+    ]);
+    const bestAnchored = ((0.8 - 0.5) / 0.8) * 100;
+    const firstAnchored = ((0.6 - 0.5) / 0.6) * 100;
+    expect(getSetVelocityLossPct(set)).toBeCloseTo(bestAnchored, 3);
+    expect(getSetVelocityLossPct(set)).toBeGreaterThan(firstAnchored);
+  });
+
+  it('handles a sporadic (noisy) profile via the running-best reference', () => {
+    // Reps: 0.6, 0.55, 0.62 (best), 0.5. best-to-last = (0.62 - 0.5)/0.62.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.6, 1.0),
+      ...createRepSamples(4, 3000, 0.55, 1.0),
+      ...createRepSamples(8, 5000, 0.62, 1.0),
+      ...createRepSamples(12, 7000, 0.5, 1.0),
+    ]);
+    expect(getSetVelocityLossPct(set)).toBeCloseTo((0.12 / 0.62) * 100, 3);
+    expect(getSetVelocityLossPct(set)).toBeGreaterThanOrEqual(0);
   });
 });
 

@@ -43,16 +43,26 @@ export function getSetBestRepVelocity(set: Set): number {
 }
 
 /**
- * Get velocity loss percentage: (V1 - VLast) / V1 × 100.
- * Positive value indicates slowing down (typical fatigue).
- * Negative value indicates speeding up (unusual).
- * Returns 0 if V1 is 0 or set has no reps.
+ * Get velocity loss percentage: (VBest - VLast) / VBest × 100.
+ *
+ * The reference is the fastest (best) MEAN-concentric-velocity rep of the set,
+ * not the first rep (García-Ramos/Jukic 2021; brain decision WA-D01). On a clean
+ * monotonic set the first rep IS the fastest, so this equals the legacy
+ * first-to-last value; on slow-start / ramp / engagement-artifact sets — common
+ * on cable hardware — it correctly reports the deeper loss the first-rep
+ * reference understated.
+ *
+ * Because VBest ≥ VLast by construction, the result is ALWAYS ≥ 0: a set that
+ * never slows below its best rep returns 0 (there is no "sped up past the last
+ * rep" negative branch — the best rep is the reference, so no rep can exceed it).
+ *
+ * Returns 0 if VBest is 0 or the set has no reps.
  */
 export function getSetVelocityLossPct(set: Set): number {
-  const v1 = getSetFirstRepVelocity(set);
+  const vBest = getSetBestRepVelocity(set);
   const vLast = getSetLastRepVelocity(set);
-  if (v1 === 0) return 0;
-  return ((v1 - vLast) / v1) * 100;
+  if (vBest === 0) return 0;
+  return ((vBest - vLast) / vBest) * 100;
 }
 
 /**

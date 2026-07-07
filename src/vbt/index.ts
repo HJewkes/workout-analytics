@@ -11,9 +11,19 @@ export {
   DEFAULT_MVT,
   DEFAULT_VELOCITY_RIR_MAP,
   estimatePercent1RMFromVelocity,
-  categorizeVelocity,
-  type VelocityZone,
 } from './constants';
+
+// Velocity Zones
+export {
+  type VelocityZoneId,
+  type VelocityZone,
+  type MovementClass,
+  type VelocityZoneBand,
+  type VelocityZones,
+  type GetVelocityZonesOptions,
+  getVelocityZones,
+  categorizeVelocity,
+} from './zones';
 
 // Profile
 export {

@@ -4,6 +4,25 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.6.0
+
+### Added
+
+- **WA owns VBT velocity-zone thresholds** — new module `src/vbt/zones.ts` (WA-02.04). `getVelocityZones(opts?)` resolves mean-concentric-velocity zone bands in priority order: profile-derived (individualized — boundaries anchored at fixed %1RM cut-points `[0.90, 0.80, 0.65, 0.50] × estimated1RM`, mapped through the user's `LoadVelocityProfile` via `predictVelocity`, floored at `profile.mvt`, capped at V0 = `profile.intercept`; used when `confidence !== 'low'`) → per-movement-class absolute defaults (`compound` / `cable` / `isolation` / `ballistic`, 5 literature-anchored bands) → global compound default. Every result is tagged with its `source` and a `basis`. New exports: `getVelocityZones`, `categorizeVelocity` (now zones-aware), and types `VelocityZoneId`, `VelocityZones`, `VelocityZoneBand`, `MovementClass`, `GetVelocityZonesOptions`.
+- All zone bands are **MEAN concentric velocity** semantics (WA-D02), documented in TSDoc. New null-safe view-model helper `getSetRepMeanVelocities(set)` — the mean-velocity sibling of `getSetRepPeakVelocities`, the correct feed for zone classification and the velocity-loss reference (peak must not be fed to a mean-velocity scale).
+- `cable` / `isolation` default bands are a documented **placeholder** (shifted down ~0.10–0.15 m/s) pending calibration against real Voltra session data, matching the posture of the placeholder RIR coefficients.
+
+### Changed
+
+- **Velocity-loss reference: first rep → running-best rep (behavior change, WA-02.05 / WA-D01).** `getSetVelocityLossPct` now computes `((VBest − VLast) / VBest) × 100` against the set's fastest (best) mean-velocity rep instead of the first rep. On a clean monotonic set (rep 1 is fastest) the value is **identical** to before; on slow-start / ramp / engagement-artifact sets — common on cable hardware — it correctly reports the deeper loss the first-rep reference understated. VL is now **≥ 0 by construction** — the old negative "sped up past the last rep" branch can no longer occur (a set that speeds up to its end reports 0, not a negative loss).
+- `estimatePerRepRIR` now anchors per-rep decay at the set's best rep (`vBest = max(velocities)`, per-rep drop `max(0, (vBest − v_i) / vBest)`) instead of `velocities[0]`, consistent with the set-level change. Monotonic sets are unchanged.
+- **Widened taxonomy:** `categorizeVelocity(velocity, zones?)` keeps its back-compatible single-argument call (defaulting to the global compound zones) but now returns the 5-zone `VelocityZoneId` (`grinding` / `maximalStrength` / `strengthSpeed` / `power` / `speed`) instead of the legacy 4-way `'fast' | 'moderate' | 'slow' | 'grinding'`. The legacy `VelocityZone` type is retained as `@deprecated` for API-superset compatibility.
+
+### Notes
+
+- Downstream fatigue consumers (`estimateSetRIR`, `computeVBTSetFatigueIndex`, `isSetFatigued`, `getSetFatigueSummary`) inherit the new reference and shift **conservatively** — reported VL rises slightly, RIR drops slightly, fatigue index rises slightly, **only on non-monotonic sets** (identical on clean sets). No API signatures changed. Existing test expectations were unchanged because all fixtures are monotonic (best == first); new non-monotonic regression tests were added.
+- `rir-exercise-specific.ts` coefficients take `velLossPct` as a caller-supplied **input** (they do not call `getSetVelocityLossPct` internally), so they are not silently retuned by this change; a caller that now passes best-anchored VL gets the documented conservative shift. The coefficients are already flagged as placeholders pending calibration — no retune performed.
+
 ## 1.4.1
 
 ### Fixed

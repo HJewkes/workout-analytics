@@ -191,6 +191,7 @@ export {
   type VolumeStatusName,
   estimateSetRpe,
   getSetRepPeakVelocities,
+  getSetRepMeanVelocities,
   getSetTempoSeconds,
   bestE1RMAcrossSets,
   isNewE1RM,

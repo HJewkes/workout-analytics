@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import {
   estimateSetRpe,
   getSetRepPeakVelocities,
+  getSetRepMeanVelocities,
   getSetTempoSeconds,
   bestE1RMAcrossSets,
   isNewE1RM,
@@ -18,7 +19,7 @@ import {
 } from '@/analytics/view-model';
 import { estimateSetRIR } from '@/analytics/fatigue';
 import { createSet, addSampleToSet } from '@/models/set';
-import { getRepPeakVelocity } from '@/models/rep';
+import { getRepMeanVelocity, getRepPeakVelocity } from '@/models/rep';
 import { getPhaseHoldDuration, getPhaseMovementDuration } from '@/models/phase';
 import { MovementPhase } from '@/models/types';
 import type { WorkoutSample } from '@/models/sample';
@@ -104,6 +105,21 @@ describe('getSetRepPeakVelocities', () => {
 
   it('returns an empty array for a set with no reps', () => {
     expect(getSetRepPeakVelocities(createSet())).toEqual([]);
+  });
+});
+
+describe('getSetRepMeanVelocities', () => {
+  it('returns each rep mean velocity exactly, in the sample unit (no conversion)', () => {
+    const set = decliningSet();
+    const velocities = getSetRepMeanVelocities(set);
+    expect(velocities).toHaveLength(3);
+    // Each entry equals the raw WA per-rep mean — the mean-velocity feed the
+    // zone classifier and VL reference expect (WA-D02), never peak.
+    velocities.forEach((v, i) => expect(v).toBe(getRepMeanVelocity(set.reps[i])));
+  });
+
+  it('returns an empty array for a set with no reps', () => {
+    expect(getSetRepMeanVelocities(createSet())).toEqual([]);
   });
 });
 

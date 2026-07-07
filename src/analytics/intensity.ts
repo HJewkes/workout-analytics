@@ -34,7 +34,13 @@ const DEFAULT_DECAY_RATE = 0.4;
  *
  * Primary method (velocity-proportional):
  *   repRIR[i] = setRIR + remainingReps * (1 - velocityLoss[i] / totalVelocityLoss)
- *   where velocityLoss[i] = (v[0] - v[i]) / v[0]
+ *   where velocityLoss[i] = max(0, (vBest - v[i]) / vBest)
+ *   and vBest = the set's fastest (best) mean-concentric-velocity rep — the
+ *   running-best reference (brain decision WA-D01), consistent with
+ *   getSetVelocityLossPct. On a monotonic set vBest == v[0], so this matches
+ *   the legacy first-anchored behavior; on non-monotonic sets it measures each
+ *   rep's decay from the true set maximum instead of a possibly-submaximal
+ *   first rep.
  *
  * Fallback (when velocity data is noisy or unavailable):
  *   repRIR[i] = setRIR + (totalReps - 1 - i)
@@ -57,24 +63,25 @@ export function estimatePerRepRIR(set: Set, setRIR?: number): readonly number[] 
   // Single rep: just return set RIR
   if (n === 1) return [resolvedSetRIR];
 
-  // Get per-rep velocities
+  // Get per-rep velocities; anchor decay at the set's best (fastest) rep.
   const velocities = set.reps.map(getRepMeanVelocity);
-  const v0 = velocities[0];
+  const vBest = Math.max(...velocities);
   const vLast = velocities[n - 1];
-  const totalVelocityLoss = v0 - vLast;
+  const totalVelocityLoss = vBest - vLast;
 
   // Remaining reps beyond the last rep
   const remainingReps = n - 1;
 
-  // If no meaningful velocity decay (noisy data), fall back to linear
-  if (v0 <= 0 || totalVelocityLoss <= 0) {
+  // If no meaningful velocity decay (noisy data, or the last rep is the fastest),
+  // fall back to linear +1-per-rep.
+  if (vBest <= 0 || totalVelocityLoss <= 0) {
     return velocities.map((_, i) => Math.max(0, resolvedSetRIR + (n - 1 - i)));
   }
 
   // Velocity-proportional interpolation
   return velocities.map((v, i) => {
-    const velocityLossI = (v0 - v) / v0;
-    const totalVelocityLossFraction = totalVelocityLoss / v0;
+    const velocityLossI = Math.max(0, (vBest - v) / vBest);
+    const totalVelocityLossFraction = totalVelocityLoss / vBest;
 
     // How much of the total velocity loss has occurred at rep i?
     const proportionOfDecay =
