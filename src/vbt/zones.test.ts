@@ -3,11 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  getVelocityZones,
-  categorizeVelocity,
-  type VelocityZones,
-} from '@/vbt/zones';
+import { getVelocityZones, categorizeVelocity, type VelocityZones } from '@/vbt/zones';
 import { buildProfile } from '@/vbt/profile';
 import { DEFAULT_MVT } from '@/vbt/constants';
 
@@ -89,9 +85,7 @@ describe('getVelocityZones() — source priority', () => {
   it('profile-derived bands differ from the class default', () => {
     const profileZones = getVelocityZones({ profile: HIGH_CONFIDENCE_PROFILE });
     const compound = getVelocityZones();
-    expect(profileZones.bands.map((b) => b.max)).not.toEqual(
-      compound.bands.map((b) => b.max)
-    );
+    expect(profileZones.bands.map((b) => b.max)).not.toEqual(compound.bands.map((b) => b.max));
   });
 
   it('falls through to the class default for a low-confidence profile', () => {

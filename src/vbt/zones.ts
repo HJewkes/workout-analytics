@@ -24,12 +24,7 @@ import { DEFAULT_MVT } from '@/vbt/constants';
 // =============================================================================
 
 /** Stable identity of a velocity zone, ordered grinding (slow) → speed (fast). */
-export type VelocityZoneId =
-  | 'grinding'
-  | 'maximalStrength'
-  | 'strengthSpeed'
-  | 'power'
-  | 'speed';
+export type VelocityZoneId = 'grinding' | 'maximalStrength' | 'strengthSpeed' | 'power' | 'speed';
 
 /**
  * Legacy 4-way velocity zone union.
@@ -117,13 +112,7 @@ function bandsFromBoundaries(
   boundaries: readonly [number, number, number, number]
 ): VelocityZoneBand[] {
   const mins = [0, boundaries[0], boundaries[1], boundaries[2], boundaries[3]];
-  const maxes = [
-    boundaries[0],
-    boundaries[1],
-    boundaries[2],
-    boundaries[3],
-    null,
-  ] as const;
+  const maxes = [boundaries[0], boundaries[1], boundaries[2], boundaries[3], null] as const;
   return ZONE_ORDER.map((id, i) => ({
     id,
     label: ZONE_LABELS[id],
