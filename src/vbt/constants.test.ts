@@ -8,7 +8,6 @@ import {
   DEFAULT_MVT,
   DEFAULT_VELOCITY_RIR_MAP,
   estimatePercent1RMFromVelocity,
-  categorizeVelocity,
 } from '@/vbt/constants';
 import { interpolate } from '@/stats/schemes';
 
@@ -106,34 +105,5 @@ describe('estimatePercent1RMFromVelocity', () => {
     for (let i = 0; i < percents.length - 1; i++) {
       expect(percents[i]).toBeGreaterThanOrEqual(percents[i + 1]);
     }
-  });
-});
-
-// =============================================================================
-// categorizeVelocity
-// =============================================================================
-
-describe('categorizeVelocity', () => {
-  it('categorizes fast (> 0.75 m/s)', () => {
-    expect(categorizeVelocity(0.8)).toBe('fast');
-    expect(categorizeVelocity(1.0)).toBe('fast');
-  });
-
-  it('categorizes moderate (0.50-0.75 m/s)', () => {
-    expect(categorizeVelocity(0.75)).toBe('moderate');
-    expect(categorizeVelocity(0.6)).toBe('moderate');
-    expect(categorizeVelocity(0.51)).toBe('moderate');
-  });
-
-  it('categorizes slow (0.30-0.50 m/s)', () => {
-    expect(categorizeVelocity(0.5)).toBe('slow');
-    expect(categorizeVelocity(0.4)).toBe('slow');
-    expect(categorizeVelocity(0.31)).toBe('slow');
-  });
-
-  it('categorizes grinding (< 0.30 m/s)', () => {
-    expect(categorizeVelocity(0.3)).toBe('grinding');
-    expect(categorizeVelocity(0.2)).toBe('grinding');
-    expect(categorizeVelocity(0.1)).toBe('grinding');
   });
 });

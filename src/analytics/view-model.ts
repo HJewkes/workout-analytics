@@ -12,7 +12,7 @@
  *
  * NDA: reads WA models only; no protocol bytes / frames / command codes.
  */
-import { getRepPeakVelocity } from '@/models/rep';
+import { getRepMeanVelocity, getRepPeakVelocity } from '@/models/rep';
 import { getPhaseHoldDuration, getPhaseMovementDuration } from '@/models/phase';
 import type { Set } from '@/models/set';
 import { getSetVelocityLossPct } from '@/analytics/set-analytics';
@@ -51,6 +51,22 @@ export function estimateSetRpe(set: Set): number | null {
  */
 export function getSetRepPeakVelocities(set: Set): Array<number | null> {
   return set.reps.map((rep) => finiteOrNull(getRepPeakVelocity(rep)));
+}
+
+/**
+ * Per-rep MEAN concentric velocity across the set — EXACT, in the SAME unit the
+ * samples were recorded in (WA is unit-agnostic). `null` entries for reps whose
+ * mean velocity is unavailable, so the caller can render "no data" rather than a
+ * fabricated zero.
+ *
+ * This is the mean-velocity sibling of `getSetRepPeakVelocities`, carrying the
+ * same finite-or-null gap contract. It is the correct feed for velocity-ZONE
+ * classification (`categorizeVelocity`) and the velocity-loss reference, both of
+ * which are defined on mean concentric velocity (WA-D02) — peak must not be fed
+ * to a mean-velocity scale.
+ */
+export function getSetRepMeanVelocities(set: Set): Array<number | null> {
+  return set.reps.map((rep) => finiteOrNull(getRepMeanVelocity(rep)));
 }
 
 // =============================================================================

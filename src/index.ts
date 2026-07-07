@@ -271,8 +271,18 @@ export {
   DEFAULT_MVT,
   DEFAULT_VELOCITY_RIR_MAP,
   estimatePercent1RMFromVelocity,
-  categorizeVelocity,
+} from './vbt';
+
+// VBT - Velocity Zones
+export {
+  type VelocityZoneId,
   type VelocityZone,
+  type MovementClass,
+  type VelocityZoneBand,
+  type VelocityZones,
+  type GetVelocityZonesOptions,
+  getVelocityZones,
+  categorizeVelocity,
 } from './vbt';
 
 // VBT - Profile
@@ -375,6 +385,7 @@ export {
   type VolumeStatusName,
   estimateSetRpe,
   getSetRepPeakVelocities,
+  getSetRepMeanVelocities,
   getSetTempoSeconds,
   bestE1RMAcrossSets,
   isNewE1RM,

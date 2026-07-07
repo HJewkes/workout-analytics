@@ -8,12 +8,6 @@
 import { type InterpolationScheme, createInterpolationScheme } from '@/stats/schemes';
 
 // =============================================================================
-// Types
-// =============================================================================
-
-export type VelocityZone = 'fast' | 'moderate' | 'slow' | 'grinding';
-
-// =============================================================================
 // Constants
 // =============================================================================
 
@@ -110,23 +104,4 @@ export function estimatePercent1RMFromVelocity(velocity: number): number {
 
   // Should not reach here
   return 50;
-}
-
-/**
- * Categorize mean concentric velocity into qualitative zones.
- *
- * Zones are based on general VBT guidelines:
- * - fast:     > 0.75 m/s  (speed/power work, < ~65% 1RM)
- * - moderate: 0.50-0.75 m/s (strength-speed, ~65-80% 1RM)
- * - slow:     0.30-0.50 m/s (strength, ~80-90% 1RM)
- * - grinding:  < 0.30 m/s  (near-maximal, > ~90% 1RM)
- *
- * @param velocity - Mean concentric velocity in m/s
- * @returns Qualitative velocity zone
- */
-export function categorizeVelocity(velocity: number): VelocityZone {
-  if (velocity > 0.75) return 'fast';
-  if (velocity > 0.5) return 'moderate';
-  if (velocity > 0.3) return 'slow';
-  return 'grinding';
 }
