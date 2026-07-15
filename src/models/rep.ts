@@ -76,9 +76,9 @@ export function getRepDuration(rep: Rep): number {
 export function getRepTempo(rep: Rep): string {
   return formatTempo({
     eccentric: getPhaseMovementDuration(rep.eccentric),
-    holdTop: getPhaseHoldDuration(rep.concentric),
+    pauseBottom: getPhaseHoldDuration(rep.eccentric),
     concentric: getPhaseMovementDuration(rep.concentric),
-    holdBottom: getPhaseHoldDuration(rep.eccentric),
+    pauseTop: getPhaseHoldDuration(rep.concentric),
   });
 }
 

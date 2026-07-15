@@ -45,7 +45,7 @@ Data primitives. All hardware-agnostic.
 | `src/models/rep.ts` | `Rep` at `:24-28`; `createRep` at `:33-39`; `addSampleToRep` at `:52-65` (routes by phase + eccentric-state); `getRepTempo` at `:75-82`; derived helpers at `:84-110`. |
 | `src/models/set.ts` | `Set` at `:30-34`; `createSet` at `:39-41`; `addSampleToSet` at `:47-65` (rep boundary on eccentric→concentric); `completeSet` at `:94-104` (trims trailing IDLE); `trimTrailingIdle` at `:70-88`; load helpers at `:140-174`. |
 | `src/models/load.ts` | `LoadSettings` (weight, chains, eccentric) at `:24-31`; `calculateFrameLoad` at `:70-89` (linear chains decay, eccentric % adjustment); `getEffectiveLoad` at `:109-111` (returns base weight). |
-| `src/models/tempo.ts` | `TempoParts` at `:11-16`; `formatTempo` (`E-HT-C-HB`) at `:19-21`; `parseTempo` at `:24-28`. |
+| `src/models/tempo.ts` | `TempoParts` at `:11-16`; `formatTempo` (`E-PB-C-PT`) at `:19-21`; `parseTempo` at `:24-28`. |
 | `src/models/index.ts` | Barrel for the models module. |
 
 ## `src/stats/`

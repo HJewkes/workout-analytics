@@ -137,7 +137,7 @@ Definition: `src/models/rep.ts:24-28`.
 
 Derived metrics (all O(1), `src/models/rep.ts:69-110`):
 - `getRepDuration` — concentric start to eccentric end (or concentric end if no eccentric).
-- `getRepTempo` — formats movement / hold durations as `"E-HT-C-HB"` via `formatTempo`.
+- `getRepTempo` — formats movement / hold durations as `"E-PB-C-PT"` via `formatTempo`.
 - `getRepMeanVelocity` — concentric only (primary VBT signal).
 - `getRepPeakVelocity` — concentric peak.
 - `getRepPeakForce` — max across BOTH phases.
@@ -210,13 +210,16 @@ Floored at 0. The chains curve is a linear simplification — real chain geometr
 `TempoParts` (`src/models/tempo.ts:11-16`) and the format/parse helpers (`src/models/tempo.ts:19-28`):
 
 ```
-"E-HT-C-HB" — eccentric, hold-top, concentric, hold-bottom (whole seconds)
+"E-PB-C-PT" — eccentric, pause-bottom, concentric, pause-top (whole seconds)
 ```
+
+This matches the canonical tempo order used by `getSetTempoSeconds`
+(`src/analytics/view-model.ts`): `[eccentric, pauseBottom, concentric, pauseTop]`.
 
 `getRepTempo(rep)` (`src/models/rep.ts:75-82`) constructs this from the phase movement / hold durations:
 - `eccentric` ← `getPhaseMovementDuration(rep.eccentric)`
-- `holdTop` ← `getPhaseHoldDuration(rep.concentric)` — IDLE/HOLD samples in the concentric phase
+- `pauseBottom` ← `getPhaseHoldDuration(rep.eccentric)` — IDLE/HOLD in the eccentric phase
 - `concentric` ← `getPhaseMovementDuration(rep.concentric)`
-- `holdBottom` ← `getPhaseHoldDuration(rep.eccentric)` — IDLE/HOLD in the eccentric phase
+- `pauseTop` ← `getPhaseHoldDuration(rep.concentric)` — IDLE/HOLD samples in the concentric phase
 
 All durations are `Math.round`-ed to whole seconds in the formatted string.

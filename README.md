@@ -185,10 +185,10 @@ Set
 import { formatTempo, parseTempo } from '@voltras/workout-analytics';
 
 // Format parts into standard tempo notation
-formatTempo({ eccentric: 3, holdTop: 1, concentric: 2, holdBottom: 0 }); // "3-1-2-0"
+formatTempo({ eccentric: 3, pauseBottom: 1, concentric: 2, pauseTop: 0 }); // "3-1-2-0"
 
 // Parse tempo string into parts
-parseTempo("3-1-2-0"); // { eccentric: 3, holdTop: 1, concentric: 2, holdBottom: 0 }
+parseTempo("3-1-2-0"); // { eccentric: 3, pauseBottom: 1, concentric: 2, pauseTop: 0 }
 ```
 
 ## Repository Structure
