@@ -498,7 +498,7 @@ describe('addSampleToRep()', () => {
       ];
       const rep = buildRep(1, samples);
 
-      // Format: "eccentric-topPause-concentric-bottomPause"
+      // Format: "eccentric-bottomPause-concentric-topPause"
       // Concentric: 1s, Eccentric: 2s
       expect(getRepTempo(rep)).toBe('2-0-1-0');
     });

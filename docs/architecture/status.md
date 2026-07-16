@@ -26,7 +26,7 @@ Engine: Node `>=20.0.0` (`package.json:120-122`).
 
 - Hardware-agnostic data model: `WorkoutSample` → `Phase` → `Rep` → `Set`.
 - O(1) running aggregates on `Phase` (mean/peak velocity, force, load; hold time).
-- Tempo formatting (`E-HT-C-HB`).
+- Tempo formatting (`E-PB-C-PT`).
 - Defensive `Math.abs` on velocity inside `addSampleToPhase` (`src/models/phase.ts:74`) — hardens against signed velocity from SDK 0.6.0+.
 - Full analytics surface: rep, set, fatigue, quality, intensity, session. See `analytics-surface.md`.
 - VBT: constants table, OLS profile builder, baseline interpolation, e1RM (profile / Epley / hybrid), coverage tracking, advanced fitting (recency / quality / Huber-IRLS / uncertainty). See `vbt.md`.
