@@ -70,6 +70,46 @@ export function getSetRepMeanVelocities(set: Set): Array<number | null> {
 }
 
 // =============================================================================
+// Velocity-loss verdict (canonical banding)
+// =============================================================================
+
+/** Autoregulation verdict banded from a set's velocity loss. */
+export type VelocityLossVerdict = 'productive' | 'threshold' | 'stop';
+
+/**
+ * Band a set's velocity-loss percentage into an autoregulation verdict — the
+ * SINGLE canonical source consumers use instead of hand-rolling their own
+ * cut-points. Below the threshold the set is `productive` (keep going); at/above
+ * VL20 it has reached the autoregulation `threshold` (moderate fatigue — the
+ * stop-consideration band); at/above VL30 the verdict is `stop`.
+ *
+ * `null` loss — fewer than two reps, so no loss is derivable yet — bands as
+ * `productive`: a set that has not yet shown decline is not curtailed. (This
+ * matches the dashboard's `verdictFromLoss`, whose semantics this function is
+ * the canonical replacement for.)
+ *
+ * Thresholds: **VL20 (threshold) / VL30 (stop)**. The autoregulation spec
+ * (`voltra_vbt_autoregulation_spec.md` §5.3) brackets "near moderate fatigue" at
+ * 20–30% velocity loss; these two cut-points are the edges of that band. The
+ * spec does not state an explicit three-way productive/threshold/stop banding,
+ * so VL20/VL30 is the documented default (consistent with §5.3), not a
+ * spec-verbatim triple. It converges the two divergent consumer forks — the
+ * dashboard's `verdictFromLoss` (20/30) and `toAutoRegStatus` (20/28) — onto one
+ * WA-owned definition. WA owns the thresholds; consumers own the labels/colors.
+ *
+ * This is the FIRST SLICE of the view-model reorg: the canonical banding
+ * function only. The full one-consumer-door `/view` subpath plus the
+ * `no-restricted-imports` lint that forbids re-hand-rolling banding is the VW-64
+ * epic.
+ */
+export function velocityLossVerdict(lossPct: number | null): VelocityLossVerdict {
+  if (lossPct === null) return 'productive';
+  if (lossPct >= 30) return 'stop';
+  if (lossPct >= 20) return 'threshold';
+  return 'productive';
+}
+
+// =============================================================================
 // Tempo
 // =============================================================================
 

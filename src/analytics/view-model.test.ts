@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   estimateSetRpe,
+  velocityLossVerdict,
   getSetRepPeakVelocities,
   getSetRepMeanVelocities,
   getSetTempoSeconds,
@@ -191,6 +192,26 @@ describe('weightDeviationRatio', () => {
     expect(weightDeviationRatio(null, 100)).toBeNull();
     expect(weightDeviationRatio(100, null)).toBeNull();
     expect(weightDeviationRatio(100, 0)).toBeNull();
+  });
+});
+
+describe('velocityLossVerdict', () => {
+  it('bands productive / threshold / stop on the canonical VL20 / VL30 cut-points', () => {
+    expect(velocityLossVerdict(0)).toBe('productive');
+    expect(velocityLossVerdict(19.9)).toBe('productive');
+    expect(velocityLossVerdict(20)).toBe('threshold');
+    expect(velocityLossVerdict(29.9)).toBe('threshold');
+    expect(velocityLossVerdict(30)).toBe('stop');
+    expect(velocityLossVerdict(45)).toBe('stop');
+  });
+
+  it('treats VL20 and VL30 as inclusive lower boundaries', () => {
+    expect(velocityLossVerdict(20)).toBe('threshold');
+    expect(velocityLossVerdict(30)).toBe('stop');
+  });
+
+  it('bands null (no loss derivable yet) as productive, matching the dashboard verdict', () => {
+    expect(velocityLossVerdict(null)).toBe('productive');
   });
 });
 
