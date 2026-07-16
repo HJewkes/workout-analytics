@@ -52,7 +52,7 @@ Source: `src/analytics/set-analytics.ts`. Re-exported via `src/index.ts:138-160`
 | `getSetFirstRepVelocity(set)` | `number` | `:20-24` |
 | `getSetLastRepVelocity(set)` | `number` | `:30-34` |
 | `getSetBestRepVelocity(set)` | `number` | `:40-43` |
-| `getSetVelocityLossPct(set)` | `number` (%) | `:51-56` — `(V1 − VLast) / V1 × 100`. |
+| `getSetVelocityLossPct(set)` | `number` (%) | `:61-66` — `(VBest − VLast) / VBest × 100`, best/fastest-rep reference (WA-D01), not first-rep. Always ≥ 0. |
 | `getSetMeanVelocity(set)` | `number` | `:62-66` |
 | `getSetPeakVelocity(set)` | `number` | `:72-75` |
 | `getSetRepVelocities(set)` | `number[]` | `:81-83` |

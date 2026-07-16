@@ -32,12 +32,16 @@ Mean concentric velocity at percentage of 1RM (Gonzalez-Badillo et al.). Defined
 
 | Function | Source line | Description |
 | --- | --- | --- |
-| `estimatePercent1RMFromVelocity(velocity)` | `:89-113` | Linear interpolation in `VELOCITY_AT_PERCENT_1RM`. Clamps to `[30, 100]`. |
-| `categorizeVelocity(velocity)` | `:127-132` | Returns `VelocityZone`: `fast` (>0.75), `moderate` (>0.50), `slow` (>0.30), `grinding` (≤0.30). |
+| `estimatePercent1RMFromVelocity(velocity)` | `constants.ts:89-113` | Linear interpolation in `VELOCITY_AT_PERCENT_1RM`. Clamps to `[30, 100]`. |
+| `categorizeVelocity(velocity, zones?)` | `zones.ts:266-276` | Returns the **5-way** `VelocityZoneId` from **mean** concentric velocity (m/s). Bands default to the profile-derived / movement-class table (`getVelocityZones`), not a hardcoded scale. |
 
-### `VelocityZone`
+### `VelocityZoneId` (canonical, 5-way)
 
-`'fast' \| 'moderate' \| 'slow' \| 'grinding'` (`src/vbt/constants.ts:14`).
+`'grinding' \| 'maximalStrength' \| 'strengthSpeed' \| 'power' \| 'speed'` (`src/vbt/zones.ts:27`). Bands are MEAN-concentric-velocity (WA-D02), profile-derived where an LV profile exists, else a movement-class default table — WA owns the boundaries; colors stay in the UI. Feed mean per-rep velocity (`getSetRepMeanVelocities`), never peak.
+
+### `VelocityZone` (deprecated, 4-way)
+
+`'fast' \| 'moderate' \| 'slow' \| 'grinding'` (`src/vbt/zones.ts:37`) — superseded by the 5-way `VelocityZoneId`; retained only for backward compatibility.
 
 ## Load-velocity profile
 

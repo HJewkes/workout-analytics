@@ -113,7 +113,17 @@ export interface OutlierRep {
 // =============================================================================
 
 /**
- * Get velocity change from first to last rep.
+ * Get the signed first→last MEAN-concentric-velocity change across the set.
+ *
+ * This is a first-rep-referenced *signed* delta (it can go positive when the
+ * last rep is faster), part of the symmetric first→last change family with
+ * {@link getSetTempoChange} / {@link getSetROMChange}, and feeds only the
+ * DEPRECATED {@link getSetFatigueIndex}. It is intentionally NOT the canonical
+ * velocity loss: the autoregulation loss metric is the best/fastest-rep
+ * `getSetVelocityLossPct` (WA-D01), which is always ≥ 0. Kept first→last (not
+ * migrated to best-rep) because a signed change has no meaningful best-rep
+ * reference and renaming this published symbol is a breaking change deferred to
+ * the deprecated-removal major (VW-64 / Step E).
  */
 export function getSetVelocityChange(
   set: Set,
@@ -522,7 +532,11 @@ export const VBT_DEFAULT_FATIGUE_WEIGHTS = {
 export interface VBTSetFatigueIndexResult {
   /** Composite fatigue index in [0, 1]. */
   fatigueIndex: number;
-  /** Velocity loss ratio in [0, 1]: (V1 - VLast) / V1. */
+  /**
+   * Velocity loss ratio in [0, 1], best/fastest-rep reference:
+   * (VBest - VLast) / VBest. Sourced from `getSetVelocityLossPct` (WA-D01,
+   * García-Ramos/Jukic), NOT the legacy first-rep `(V1 - VLast) / V1`.
+   */
   velLossPct: number;
   /**
    * Concentric tempo creep ratio: (t_con_last - t_con_first) / t_con_first.
