@@ -26,14 +26,43 @@
 
 ---
 
+## 0.5) Units contract (canonical — code wins)
+
+This section is the authoritative unit contract and **supersedes** the older
+inline unit hints in the §1/§3 sketches (Newtons, meters, kg), which predate the
+implementation. Where this doc and the code disagree, **the code wins** — it
+encodes real cable hardware and the WA-D01/D02 brain decisions. The
+implementation is unit-consistent with the contract below (audited: force is lbs
+in → lbs out, no SI conversion inside WA).
+
+| Quantity | Canonical unit | Notes |
+|---|---|---|
+| **Force** | **lbs** (pounds), non-negative magnitude | NOT Newtons, NOT tenths-of-lbs. Adapters reading device tenths-of-lbs divide by 10 at the boundary (`models/sample.ts`). |
+| **Velocity** | **m/s** (magnitude; direction from `phase`) | Carried as **mm/s** (`…Mms`) only at a consumer boundary, converted by one `toMps` helper. |
+| **Position / ROM** | **normalized 0..1** cable position | NOT meters. ROM = concentric displacement `\|end − start\|`. |
+| **Tempo** | **seconds**, 4-tuple `[ecc, pauseBottom, con, pauseTop]` | |
+| **Load** | **unit-agnostic (in = out)** | Whatever unit the caller supplies is returned unchanged; NOT assumed kg. |
+| **Impulse / work / power** | fitness-native: **lbs·s / lbs·position-units / lbs·pos/s** | Deliberately NOT SI (not N·s / Joules). |
+
+**Rules:**
+- **No SI conversion or unit-math at derivation time.** No `× 4.448`, `/ 10`,
+  m↔mm, or unit-label arithmetic inside WA or at render. Any SI need is a
+  caller's explicit adapter.
+- **Units live in the name or type, never in a display label.** A `force*` field
+  must not be labelled `N`; a velocity carried in mm/s is named `…Mms`.
+- Velocity-loss reference is the **best/fastest rep** of the set, not the first
+  rep (WA-D01); see the `SetSummary.velLossPct` note in §3.
+
+---
+
 ## 1) Core abstractions: frames → reps → sets → sessions
 
 ### 1.1 Raw telemetry (frame stream)
 VOLTRA emits frames at ~11 Hz with:
 - `t` timestamp (ms or seconds)
-- `pos` position (cable length / displacement; ideally meters)
+- `pos` position (normalized 0..1 cable position; see units contract §0.5)
 - `vel` velocity (m/s)
-- `force` force (N)
+- `force` force (lbs)
 - `phase` ∈ {eccentric, concentric, isometric/hold, idle}
 - (optional) device state flags, rep markers, errors
 
@@ -99,9 +128,9 @@ type Phase = "eccentric" | "concentric" | "hold" | "idle";
 
 interface TelemetryFrame {
   t: number;           // epoch ms or seconds
-  pos: number;         // meters (preferred) or device units with declared scale
+  pos: number;         // normalized 0..1 cable position (units contract §0.5)
   vel: number;         // m/s
-  force: number;       // Newtons
+  force: number;       // lbs (units contract §0.5)
   phase: Phase;
   // optional extras
   device?: { battery?: number; temp?: number; errorCode?: string };
@@ -113,7 +142,7 @@ interface RepSummary {
   tStart: number;
   tEnd: number;
 
-  rom: number;                 // meters
+  rom: number;                 // normalized 0..1 position units (units contract §0.5)
   tCon: number;                // seconds
   tEcc: number;                // seconds
   tHold: number;               // seconds
@@ -122,10 +151,10 @@ interface RepSummary {
   peakVCon: number;            // m/s
   meanVEcc?: number;           // m/s
 
-  meanForceCon?: number;       // N
-  peakForceCon?: number;       // N
-  impulseCon?: number;         // N*s
-  workEst?: number;            // Joules (approx)
+  meanForceCon?: number;       // lbs
+  peakForceCon?: number;       // lbs
+  impulseCon?: number;         // lbs*s (fitness-native, NOT N*s)
+  workEst?: number;            // lbs*position-units (fitness-native, NOT Joules)
 
   // form / quality signals
   romRatio?: number;           // vs expected
@@ -141,7 +170,7 @@ interface SetSummary {
   startTime: number;
   endTime: number;
 
-  load: number;                // kg equivalent OR "digital resistance units" with metadata
+  load: number;                // unit-agnostic (in = out); NOT assumed kg (units contract §0.5)
   repsPlanned?: number;
   repsCompleted: number;
   restBeforeSec?: number;
@@ -152,7 +181,7 @@ interface SetSummary {
   meanV1: number;              // meanVCon of rep1
   meanVBest: number;           // max(meanVCon)
   meanVLast: number;           // meanVCon of last rep
-  velLossPct: number;          // (meanV1 - meanVLast) / meanV1
+  velLossPct: number;          // (meanVBest - meanVLast) / meanVBest — best/fastest rep ref (WA-D01), NOT first-rep
   romMean: number;
 
   // inferred labels

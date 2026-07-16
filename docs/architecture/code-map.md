@@ -71,6 +71,12 @@ Stateless analytics over `Rep` / `Set`.
 | `src/analytics/fatigue.ts` | `FatigueSchemes`/`FatigueIndex`/`ConsistencyScore`/`RIREstimate`/`OutlierRep` types at `:46-109`; change analytics (velocity/tempo/ROM/eccentric-velocity) at `:118-164`; `EccentricControl` at `:173-180` and score/warning at `:191-229`; `DEFAULT_FATIGUE_WEIGHTS` at `:239-243`; `getSetFatigueIndex` at `:253-294`; consistency at `:310-352`; `findOutlierReps` at `:361-415`; `estimateSetRIR` at `:424-447`; `isSetFatigued` + `getSetFatigueSummary` at `:456-495`. |
 | `src/analytics/intensity.ts` | Default decay rate `0.4` at `:24`; `estimatePerRepRIR` (velocity-proportional) at `:50-87`; `getRepHardnessWeight` (`e^(-k*rir)`) at `:107-110`; `getSetIntensityScore` at `:127-135`; `getSetStimulusScore` (composite) at `:164-212`. |
 | `src/analytics/session.ts` | Type definitions at `:27-60`; `computeStrengthEstimate` (best of profile / reps / hybrid) at `:78-126`; `computeReadiness` (green/yellow/red zones) at `:143-168`; `computeSessionFatigue` (cross-set, junk-volume detection) at `:187-237`; `computeVolume` at `:250-257`; `computeEffectiveVolume` at `:273-291`. |
+| `src/analytics/view-model.ts` | View-model seam — exact, unrounded derived metrics for rendering (dashboard/mobile). `estimateSetRpe`; `velocityLossVerdict` (canonical productive/threshold/stop banding, VL20/VL30 — the SSOT consumers must use); `getSetRepMeanVelocities`/`getSetRepPeakVelocities`; `getSetTempoSeconds` (canonical tempo tuple); `bestE1RMAcrossSets`; `weightDeviationRatio`; `classifyWeeklyVolume`. Returns `null` on no-signal; no rounding/unit-conversion/text crosses this boundary. (Full `/view` subpath + import lint = VW-64.) |
+| `src/analytics/coverage.ts` | Autoregulation-explorer set bins (distinct from `vbt/coverage.ts`'s %e1RM bins): `SetSummary` / `CoverageBin`; `buildCoverageMap` at `:86`; `detectStaleBins` at `:159`. |
+| `src/analytics/readiness-adjustments.ts` | `ReadinessAdjustments` / `ReadinessAdjustmentInputs`; `computeReadinessAdjustments` at `:117` (readiness → load/volume/rest modifiers). |
+| `src/analytics/state-space-strength.ts` | `StateSpaceStrengthModel` (Kalman-style latent "strength today") at `:100`; noise/diffuse defaults at `:75-81`; `StrengthState` at `:37`. |
+| `src/analytics/time-series.ts` | Metric time-series builders: `MetricTimeSeries` / `MetricKey`; weekly summaries + per-muscle volume aggregation over processed sessions/sets. |
+| `src/analytics/trend.ts` | `analyzeTrend` at `:119` (slope/direction) and `detectPlateau` at `:202` over a `TimeSeries`. |
 | `src/analytics/index.ts` | Barrel. |
 
 ## `src/vbt/`
@@ -79,8 +85,12 @@ Velocity-based training surface.
 
 | File | Responsibility |
 | --- | --- |
-| `src/vbt/constants.ts` | `VELOCITY_AT_PERCENT_1RM` table (Gonzalez-Badillo) at `:28-42`; `DEFAULT_MVT = 0.17` m/s at `:51`; `DEFAULT_VELOCITY_RIR_MAP` at `:61-69`; `estimatePercent1RMFromVelocity` at `:89-113`; `categorizeVelocity` (zones) at `:127-132`. |
+| `src/vbt/constants.ts` | `VELOCITY_AT_PERCENT_1RM` table (Gonzalez-Badillo) at `:28-42`; `DEFAULT_MVT = 0.17` m/s at `:51`; `DEFAULT_VELOCITY_RIR_MAP` at `:61-69`; `estimatePercent1RMFromVelocity` at `:89-113`. (`categorizeVelocity` now lives in `zones.ts`, not here.) |
+| `src/vbt/zones.ts` | WA-owned velocity zones (MEAN-concentric, WA-D02). `VelocityZoneId` (5-way canonical) at `:27`; `VelocityZone` (4-way, deprecated) at `:37`; `MovementClass` at `:45`; `getVelocityZones` (profile-derived / movement-class bands) at `:222`; `categorizeVelocity(velocity, zones?)` at `:266`. |
 | `src/vbt/profile.ts` | `LoadVelocityDataPoint` at `:22-29`; `LoadVelocityProfile` at `:37-45`; `olsRegression` (internal) at `:61-111`; `buildProfile` at `:131-170`; `predictVelocity` at `:179-182`; `estimateLoad` at `:191-195`; `addDataPoint` at `:205-210`. |
+| `src/vbt/expected-velocity-intra-set.ts` | Intra-set expected velocity from the first N reps: `computeExpectedFromFirstNReps` at `:62` (`DEFAULT_FIRST_N_REPS = 2`); `createFirstNRepsStrategy` at `:139`. |
+| `src/vbt/profile-fitting-bayesian.ts` | Bayesian LV-profile fit: `BayesianLVPrior` / `BayesianLVPosterior`; `fitLVProfileBayesian` at `:151` (uncertainty-preserving alternative to the WLS/Huber `profile-fitting.ts`). |
+| `src/vbt/rir-exercise-specific.ts` | Exercise-type-specific RIR: `ExerciseVBTProfile`; cable-compound / cable-isolation / fallback default profiles at `:94-122`; `estimateRIRWithProfile` at `:157`. |
 | `src/vbt/baseline.ts` | `VelocityBaseline` at `:19-21`; `buildBaseline` (sorted by load) at `:37-40`; `getExpectedVelocity` (linear interpolation, returns null out-of-range) at `:53-88`. |
 | `src/vbt/e1rm.ts` | `E1RMEstimate` at `:20-27`; `estimateE1RMFromProfile` (solves for MVT) at `:47-67`; `estimateE1RMFromReps` (Epley) at `:90-119`; `estimateHybridE1RM` (confidence-weighted blend) at `:138-168`. |
 | `src/vbt/coverage.ts` | `CoverageBin` at `:21-28`; `CoverageResult` at `:33-40`; `computeCoverage` (bins by %e1RM with optional staleness) at `:56-120`; `identifyCoverageGaps` at `:132-137`. |
