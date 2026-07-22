@@ -378,6 +378,22 @@ export {
   buildTimeSeries,
 } from './analytics';
 
+// Analytics - Fatigue Verdict (always-on live set verdict + per-dimension lights)
+export {
+  type DimensionTone,
+  type FatigueVerdictState,
+  type FatigueVerdict,
+  type FatigueVerdictSchemes,
+  DEFAULT_ROM_BREAKDOWN_SCHEME,
+  DEFAULT_ECCENTRIC_BREAKDOWN_SCHEME,
+  DEFAULT_CONCENTRIC_GRIND_SCHEME,
+  getSetWorkingROM,
+  velocityLossTone,
+  romBreakdownTone,
+  tempoBreakdownTone,
+  getSetFatigueVerdict,
+} from './analytics';
+
 // Analytics - View-Model Derivations (exact, unrounded metrics for workout views)
 export {
   type E1RMSetInput,
