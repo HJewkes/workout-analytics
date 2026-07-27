@@ -33,28 +33,34 @@ export interface LoadSettings {
    * units as `WorkoutSample.position` (metres, as of 2.0.0). The chain ramp is
    * `1 − position / chainsFullExtension`, clamped to [0, 1].
    *
-   * Defaults to `1`, which reproduces the pre-2.0.0 ramp exactly for callers
-   * that were feeding normalised 0–1 positions. Callers now feeding metres
-   * MUST set this to the cable's real full-extension distance (~0.6 m on
-   * Voltra) — leaving it at 1 makes the chains fall off over a metre of travel
-   * and so never fully lift within a real rep. Ignored when `chains === 0`.
+   * REQUIRED as of 2.0.0, and required precisely because there is no safe
+   * default. The pre-2.0.0 ramp behaved as if this were `1`; on a ~0.6 m cable
+   * fed metres that leaves the chains contributing 40% of their weight at full
+   * extension forever — a plausible magnitude on a plausible curve, invisible
+   * in review. Making the field structural forces every caller to state the
+   * cable's real full-extension distance (~0.6 m on Voltra).
+   *
+   * Ignored when `chains === 0`, so a chainless caller is unaffected at
+   * runtime. A reference of `0` (or negative) drops the chain term entirely
+   * rather than guessing a ramp.
    */
-  readonly chainsFullExtension?: number;
+  readonly chainsFullExtension: number;
 }
 
 /**
- * Chain ramp reference used when `LoadSettings.chainsFullExtension` is unset.
- * `1` preserves the historical normalised-position behaviour.
- */
-export const DEFAULT_CHAINS_FULL_EXTENSION = 1;
-
-/**
  * Default load settings (no load configured).
+ *
+ * `chainsFullExtension` is `0` because there are no chains to ramp and no
+ * cable geometry to assume. A caller adding chains by spreading this default
+ * (`{ ...DEFAULT_LOAD_SETTINGS, chains: 40 }`) gets NO chain contribution at
+ * all — loudly wrong, and so noticed — rather than a plausible-looking ramp
+ * against a fabricated reference. Set `chainsFullExtension` alongside `chains`.
  */
 export const DEFAULT_LOAD_SETTINGS: LoadSettings = Object.freeze({
   weight: 0,
   chains: 0,
   eccentric: 0,
+  chainsFullExtension: 0,
 });
 
 // =============================================================================
@@ -75,9 +81,9 @@ export const DEFAULT_LOAD_SETTINGS: LoadSettings = Object.freeze({
  * reference explicitly rather than assuming a 0-1 range.
  *
  * Chains curve: At position 0 (cable in), full chains weight is applied.
- * As position approaches `settings.chainsFullExtension` (default 1), chains
- * progressively lift off, reducing their contribution linearly to zero. This is
- * a simplification -- real chain curves depend on chain length and floor
+ * As position approaches `settings.chainsFullExtension`, chains progressively
+ * lift off, reducing their contribution linearly to zero. This is a
+ * simplification -- real chain curves depend on chain length and floor
  * geometry, but linear is a reasonable first approximation.
  *
  * Eccentric adjustment: The eccentric percentage adjusts the base weight during
@@ -98,7 +104,7 @@ export function calculateFrameLoad(
 
   // Chains: full effect at position 0, decreasing linearly to 0 at full extension
   if (settings.chains > 0) {
-    const fullExtension = settings.chainsFullExtension ?? DEFAULT_CHAINS_FULL_EXTENSION;
+    const fullExtension = settings.chainsFullExtension;
     const chainsFactor =
       fullExtension > 0 ? Math.max(0, Math.min(1, 1 - position / fullExtension)) : 0;
     load += settings.chains * chainsFactor;

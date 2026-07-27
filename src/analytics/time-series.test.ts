@@ -577,7 +577,7 @@ describe('buildTimeSeries key filtering', () => {
     expect(series.points.map((p) => p.value)).toEqual([500]);
   });
 
-  it('excludes sessions carrying no key once a filter is supplied', () => {
+  it('excludes sessions carrying no key once a constraining filter is supplied', () => {
     const unidentified = makeSession({ id: 'd', sets: [{ weightLbs: 50, repCount: 1 }] });
 
     const series = buildTimeSeries([...SESSIONS, unidentified], {
@@ -586,6 +586,19 @@ describe('buildTimeSeries key filtering', () => {
     });
 
     expect(series.points).toHaveLength(2);
+  });
+
+  it('treats an empty key filter as no filter, keeping keyless sessions', () => {
+    const unidentified = makeSession({ id: 'd', sets: [{ weightLbs: 50, repCount: 1 }] });
+    const all = [...SESSIONS, unidentified];
+
+    // Consistent with `matchesBaselineKey(k, {}) === true`: `{}` — a plausible
+    // product of optional UI state — constrains nothing, so it must not
+    // silently drop every unidentified session.
+    expect(buildTimeSeries(all, { metric: 'volume', key: {} }).points).toHaveLength(4);
+    expect(
+      buildTimeSeries(all, { metric: 'volume', key: { userId: undefined } }).points
+    ).toHaveLength(4);
   });
 
   it('echoes the filter back on the series', () => {
@@ -604,5 +617,53 @@ describe('buildTimeSeries key filtering', () => {
     );
 
     expect(series.points).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// exerciseId reconciliation: `key.exerciseId` wins over the loose field
+// =============================================================================
+
+describe('exercise identity precedence', () => {
+  /** Disagreeing sources: the loose field says squat, the key says bench. */
+  const CONFLICTED = makeSession({
+    id: 'conflict',
+    exerciseId: 'squat',
+    key: { userId: 'u1', exerciseId: 'bench' },
+    sets: [{ weightLbs: 100, repCount: 5 }],
+  });
+
+  it('filters by key.exerciseId, not the loose exerciseId field', () => {
+    expect(
+      buildTimeSeries([CONFLICTED], { metric: 'volume', exerciseId: 'bench' }).points
+    ).toHaveLength(1);
+    expect(
+      buildTimeSeries([CONFLICTED], { metric: 'volume', exerciseId: 'squat' }).points
+    ).toHaveLength(0);
+  });
+
+  it('falls back to the loose field when there is no key', () => {
+    const keyless = makeSession({
+      id: 'k',
+      exerciseId: 'squat',
+      sets: [{ weightLbs: 100, repCount: 5 }],
+    });
+
+    expect(
+      buildTimeSeries([keyless], { metric: 'volume', exerciseId: 'squat' }).points
+    ).toHaveLength(1);
+  });
+
+  it('rolls a conflicted session up under key.exerciseId in weekly summaries', () => {
+    expect(getWeeklySummaries([CONFLICTED])[0]?.exerciseIds).toEqual(['bench']);
+  });
+
+  it('attributes volume via key.exerciseId', () => {
+    const lookup = (id: string) =>
+      id === 'bench' ? { muscleGroups: ['chest'] } : { muscleGroups: ['quads'] };
+
+    const result = getVolumeByMuscleGroup([CONFLICTED], lookup);
+
+    expect(result.byMuscleGroup).toEqual({ chest: 500 });
   });
 });

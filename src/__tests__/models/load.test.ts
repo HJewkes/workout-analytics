@@ -19,6 +19,10 @@ function makeSettings(overrides: Partial<LoadSettings> = {}): LoadSettings {
     weight: 100,
     chains: 0,
     eccentric: 0,
+    // Required as of 2.0.0. `1` here is a test-fixture choice, not a library
+    // default — the pre-existing chains cases below were written against a
+    // 0..1 position range and this keeps their expectations meaningful.
+    chainsFullExtension: 1,
     ...overrides,
   };
 }
@@ -136,12 +140,23 @@ describe('calculateFrameLoad()', () => {
       expect(load).toBeCloseTo(120, 10); // 100 + 40 * (1 - 0.3/0.6)
     });
 
-    it('defaults to a reference of 1, preserving the pre-2.0.0 ramp', () => {
-      const withDefault = makeSettings({ weight: 100, chains: 40 });
-      const explicit = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 1 });
+    // Pins the ramp FORMULA against hand-computed values rather than against
+    // another call to the same implementation: load = weight + chains ×
+    // clamp(1 − position / chainsFullExtension, 0, 1), with weight = 100,
+    // chains = 40, chainsFullExtension = 0.6.
+    it.each([
+      [0, 140], // cable in: chains fully loaded
+      [0.15, 130], // 1 − 0.25 = 0.75 → 100 + 30
+      [0.3, 120], // 1 − 0.50 = 0.50 → 100 + 20
+      [0.45, 110], // 1 − 0.75 = 0.25 → 100 + 10
+      [0.6, 100], // at reference: chains fully lifted
+      [0.9, 100], // beyond reference: clamped at 0, never negative
+    ])('at position %f the ramp yields %f lbs', (position, expected) => {
+      const settings = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 0.6 });
 
-      expect(calculateFrameLoad(withDefault, 0.25, MovementPhase.CONCENTRIC)).toBe(
-        calculateFrameLoad(explicit, 0.25, MovementPhase.CONCENTRIC)
+      expect(calculateFrameLoad(settings, position, MovementPhase.CONCENTRIC)).toBeCloseTo(
+        expected,
+        10
       );
     });
 

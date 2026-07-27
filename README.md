@@ -110,11 +110,20 @@ interface WorkoutSample {
   sequence: number;      // Incrementing sequence (for drop detection)
   timestamp: number;     // Timestamp in ms since epoch
   phase: MovementPhase;  // IDLE, CONCENTRIC, HOLD, or ECCENTRIC
-  position: number;      // Position in ROM (0 = start, 1 = full extension)
+  position: number;      // Cable extension in METRES (0 = start / cable retracted)
   velocity: number;      // Instantaneous velocity (m/s, always positive)
   force: number;         // Force reading (lbs, absolute value)
 }
 ```
+
+**`position` is metres, as of 2.0.0** (BREAKING). It was previously documented as a normalised
+`0..1` fraction, but producers forwarded a device-native cable-extension figure unconverted.
+The contract is now cable extension in metres, converted **at the producer's bridge** — this
+library performs no conversion and validates nothing at runtime, so passing device-native units
+silently inflates every absolute output ~1000×. Ratio-based analytics (percent ROM decay, ROM
+CV, `getRepROMRatio`, `isPartialRep`, the fatigue ROM dimension) are scale-invariant and
+unchanged, provided any caller-supplied reference ROM uses the same scale. Any persisted
+`TechniqueBaseline.rom` / `expectedROM` collected under the old contract must be rebuilt.
 
 ### Movement Phases
 
@@ -163,7 +172,9 @@ Set
 | `getRepMeanVelocity(rep)` | Mean concentric velocity (m/s) |
 | `getRepPeakVelocity(rep)` | Peak concentric velocity (m/s) |
 | `getRepPeakForce(rep)` | Peak force across both phases |
-| `getRepRangeOfMotion(rep)` | ROM as position value (0-1) |
+| `getRepRangeOfMotion(rep)` | ROM as cable displacement, in metres |
+| `getRepWork(rep)` / `getRepConcentricWork(rep)` / `getRepEccentricWork(rep)` / `getRepTotalWork(rep)` | Work as ∫F dx, in **lbs·m** (not Joules — ×4.448 for N·m) |
+| `getRepMeanConcentricPower(rep)` / `getRepMeanEccentricPower(rep)` | Mean power, in **lbs·m/s** (not Watts) |
 | `getRepSamples(rep)` | All samples in the rep |
 
 ### Phase Functions
@@ -177,7 +188,7 @@ Set
 | `getPhaseMovementDuration(phase)` | Movement time (excluding holds) |
 | `getPhaseMeanVelocity(phase)` | Mean velocity during movement |
 | `getPhaseMeanForce(phase)` | Mean force during movement |
-| `getPhaseRangeOfMotion(phase)` | Absolute position change |
+| `getPhaseRangeOfMotion(phase)` | Absolute position change, in metres |
 
 ### Tempo
 

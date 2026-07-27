@@ -15,6 +15,7 @@ export {
 
   // Baseline identity
   type BaselineKey,
+  type BaselineKeyFilter,
   type BaselineSide,
   baselineKeyId,
   matchesBaselineKey,
@@ -23,7 +24,6 @@ export {
   // Load
   type LoadSettings,
   DEFAULT_LOAD_SETTINGS,
-  DEFAULT_CHAINS_FULL_EXTENSION,
   calculateFrameLoad,
   getEffectiveLoad,
 

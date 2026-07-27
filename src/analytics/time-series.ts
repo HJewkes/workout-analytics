@@ -11,7 +11,11 @@
  *
  */
 
-import { type BaselineKey, matchesBaselineKey } from '@/models/baseline-key';
+import {
+  type BaselineKey,
+  type BaselineKeyFilter,
+  matchesBaselineKey,
+} from '@/models/baseline-key';
 
 // =============================================================================
 // MetricTimeSeries Types
@@ -41,7 +45,7 @@ export interface MetricTimeSeries<T = number> {
    * config. Present only when the caller supplied one — a series with no
    * `key` spans every user/setup/side in the input.
    */
-  key?: Partial<BaselineKey>;
+  key?: BaselineKeyFilter;
   points: ReadonlyArray<MetricTimeSeriesPoint<T>>;
 }
 
@@ -72,17 +76,24 @@ export interface BuildTimeSeriesConfig {
   metric: MetricKey;
   /** How sessions are grouped into points. Default 'session'. */
   bucketBy?: 'session' | 'day' | 'week';
-  /** If set, only sessions whose `exerciseId` matches are included. */
+  /**
+   * If set, only sessions whose exercise matches are included. The exercise is
+   * `key.exerciseId` when a key is present, else the loose `exerciseId` field.
+   */
   exerciseId?: string;
   /**
    * If set, only sessions whose `key` satisfies this filter are included.
    * Fields left undefined are wildcards (see `matchesBaselineKey`). Sessions
-   * carrying no `key` at all are excluded once a filter is supplied — an
-   * unidentified session cannot be claimed by a user.
+   * carrying no `key` at all are excluded once a CONSTRAINING filter is
+   * supplied — an unidentified session cannot be claimed by a user.
+   *
+   * An empty filter (`{}`, or one whose every field is undefined) constrains
+   * nothing and is treated as no filter at all: keyless sessions are kept. This
+   * keeps the config consistent with `matchesBaselineKey(k, {}) === true`.
    *
    * Independent of `exerciseId` above: when both are set, both must match.
    */
-  key?: Partial<BaselineKey>;
+  key?: BaselineKeyFilter;
   /** ISO lower bound (inclusive). Default no lower bound. */
   fromTs?: string;
   /** ISO upper bound (inclusive). Default no upper bound. */
@@ -135,12 +146,21 @@ export interface ProcessedSession {
   id: string;
   /** ISO timestamp the session started. */
   startedAt: string;
-  /** Optional exercise id; required for `exerciseId` filtering and muscle attribution. */
+  /**
+   * Optional exercise id. Superseded by `key.exerciseId` when a `key` is
+   * present — see `sessionExerciseId`.
+   */
   exerciseId?: string;
   /**
    * Identity of the measurement stream — `(user, exercise, setup, side)`.
-   * Required for `key` filtering. `key.exerciseId` and the `exerciseId` field
-   * above are not cross-validated; populate both consistently.
+   * Required for `key` filtering.
+   *
+   * `key.exerciseId` TAKES PRECEDENCE over the `exerciseId` field above
+   * wherever this module needs an exercise (filtering, bucket rollups, muscle
+   * attribution): the key is the identity the measurements were recorded
+   * under, and the loose field is a summary convenience. The two are not
+   * validated against each other, so populating them inconsistently is not an
+   * error — it just means the key wins.
    */
   key?: BaselineKey;
   sets: ReadonlyArray<ProcessedSet>;
@@ -159,19 +179,45 @@ export interface ProcessedSet {
 // =============================================================================
 
 /**
- * Filter sessions by optional exerciseId + ISO date window.
+ * The exercise a session is attributed to.
+ *
+ * `key.exerciseId` wins over the loose `exerciseId` field when both are
+ * present — the key records the identity the measurements were taken under.
+ * This is the single reconciliation point; every consumer in this module goes
+ * through it, so a session cannot pass one exercise filter and fail another.
+ */
+function sessionExerciseId(session: ProcessedSession): string | undefined {
+  return session.key?.exerciseId ?? session.exerciseId;
+}
+
+/**
+ * Is this key filter actually constraining anything?
+ *
+ * `{}` — a plausible product of optional UI state — is NOT a constraint, and
+ * is treated exactly as an absent filter: it selects everything, including
+ * sessions carrying no key. This matches `matchesBaselineKey(k, {})`, which is
+ * `true` for every key. Only a filter naming at least one dimension implies
+ * "identified sessions only".
+ */
+function isConstrainingKeyFilter(filter: BaselineKeyFilter | undefined): boolean {
+  return filter !== undefined && Object.values(filter).some((v) => v !== undefined);
+}
+
+/**
+ * Filter sessions by optional exerciseId + key identity + ISO date window.
  */
 function filterSessions(
   sessions: ReadonlyArray<ProcessedSession>,
-  filter: { exerciseId?: string; key?: Partial<BaselineKey>; fromTs?: string; toTs?: string }
+  filter: { exerciseId?: string; key?: BaselineKeyFilter; fromTs?: string; toTs?: string }
 ): ProcessedSession[] {
+  const keyFilter = isConstrainingKeyFilter(filter.key) ? filter.key : undefined;
   return sessions.filter((s) => {
-    if (filter.exerciseId !== undefined && s.exerciseId !== filter.exerciseId) {
+    if (filter.exerciseId !== undefined && sessionExerciseId(s) !== filter.exerciseId) {
       return false;
     }
-    if (filter.key !== undefined) {
+    if (keyFilter !== undefined) {
       if (s.key === undefined) return false;
-      if (!matchesBaselineKey(s.key, filter.key)) return false;
+      if (!matchesBaselineKey(s.key, keyFilter)) return false;
     }
     if (filter.fromTs !== undefined && s.startedAt < filter.fromTs) {
       return false;
@@ -381,8 +427,9 @@ export function getWeeklySummaries(
         bucket.topWeightLbs = set.weightLbs;
       }
     }
-    if (session.exerciseId !== undefined) {
-      bucket.exerciseIds.add(session.exerciseId);
+    const exerciseId = sessionExerciseId(session);
+    if (exerciseId !== undefined) {
+      bucket.exerciseIds.add(exerciseId);
     }
 
     byWeek.set(weekStart, bucket);
@@ -430,8 +477,9 @@ export function getVolumeByMuscleGroup(
     const sessionVolume = session.sets.reduce((acc, s) => acc + s.weightLbs * s.repCount, 0);
     totalVolumeLbs += sessionVolume;
 
-    if (session.exerciseId === undefined) continue;
-    const exercise = exerciseLookup(session.exerciseId);
+    const exerciseId = sessionExerciseId(session);
+    if (exerciseId === undefined) continue;
+    const exercise = exerciseLookup(exerciseId);
     if (!exercise || exercise.muscleGroups.length === 0) continue;
 
     const sharePerGroup = sessionVolume / exercise.muscleGroups.length;

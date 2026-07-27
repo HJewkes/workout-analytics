@@ -43,6 +43,14 @@ describe('baselineKeyId', () => {
 
     expect(literal).not.toBe(omitted);
   });
+
+  it('rejects an id that is not well-formed UTF-16, naming the offending field', () => {
+    // A lone high surrogate — `encodeURIComponent` raises URIError on this.
+    const bad = makeKey({ setupId: '\uD800' });
+
+    expect(() => baselineKeyId(bad)).toThrow(TypeError);
+    expect(() => baselineKeyId(bad)).toThrow(/BaselineKey\.setupId/);
+  });
 });
 
 describe('matchesBaselineKey', () => {
@@ -72,6 +80,17 @@ describe('matchesBaselineKey', () => {
     expect(matchesBaselineKey(key, { userId: 'u1', setupId: 'bench-low' })).toBe(true);
     expect(matchesBaselineKey(key, { userId: 'u1', setupId: 'bench-high' })).toBe(false);
   });
+
+  // The wildcard rule is filter-side ONLY. A key that omits a dimension is not
+  // "pooled into" a filter that names it — a pooled baseline cannot vouch for a
+  // specific setup, so a setup-specific query must exclude it.
+  it('does not match a key lacking a dimension the filter names', () => {
+    const pooled = makeKey(); // no setupId, no side
+
+    expect(matchesBaselineKey(pooled, { setupId: 'bench-low' })).toBe(false);
+    expect(matchesBaselineKey(pooled, { side: 'left' })).toBe(false);
+    expect(matchesBaselineKey(pooled, { userId: 'u1' })).toBe(true);
+  });
 });
 
 describe('baselineKeyEquals', () => {
@@ -84,5 +103,27 @@ describe('baselineKeyEquals', () => {
 
   it('is false when one key carries a side and the other does not', () => {
     expect(baselineKeyEquals(makeKey({ side: 'left' }), makeKey())).toBe(false);
+  });
+
+  // Each dimension independently, so an implementation that compares only
+  // `side` (or only one other field) cannot pass.
+  it('is false when the userId differs', () => {
+    expect(
+      baselineKeyEquals(makeKey({ side: 'left' }), { ...makeKey({ side: 'left' }), userId: 'u2' })
+    ).toBe(false);
+  });
+
+  it('is false when the exerciseId differs', () => {
+    expect(baselineKeyEquals(makeKey(), { ...makeKey(), exerciseId: 'squat' })).toBe(false);
+  });
+
+  it('is false when the setupId differs', () => {
+    expect(
+      baselineKeyEquals(makeKey({ setupId: 'bench-low' }), makeKey({ setupId: 'bench-high' }))
+    ).toBe(false);
+  });
+
+  it('is false when the side differs', () => {
+    expect(baselineKeyEquals(makeKey({ side: 'left' }), makeKey({ side: 'right' }))).toBe(false);
   });
 });

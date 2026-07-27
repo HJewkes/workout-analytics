@@ -15,7 +15,11 @@ Two changes ship in one release on purpose: both redefine what a measured value 
   - **Ratio-based analytics are scale-invariant and unchanged in value:** percent ROM decay within a set, ROM CV / outliers / distributions, `getRepROMRatio`, `isPartialRep`, `assessRepROM`, the fatigue-verdict ROM dimension, `getSetROMChange`, curve shape. They compare a rep against another rep or against a caller-supplied reference, so they only require that **both sides use the same scale**.
   - **Persisted references must be rebuilt:** any stored `TechniqueBaseline.rom`, `expectedROM` or ROM distribution collected under the old contract is now on the wrong scale and will misclassify every rep. Expectations built from live data are self-consistent and fine.
   - Impulse, velocity, force and every time-derived metric are untouched — `position` does not enter them.
-- **`calculateFrameLoad`'s chain ramp is no longer hard-coded to a 0–1 range.** This was the only place in the library that assumed the old contract: `chainsFactor = clamp(1 − position)` collapses to 0 for any device-native position, and under metres never reaches 0 within a real rep. The ramp is now `clamp(1 − position / chainsFullExtension)`. **`LoadSettings.chainsFullExtension` is optional and defaults to `1`, reproducing the old behaviour exactly** — but callers feeding metres MUST set it to the cable's real full-extension distance (~0.6 m on Voltra), or the chains never fully lift off. Ignored when `chains === 0`; a reference of `0` drops the chain term entirely.
+- **`LoadSettings.chainsFullExtension` is a new REQUIRED field**, and `calculateFrameLoad`'s chain ramp is no longer hard-coded to a 0–1 range. The old ramp was the only place in the library that assumed the old position contract: `chainsFactor = clamp(1 − position)` collapses to 0 for any device-native position, and under metres never reaches 0 within a real rep. The ramp is now `clamp(1 − position / chainsFullExtension, 0, 1)`.
+  - It is required rather than defaulted because there is no safe default. Defaulting to `1` reproduces the pre-2.0.0 curve, but on a ~0.6 m cable fed metres that leaves chains contributing 40% of their weight at full extension forever — plausible magnitude, plausible curve, invisible in review. A field whose docs say callers MUST set it is a required field, and a major is the moment to make it one. This is also the release's one genuinely structural break, which settles the semver question below on its own.
+  - Set it to the cable's real full-extension distance (~0.6 m on Voltra). Ignored when `chains === 0`, so a chainless caller is unaffected at runtime; a reference of `0` drops the chain term entirely rather than guessing a ramp.
+  - `DEFAULT_LOAD_SETTINGS` is now `{ weight: 0, chains: 0, eccentric: 0, chainsFullExtension: 0 }`. The `0` is deliberate: a caller who adds chains by spreading the default (`{ ...DEFAULT_LOAD_SETTINGS, chains: 40 }`) gets **no** chain contribution — loudly wrong, and so noticed — rather than a plausible-looking ramp against a fabricated reference.
+  - `DEFAULT_CHAINS_FULL_EXTENSION` is **not** exported. It existed only to name the removed default.
 
 ### Added
 
@@ -26,13 +30,32 @@ Two changes ship in one release on purpose: both redefine what a measured value 
   - `VelocityBaseline.key?` and `SerializedBaseline.key?`. `buildBaseline(dataPoints, key?)` stamps it, `serializeBaseline` / `deserializeBaseline` round-trip it, `updateBaselineWithPoint` preserves it. The wire `version` stays `1` — a keyless payload still deserializes.
   - `TechniqueBaseline.key?` and `TechniqueBaselineOptions.key?` (copied verbatim by `createTechniqueBaseline`).
   - `ProcessedSession.key?`, `BuildTimeSeriesConfig.key?` (a `Partial<BaselineKey>` filter, intersected with the existing `exerciseId` filter; sessions carrying no key are excluded once a filter is supplied) and `MetricTimeSeries.key?`, which echoes the filter back.
-- `DEFAULT_CHAINS_FULL_EXTENSION` (`1`) is exported so callers can see the ramp reference they inherit.
+- `BaselineKeyFilter` (`= Partial<BaselineKey>`), exported alongside `BaselineKey`, so the public `key` fields that SELECT streams (`BuildTimeSeriesConfig.key`, `MetricTimeSeries.key`) are typed distinctly from the ones that IDENTIFY a stream (`VelocityBaseline.key`, `TechniqueBaseline.key`, `ProcessedSession.key`).
+- **Schema migration `002_position_metres.sql` — a position-scale boundary MARKER for WA's own store.** It rewrites nothing. Applying it raises the store's `latestAppliedVersion` to `2`, so every row written from then on carries `schema_version = 2`; rows already present keep `1`. A `reps` row at `schema_version = 1` holds positions on the unspecified pre-2.0.0 scale, `>= 2` holds metres. `PRAGMA user_version` mirrors the boundary at the SQLite level. See `docs/architecture/storage.md`.
 
 ### Notes
 
 - `time-series.ts`'s `ProcessedSession` / `ProcessedSet` are a *different level of aggregation* from the sample-based `Set` model, not a competing duplicate of it — the file already documented that split. What they genuinely lacked was any notion of whose measurement stream they described; `key` supplies it, which is why the change lands there rather than in a collapse of the two shapes.
 - No stored data is converted and no conversion was added to this library. Units are the producer's responsibility at the bridge; WA's job is to state the contract and not assume the old one.
-- Semver: `2.0.0` because the *meaning* of a public input field changed. No type signature became incompatible (every new field is optional), so a purely structural reading would call this a minor — but a consumer who upgrades without touching its bridge gets silently wrong absolute numbers, which is exactly what a major exists to force a look at.
+  - That is unqualifiedly true of **consumers'** stores, which WA never touches. It is NOT the whole story for **WA's own** persistence layer (`@voltras/workout-analytics/store`), which serializes sample streams verbatim into `reps.raw_samples_json` — so a database written by 1.7.0 and read by 2.0.0 holds positions on both scales in one table, indistinguishable without a marker, and `getRepRangeOfMotion` over a mixed set is silently ~1000× wrong for the old half.
+  - WA still does not convert that data: the old scale was device-dependent and was never recorded alongside it, so there is no factor to convert by and inferring one would corrupt rows while reporting success. Migration `002` records the boundary instead (above). Consumers of the store must not compare absolute ROM / work / power across it, and must rebuild any ROM baseline derived from `schema_version = 1` rows.
+- **The `SerializedBaseline` wire format stays at `version: 1`, and the DOWNGRADE path is lossy.** A 2.0.0-written payload carrying `key` deserializes cleanly under 1.7.0 — but 1.7.0 does not know the field, so the identity is silently dropped and the baseline reverts to "belongs to whoever the caller thinks". Holding at version 1 is still the right call (a bump would break forward-reads for no gain), but it is not free: a consumer that downgrades must treat every stored baseline as unkeyed.
+- Semver: `2.0.0` on both readings. Structurally, `LoadSettings.chainsFullExtension` is a new required field, so any caller constructing a `LoadSettings` fails to compile. Semantically — the more important half — the *meaning* of `WorkoutSample.position` changed while every signature stayed compatible, so a consumer who upgrades without touching its bridge gets silently wrong absolute numbers. That is exactly what a major exists to force a look at.
+
+## 1.7.0
+
+### Added
+
+- **Live fatigue verdict** — new pure module `src/analytics/fatigue-verdict.ts`. `getSetFatigueVerdict(set, schemes?)` returns a single aggregated state on a spectrum (Good → Slowing → Grinding → Form breaking down) plus three per-dimension status lights (velocity-loss · ROM-breakdown · tempo-breakdown), each `ok | warn | alarm`.
+  - Aggregation is **strict precedence, not worst-of-three with velocity dominant**: a *cheat rep* props velocity up by cutting ROM and dropping the eccentric, so a ROM or tempo alarm overrides a healthy-looking velocity into "form breaking down".
+  - One call serves both the LIVE framing (in-progress set, reference is best-so-far) and REVIEW (completed set), because the reused primitives already use best/peak references rather than first-rep.
+- `getSetWorkingROM(set)` — the trimmed ROM standard: peak of the ESTABLISHED reps, dropping rep 1 (setup) and the last rep (in-progress or truncated at set close). Returns `null` below 3 reps or when no middle rep has positive ROM, so the ROM dimension raises nothing rather than judging against a fabricated standard. Contrast `getSetBestROM`, the naive max over all reps.
+- Per-dimension resolvers `velocityLossTone`, `romBreakdownTone`, `tempoBreakdownTone`, their default breakpoint schemes (`DEFAULT_ROM_BREAKDOWN_SCHEME`, `DEFAULT_ECCENTRIC_BREAKDOWN_SCHEME`, `DEFAULT_CONCENTRIC_GRIND_SCHEME`), and the types `DimensionTone`, `FatigueVerdictState`, `FatigueVerdict`, `FatigueVerdictSchemes`.
+
+### Notes
+
+- Additive only — no existing signature or behaviour changed. The module composes existing WA primitives and does not modify them.
+- Trim policy (first + last) and peak-vs-median remain open calibration knobs.
 
 ## 1.6.0
 

@@ -41,7 +41,7 @@ These are documented contract gotchas that have cost time before. The package do
 
 ### Output unit precision
 
-`getRepImpulse` returns **lbs·s** (NOT N·s). `getRepWork` returns **lbs·position-units** (NOT Joules — `position` is normalized 0..1 cable position, not meters). `getRepMeanConcentricPower` is `getRepWork` / `time`, so **lbs·position-units / s** (NOT Watts). To convert to SI, scale force by 4.448 N/lb and resolve `position` to meters of cable travel — neither is done by the package.
+`getRepImpulse` returns **lbs·s** (NOT N·s). `getRepWork` returns **lbs·m** (NOT Joules — `position` is cable extension in metres as of 2.0.0, but `force` is still lbs). `getRepMeanConcentricPower` is `getRepWork` / `time`, so **lbs·m/s** (NOT Watts). To convert to SI, scale force by 4.448 N/lb; no position rescaling is needed any more. Neither conversion is done by the package.
 
 ---
 
@@ -69,7 +69,7 @@ Definition: `src/models/sample.ts:10-53`.
 | `sequence` | `number` | counter | Incrementing from device. For drop detection. |
 | `timestamp` | `number` | ms since epoch | Source-device clock if available, else wall clock. |
 | `phase` | `MovementPhase` | enum | Direction of motion + IDLE/HOLD pause states. |
-| `position` | `number` | normalized 0..1 | 0 = start (cable in), 1 = full extension. |
+| `position` | `number` | **metres** | Cable extension; 0 = start (cable in). **Was normalized 0..1 before 2.0.0** — converted at the producer's bridge, never by this library. Always non-negative. |
 | `velocity` | `number` | m/s | **MUST be non-negative.** Magnitude only. |
 | `force` | `number` | **lbs** | **MUST be lbs**, NOT tenths-lbs. Always non-negative. |
 | `load` | `number?` | lbs | Instantaneous resistance. Optional for backward compatibility. |
@@ -188,16 +188,17 @@ Definition: `src/models/load.ts:24-31`. Hardware-agnostic configuration for resi
 | Field | Type | Unit | Description |
 | --- | --- | --- | --- |
 | `weight` | `number` | lbs | Base weight (5–200 on Voltra). |
-| `chains` | `number` | lbs | Reverse resistance — full at position 0, decays linearly to 0 at position 1. |
+| `chains` | `number` | lbs | Reverse resistance — full at position 0, decays linearly to 0 at `chainsFullExtension`. |
 | `eccentric` | `number` | percent (-195..195) | Adjustment applied to base weight during eccentric phase only. |
+| `chainsFullExtension` | `number` | metres | **Required as of 2.0.0.** Cable extension at which the chains have fully lifted off (~0.6 m on Voltra). Ignored when `chains === 0`; `0` drops the chain term entirely. There is no default — the pre-2.0.0 behaviour was equivalent to `1`, which on a real cable leaves chains contributing ~40% of their weight forever. |
 
-`DEFAULT_LOAD_SETTINGS` is `{ weight: 0, chains: 0, eccentric: 0 }` (`src/models/load.ts:36-40`).
+`DEFAULT_LOAD_SETTINGS` is `{ weight: 0, chains: 0, eccentric: 0, chainsFullExtension: 0 }`. The `0` reference means a caller who adds chains by spreading the default gets NO chain contribution — loudly wrong rather than plausibly wrong.
 
 `calculateFrameLoad(settings, position, phase)` (`src/models/load.ts:70-89`) computes the instantaneous load:
 
 ```
 load = weight
-     + (chains > 0 ? chains * max(0, 1 - position) : 0)
+     + (chains > 0 ? chains * clamp(1 - position / chainsFullExtension, 0, 1) : 0)
      + (eccentric != 0 && phase == ECCENTRIC ? weight * eccentric / 100 : 0)
 ```
 
