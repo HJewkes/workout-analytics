@@ -122,11 +122,12 @@ export function getRepImpulse(rep: Rep): number {
  *
  * Work = ∫ F dx ≈ Σ (F_avg × Δx)
  *
- * Units: WorkoutSample.force is in lbs (NOT tenths-of-lbs;
- * see `models/sample.ts`) and `position` is the normalized cable position
- * (0..1). Output is therefore in lbs·position-units, NOT Joules. Callers
- * requiring Joules must scale force to N (×4.448) and position to meters
- * of cable travel.
+ * Units: WorkoutSample.force is in lbs (NOT tenths-of-lbs; see
+ * `models/sample.ts`) and `position` is cable extension in **metres** (as of
+ * 2.0.0 — it was previously documented as a normalized 0..1 fraction). Output
+ * is therefore in **lbs·m**, NOT Joules. Callers requiring Joules multiply by
+ * 4.448 (lbf → N); no position rescaling is needed any more. Absolute values
+ * from this function change with the 2.0.0 contract; ratios do not.
  *
  * Note: This is an approximation since we're using cable position, not true
  * displacement of the load. If an adapter passes inflated tenths-of-lbs
@@ -193,7 +194,20 @@ export function getRepEccentricImpulse(rep: Rep): number {
 }
 
 /**
- * Compute total work (both phases) for a rep.
+ * Sum of the concentric and eccentric work MAGNITUDES for a rep, in lbs·m.
+ *
+ * This is NOT net mechanical work, and the Joule conversion documented on
+ * `getRepWork` MUST NOT be applied to it. Both terms are built from
+ * `Math.abs(Δposition)` and so are positive regardless of direction: a closed
+ * cycle sums them instead of cancelling. Raising 0 → 0.6 m and lowering back at
+ * a constant 100 lbf returns 120 lbs·m, where the net mechanical work over the
+ * cycle is 0 and the concentric work alone is 60 lbs·m. Multiplying 120 by
+ * 4.448 yields a confident, wrong "533.76 J" against a true concentric
+ * 266.88 J.
+ *
+ * Read it as a volume-of-effort proxy — both phases load the muscle, so summing
+ * magnitudes is the useful training quantity — never as physics. Callers who
+ * want a convertible energy figure want `getRepConcentricWork`.
  */
 export function getRepTotalWork(rep: Rep): number {
   return getRepConcentricWork(rep) + getRepEccentricWork(rep);
@@ -235,10 +249,9 @@ export function getRepEccentricWork(rep: Rep): number {
 /**
  * Compute mean concentric power (work / time).
  *
- * Units: derived from `getRepWork` (lbs·position-units) divided by
- * concentric time (seconds). Output is therefore in lbs·position-units
- * per second, NOT Watts. Callers requiring Watts must scale per the
- * unit notes on `getRepWork`. Inherits the same 10x silent-inflation
+ * Units: derived from `getRepWork` (lbs·m) divided by concentric time
+ * (seconds). Output is therefore in lbs·m/s, NOT Watts. Callers requiring
+ * Watts must scale per the unit notes on `getRepWork`. Inherits the same 10x silent-inflation
  * failure mode if an adapter passes tenths-of-lbs.
  */
 export function getRepMeanConcentricPower(rep: Rep): number {
@@ -250,6 +263,12 @@ export function getRepMeanConcentricPower(rep: Rep): number {
 /**
  * Compute mean eccentric power (work / time).
  * Note: Eccentric power is typically lower due to controlled lowering.
+ *
+ * Units: derived from `getRepEccentricWork` (lbs·m) divided by eccentric time
+ * (seconds), so output is in **lbs·m/s**, NOT Watts — the same contract as
+ * `getRepMeanConcentricPower`, including the 10x silent-inflation failure mode
+ * if an adapter passes tenths-of-lbs. Absolute values changed with the 2.0.0
+ * position contract.
  */
 export function getRepMeanEccentricPower(rep: Rep): number {
   const time = getRepEccentricTime(rep);

@@ -19,6 +19,10 @@ function makeSettings(overrides: Partial<LoadSettings> = {}): LoadSettings {
     weight: 100,
     chains: 0,
     eccentric: 0,
+    // Required as of 2.0.0. `1` here is a test-fixture choice, not a library
+    // default — the pre-existing chains cases below were written against a
+    // 0..1 position range and this keeps their expectations meaningful.
+    chainsFullExtension: 1,
     ...overrides,
   };
 }
@@ -112,6 +116,67 @@ describe('calculateFrameLoad()', () => {
       const load = calculateFrameLoad(settings, 0, MovementPhase.CONCENTRIC);
 
       expect(load).toBe(100); // chains > 0 guard skips negative chains entirely
+    });
+  });
+
+  // ===========================================================================
+  // Chains ramp reference (chainsFullExtension) — position is metres, not 0..1
+  //
+  // EVERY assertion below pins CURRENT BEHAVIOUR. None of them validates the
+  // physical model. In particular the ramp's DIRECTION (descending in
+  // extension) is a known open question — it matches the device's
+  // inverse-chains behaviour rather than regular chains, per the SDK note on
+  // `calculateFrameLoad`. These tests exist so that direction cannot change
+  // silently, NOT as evidence it is right. If the direction is resolved, they
+  // are expected to change with it. See KNOWN-ISSUES-2026-07-27.md.
+  // ===========================================================================
+
+  describe('chainsFullExtension', () => {
+    it('reaches zero chains contribution at the configured full extension', () => {
+      const settings = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 0.6 });
+
+      const load = calculateFrameLoad(settings, 0.6, MovementPhase.CONCENTRIC);
+
+      expect(load).toBe(100);
+    });
+
+    it('interpolates against the configured reference, not against 1', () => {
+      const settings = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 0.6 });
+
+      const load = calculateFrameLoad(settings, 0.3, MovementPhase.CONCENTRIC);
+
+      expect(load).toBeCloseTo(120, 10); // 100 + 40 * (1 - 0.3/0.6)
+    });
+
+    // Pins the ramp FORMULA against hand-computed values rather than against
+    // another call to the same implementation: load = weight + chains ×
+    // clamp(1 − position / chainsFullExtension, 0, 1), with weight = 100,
+    // chains = 40, chainsFullExtension = 0.6.
+    //
+    // This is a CHANGE-DETECTOR for the current formula, not a physical
+    // validation. The descending shape it encodes is the open question above.
+    it.each([
+      [0, 140], // cable in: chain term at maximum
+      [0.15, 130], // 1 − 0.25 = 0.75 → 100 + 30
+      [0.3, 120], // 1 − 0.50 = 0.50 → 100 + 20
+      [0.45, 110], // 1 − 0.75 = 0.25 → 100 + 10
+      [0.6, 100], // at reference: chain term reaches zero
+      [0.9, 100], // beyond reference: clamped at 0, never negative
+    ])('at position %f the ramp currently yields %f lbs', (position, expected) => {
+      const settings = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 0.6 });
+
+      expect(calculateFrameLoad(settings, position, MovementPhase.CONCENTRIC)).toBeCloseTo(
+        expected,
+        10
+      );
+    });
+
+    it('drops chains entirely when the reference is 0 (degenerate config)', () => {
+      const settings = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 0 });
+
+      const load = calculateFrameLoad(settings, 0, MovementPhase.CONCENTRIC);
+
+      expect(load).toBe(100);
     });
   });
 

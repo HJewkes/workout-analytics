@@ -1,0 +1,26 @@
+-- 002 — position-scale boundary marker (no data change).
+--
+-- WA 2.0.0 redefined `WorkoutSample.position` from a normalised 0–1 fraction to
+-- cable extension in METRES. Sample streams are persisted verbatim inside
+-- `reps.raw_samples_json`, so this store holds positions on both scales.
+--
+-- This migration deliberately rewrites NOTHING. The old scale was
+-- device-dependent and was never recorded alongside the data, so there is no
+-- factor to convert by; inventing one would corrupt the rows it touched while
+-- looking successful. Instead the boundary is recorded:
+--
+--   * Applying this migration raises the store's `latestAppliedVersion` to 2,
+--     so every row written from now on carries `schema_version = 2`. Rows
+--     already in the table keep `schema_version = 1`.
+--   * `schema_version = 1` on a `reps` row therefore means: positions inside
+--     `raw_samples_json` are on an UNSPECIFIED, pre-2.0.0 scale.
+--   * `schema_version >= 2` means: positions are metres.
+--
+-- Consumers must not compare absolute ROM, work or power across that boundary.
+-- Ratio analytics are scale-invariant only WITHIN one row's scale, so a set
+-- spanning both versions cannot be analysed as one set.
+--
+-- `PRAGMA user_version` mirrors the boundary at the SQLite level so a reader
+-- can tell which contract a database file was last written under without
+-- reading `__migrations`.
+PRAGMA user_version = 2;

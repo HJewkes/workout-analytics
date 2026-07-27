@@ -153,7 +153,8 @@ export function getSetIntensityScore(
  *
  * With optional multipliers enabled:
  *   sum_over_reps(hardness[i] * load * romFactor[i] * tutFactor[i])
- *   where romFactor = repROM / expectedROM (normalized, default 1.0)
+ *   where romFactor = repROM / expectedROM (normalized, default 1.0; supply
+ *   `expectedROM` in the same units as `WorkoutSample.position` -- metres)
  *   and tutFactor = repTUT / expectedTUT (normalized, default 1.0)
  *
  * Normalized by e1RM if provided (makes scores comparable across exercises).

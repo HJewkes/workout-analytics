@@ -489,7 +489,12 @@ describe('getSetLoad()', () => {
   });
 
   it('returns the base weight from loadSettings, ignoring chains and eccentric', () => {
-    const loadSettings: LoadSettings = { weight: 135, chains: 20, eccentric: 10 };
+    const loadSettings: LoadSettings = {
+      weight: 135,
+      chains: 20,
+      eccentric: 10,
+      chainsFullExtension: 0.6,
+    };
     const set = createSet(loadSettings);
 
     expect(getSetLoad(set)).toBe(135);

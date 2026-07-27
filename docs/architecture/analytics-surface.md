@@ -28,14 +28,14 @@ Source: `src/analytics/rep-analytics.ts`. All functions take a single `Rep`. Re-
 | `getRepConcentricTime(rep)` | `number` (s) | `:67-69` | Movement time only (excludes holds). |
 | `getRepEccentricTime(rep)` | `number` (s) | `:75-77` | Movement time only. |
 | `getRepImpulse(rep)` | `number` (**lbs·s**) | `:95-117` | Trapezoidal ∫ F dt over concentric. **Inflates 10× if force is in tenths-lbs.** |
-| `getRepWork(rep)` | `number` (**lbs·position-units**) | `:135-157` | Trapezoidal ∫ F dx over concentric. NOT joules — `position` is normalized 0..1. |
+| `getRepWork(rep)` | `number` (**lbs·m**) | `:135-157` | Trapezoidal ∫ F dx over concentric. NOT joules — `force` is lbs, `position` is metres (2.0.0). |
 | `getRepTotalImpulse(rep)` | `number` | `:162-164` | Concentric + eccentric. |
 | `getRepConcentricImpulse(rep)` | `number` | `:169-171` | Alias for `getRepImpulse`. |
 | `getRepEccentricImpulse(rep)` | `number` | `:176-193` | Trapezoidal over eccentric samples. |
 | `getRepTotalWork(rep)` | `number` | `:198-200` | Concentric + eccentric. |
 | `getRepConcentricWork(rep)` | `number` | `:205-207` | Alias for `getRepWork`. |
 | `getRepEccentricWork(rep)` | `number` | `:212-229` | |
-| `getRepMeanConcentricPower(rep)` | `number` (**lbs·position-units / s**) | `:244-248` | `getRepConcentricWork / getRepConcentricTime`. NOT Watts. |
+| `getRepMeanConcentricPower(rep)` | `number` (**lbs·m/s**) | `:244-248` | `getRepConcentricWork / getRepConcentricTime`. NOT Watts. |
 | `getRepMeanEccentricPower(rep)` | `number` | `:254-258` | |
 
 Plus the model-level rep functions in `src/models/rep.ts` (re-exported from the root):

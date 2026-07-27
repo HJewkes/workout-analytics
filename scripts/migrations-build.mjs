@@ -2,47 +2,61 @@
 /**
  * Generate `src/schema/_generated.ts` from the SQL migration files.
  *
- * Reads `001_initial.sql` as a Buffer (no decoding — v5R-10) so the SHA-256 is
- * platform-stable regardless of git's EOL handling, then writes the file with
- * deterministic content. CI runs this and `git diff --exit-code` to detect drift
- * (AC-29).
+ * Every `NNN_name.sql` under `src/schema/migrations/` is read as a Buffer (no
+ * decoding — v5R-10) so the SHA-256 is platform-stable regardless of git's EOL
+ * handling, then emitted as a `<NAME>_SQL` / `<NAME>_SHA256` pair where `<NAME>`
+ * is the filename with its numeric prefix stripped and upper-cased
+ * (`001_initial.sql` → `INITIAL`). The registry in
+ * `src/schema/migrations/index.ts` stays hand-written so the version ordering is
+ * reviewed rather than inferred from a directory listing.
  *
- * Output is shaped to match Prettier's defaults (single quotes, semicolons,
- * 100-col print width) so `format:check` is clean immediately after a build.
+ * CI runs this and `git diff --exit-code` to detect drift (AC-29).
+ *
+ * The emitted source is run through Prettier with the repo's own config before
+ * writing, so `format:check` is clean immediately after a build by construction.
+ * Hand-shaping the output to guess Prettier's preferences does not survive
+ * contact with real SQL: an apostrophe anywhere in the file flips Prettier's
+ * preferred quote character, and a longer export name pushes the SHA constant
+ * past the print width onto its own line.
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import prettier from 'prettier';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
-const sqlPath = resolve(repoRoot, 'src/schema/migrations/001_initial.sql');
+const migrationsDir = resolve(repoRoot, 'src/schema/migrations');
 const outPath = resolve(repoRoot, 'src/schema/_generated.ts');
 
-const sqlBuffer = readFileSync(sqlPath);
-const sqlText = sqlBuffer.toString('utf8');
-const sha256 = createHash('sha256').update(sqlBuffer).digest('hex');
-
-/**
- * Render a JS string literal in prettier's preferred single-quote style.
- * We start from `JSON.stringify` (which handles all required escapes) and then
- * swap the outer double-quotes for single-quotes, escaping any literal single
- * quotes in the source. The SQL files we hash are unlikely to contain `'`, but
- * we handle it correctly regardless.
- */
-function singleQuoteLiteral(value) {
-  const json = JSON.stringify(value);
-  // Strip outer double-quotes
-  const inner = json.slice(1, -1);
-  // Unescape \" (becomes "), then escape any ' as \'
-  const swapped = inner.replace(/\\"/g, '"').replace(/'/g, "\\'");
-  return `'${swapped}'`;
+/** `001_initial.sql` → `INITIAL`; `002_position_metres.sql` → `POSITION_METRES`. */
+function exportPrefix(filename) {
+  return filename
+    .replace(/^\d+_/, '')
+    .replace(/\.sql$/, '')
+    .toUpperCase();
 }
 
-const sqlLiteral = singleQuoteLiteral(sqlText);
-const shaLiteral = singleQuoteLiteral(sha256);
+const sqlFiles = readdirSync(migrationsDir)
+  .filter((f) => f.endsWith('.sql'))
+  .sort();
+
+const blocks = [];
+const summary = [];
+
+for (const filename of sqlFiles) {
+  const buffer = readFileSync(resolve(migrationsDir, filename));
+  const sha256 = createHash('sha256').update(buffer).digest('hex');
+  const prefix = exportPrefix(filename);
+
+  blocks.push(
+    `export const ${prefix}_SQL = ${JSON.stringify(buffer.toString('utf8'))};\n\n` +
+      `export const ${prefix}_SHA256 = ${JSON.stringify(sha256)};\n`,
+  );
+  summary.push(`${filename}=${sha256.slice(0, 16)}...`);
+}
 
 const generated = `/**
  * AUTO-GENERATED FILE — DO NOT EDIT.
@@ -51,19 +65,20 @@ const generated = `/**
  * CI verifies this file is in sync with the SQL source via \`git diff --exit-code\`
  * after running the build script (AC-29).
  *
- * The SHA-256 is computed over the raw \`001_initial.sql\` Buffer (no decoding) so it
- * is stable across platforms (v5R-10 / AC-37). \`.gitattributes\` enforces \`*.sql -text\`
- * to prevent git from normalizing line endings on the source.
+ * Each SHA-256 is computed over the raw \`.sql\` Buffer (no decoding) so it is stable
+ * across platforms (v5R-10 / AC-37). \`.gitattributes\` enforces \`*.sql -text\` to
+ * prevent git from normalizing line endings on the source.
  */
 
-export const INITIAL_SQL =
-  ${sqlLiteral};
+${blocks.join('\n')}`;
 
-export const INITIAL_SHA256 = ${shaLiteral};
-`;
+const prettierConfig = await prettier.resolveConfig(outPath);
+const formatted = await prettier.format(generated, {
+  ...prettierConfig,
+  filepath: outPath,
+  parser: 'typescript',
+});
 
-writeFileSync(outPath, generated);
+writeFileSync(outPath, formatted);
 
-process.stdout.write(
-  `migrations:build → wrote ${outPath} (sha256=${sha256.slice(0, 16)}...)\n`,
-);
+process.stdout.write(`migrations:build → wrote ${outPath} (${summary.join(', ')})\n`);

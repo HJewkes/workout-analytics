@@ -20,6 +20,10 @@ import { runStoreTests } from '@/store/store.shared';
 import { StoreError } from '@/store/errors';
 import { createSqliteNodeStore } from '@/store/sqlite-node';
 import { createRequirePeerResolver } from '@/store/sqlite-node/require-peer';
+import { MIGRATIONS } from '@/schema/migrations/index';
+
+/** Highest registered migration version — what the store stamps onto records. */
+const LATEST_VERSION = Math.max(...MIGRATIONS.map((m) => m.version));
 
 const createdPaths: string[] = [];
 
@@ -173,7 +177,10 @@ describe('createSqliteNodeStore — Node-specific contract', () => {
         schemaVersion: 999,
       });
       const out = await store.getSession('sess-version');
-      expect(out!.schemaVersion).toBe(1);
+      // Derived from the registry, not hard-coded: adding a migration MUST move
+      // this, because the stamped version is what marks the position-scale
+      // boundary on every persisted row.
+      expect(out!.schemaVersion).toBe(LATEST_VERSION);
     } finally {
       await store.close();
     }
@@ -182,9 +189,57 @@ describe('createSqliteNodeStore — Node-specific contract', () => {
     const store2 = await createSqliteNodeStore({ path });
     try {
       const out = await store2.getSession('sess-version');
-      expect(out!.schemaVersion).toBe(1);
+      expect(out!.schemaVersion).toBe(LATEST_VERSION);
     } finally {
       await store2.close();
+    }
+  });
+  // ===========================================================================
+  // Position-scale boundary (migration 002)
+  // ===========================================================================
+
+  it('upgrading a v1 database marks the boundary without touching old rows', async () => {
+    const path = tmpDbPath();
+    const resolver = createRequirePeerResolver();
+    const Database = resolver('better-sqlite3') as new (path: string) => {
+      exec(sql: string): void;
+      prepare(sql: string): { run(...params: unknown[]): void; get(): unknown };
+      close(): void;
+    };
+
+    // Simulate a database written by 1.7.0: schema v1 only, one row stamped 1.
+    const legacy = new Database(path);
+    legacy.exec(MIGRATIONS[0]!.sql);
+    legacy.exec(
+      'CREATE TABLE IF NOT EXISTS __migrations (version INTEGER PRIMARY KEY, sha256 TEXT NOT NULL, applied_at INTEGER NOT NULL DEFAULT (unixepoch()));'
+    );
+    legacy
+      .prepare('INSERT INTO __migrations (version, sha256) VALUES (?, ?)')
+      .run(1, MIGRATIONS[0]!.sha256);
+    legacy
+      .prepare('INSERT INTO sessions (id, started_at, schema_version) VALUES (?, ?, ?)')
+      .run('legacy-session', 1, 1);
+    legacy.close();
+
+    // Open with 2.0.0: migration 002 applies.
+    const store = await createSqliteNodeStore({ path });
+    try {
+      await store.saveSession({ id: 'new-session', startedAt: 2, schemaVersion: 999 });
+
+      // The pre-2.0.0 row keeps its stamp — its positions are on the old scale
+      // and nothing rewrote them.
+      expect((await store.getSession('legacy-session'))!.schemaVersion).toBe(1);
+      // Rows written from v2 onward are metres.
+      expect((await store.getSession('new-session'))!.schemaVersion).toBe(2);
+    } finally {
+      await store.close();
+    }
+
+    const probe = new Database(path);
+    try {
+      expect(probe.prepare('PRAGMA user_version').get()).toEqual({ user_version: 2 });
+    } finally {
+      probe.close();
     }
   });
 });

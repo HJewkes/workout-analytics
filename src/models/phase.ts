@@ -142,6 +142,10 @@ export function getPhaseMeanForce(phase: Phase): number {
   return phase._totalForce / phase._movementSampleCount;
 }
 
+/**
+ * Displacement traversed during the phase, in metres — the units of
+ * `WorkoutSample.position` (see `models/sample.ts`).
+ */
 export function getPhaseRangeOfMotion(phase: Phase): number {
   return Math.abs(phase.endPosition - phase.startPosition);
 }

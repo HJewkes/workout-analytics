@@ -13,6 +13,14 @@ export {
   PhaseNames,
   type WorkoutSample,
 
+  // Baseline identity
+  type BaselineKey,
+  type BaselineKeyFilter,
+  type BaselineSide,
+  baselineKeyId,
+  matchesBaselineKey,
+  baselineKeyEquals,
+
   // Load
   type LoadSettings,
   DEFAULT_LOAD_SETTINGS,

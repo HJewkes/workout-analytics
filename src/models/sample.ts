@@ -17,7 +17,32 @@ export interface WorkoutSample {
   /** Current movement phase */
   phase: MovementPhase;
 
-  /** Position in range of motion (0 = start, 1 = full extension) */
+  /**
+   * Cable extension in **metres (m)** — an absolute displacement from the
+   * device's zero/rest position, NOT a normalised 0–1 fraction.
+   *
+   * BREAKING in 2.0.0: this field was previously documented as normalised
+   * (`0 = start, 1 = full extension`). In practice producers forwarded a
+   * device-native extension figure (≈0 at rest, ~600 at full pull) unconverted,
+   * so a consumer computing ROM from `samples` and one reading a metres-valued
+   * `rom_m` disagreed about the same rep. The contract is now metres, converted
+   * at the producer's bridge; this library performs NO conversion and must not
+   * be handed device-native units.
+   *
+   * Consequences:
+   * - Displacement-derived outputs are now metres or metre-derived:
+   *   `getPhaseRangeOfMotion`, `getRepRangeOfMotion`, `getRepWork` /
+   *   `getRepTotalWork` (lbs·m), `getRepMeanConcentricPower` (lbs·m/s).
+   * - Ratio-based analytics are scale-invariant and unchanged in value —
+   *   percent ROM decay within a set, CV, curve shape, `getRepROMRatio`,
+   *   `isPartialRep`, the fatigue ROM/velocity dimensions — provided any
+   *   caller-supplied expected/reference ROM is in the SAME units.
+   * - `calculateFrameLoad`'s chain ramp is the one place that assumed a 0–1
+   *   range. It is now parameterised by `LoadSettings.chainsFullExtension`,
+   *   which callers on metres MUST set. See `models/load.ts`.
+   *
+   * Always non-negative.
+   */
   position: number;
 
   /**
