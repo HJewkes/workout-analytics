@@ -122,11 +122,12 @@ export function getRepImpulse(rep: Rep): number {
  *
  * Work = ∫ F dx ≈ Σ (F_avg × Δx)
  *
- * Units: WorkoutSample.force is in lbs (NOT tenths-of-lbs;
- * see `models/sample.ts`) and `position` is the normalized cable position
- * (0..1). Output is therefore in lbs·position-units, NOT Joules. Callers
- * requiring Joules must scale force to N (×4.448) and position to meters
- * of cable travel.
+ * Units: WorkoutSample.force is in lbs (NOT tenths-of-lbs; see
+ * `models/sample.ts`) and `position` is cable extension in **metres** (as of
+ * 2.0.0 — it was previously documented as a normalized 0..1 fraction). Output
+ * is therefore in **lbs·m**, NOT Joules. Callers requiring Joules multiply by
+ * 4.448 (lbf → N); no position rescaling is needed any more. Absolute values
+ * from this function change with the 2.0.0 contract; ratios do not.
  *
  * Note: This is an approximation since we're using cable position, not true
  * displacement of the load. If an adapter passes inflated tenths-of-lbs
@@ -235,10 +236,9 @@ export function getRepEccentricWork(rep: Rep): number {
 /**
  * Compute mean concentric power (work / time).
  *
- * Units: derived from `getRepWork` (lbs·position-units) divided by
- * concentric time (seconds). Output is therefore in lbs·position-units
- * per second, NOT Watts. Callers requiring Watts must scale per the
- * unit notes on `getRepWork`. Inherits the same 10x silent-inflation
+ * Units: derived from `getRepWork` (lbs·m) divided by concentric time
+ * (seconds). Output is therefore in lbs·m/s, NOT Watts. Callers requiring
+ * Watts must scale per the unit notes on `getRepWork`. Inherits the same 10x silent-inflation
  * failure mode if an adapter passes tenths-of-lbs.
  */
 export function getRepMeanConcentricPower(rep: Rep): number {

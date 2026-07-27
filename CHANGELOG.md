@@ -4,6 +4,36 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.0.0
+
+Two changes ship in one release on purpose: both redefine what a measured value *means* — whose stream it belongs to, and what units it is in — and the consumer that has to re-read the sample contract is the same consumer that has to adopt the baseline identity. Splitting them would cost two migrations for one coherent revision of the data contract.
+
+### Changed (BREAKING)
+
+- **`WorkoutSample.position` is metres, not a normalised 0–1 fraction.** The field was documented as "Position in range of motion (0 = start, 1 = full extension)", but producers forwarded a device-native cable-extension figure (≈0 at rest, ~600 at full pull) unconverted — so a consumer computing ROM from `samples` and one reading a metres-valued `rom_m` disagreed about the same rep. The contract is now **cable extension in metres**, converted **at the producer's bridge**. This library performs no conversion and validates nothing at runtime: passing device-native units silently inflates every absolute output ~1000×, exactly as passing tenths-of-lbs inflates force 10×.
+  - **Absolute values change:** `getPhaseRangeOfMotion`, `getRepRangeOfMotion`, `getSetMeanROM` / `getSetBestROM` / `getSetFirstRepROM` / `getSetLastRepROM` / `getSetRepROMs` / `getSetRepROMAt`, `getSetWorkingROM`, `getRepWork` / `getRepConcentricWork` / `getRepEccentricWork` / `getRepTotalWork` (now **lbs·m**), and `getRepMeanConcentricPower` / `getRepMeanEccentricPower` (now **lbs·m/s**).
+  - **Ratio-based analytics are scale-invariant and unchanged in value:** percent ROM decay within a set, ROM CV / outliers / distributions, `getRepROMRatio`, `isPartialRep`, `assessRepROM`, the fatigue-verdict ROM dimension, `getSetROMChange`, curve shape. They compare a rep against another rep or against a caller-supplied reference, so they only require that **both sides use the same scale**.
+  - **Persisted references must be rebuilt:** any stored `TechniqueBaseline.rom`, `expectedROM` or ROM distribution collected under the old contract is now on the wrong scale and will misclassify every rep. Expectations built from live data are self-consistent and fine.
+  - Impulse, velocity, force and every time-derived metric are untouched — `position` does not enter them.
+- **`calculateFrameLoad`'s chain ramp is no longer hard-coded to a 0–1 range.** This was the only place in the library that assumed the old contract: `chainsFactor = clamp(1 − position)` collapses to 0 for any device-native position, and under metres never reaches 0 within a real rep. The ramp is now `clamp(1 − position / chainsFullExtension)`. **`LoadSettings.chainsFullExtension` is optional and defaults to `1`, reproducing the old behaviour exactly** — but callers feeding metres MUST set it to the cable's real full-extension distance (~0.6 m on Voltra), or the chains never fully lift off. Ignored when `chains === 0`; a reference of `0` drops the chain term entirely.
+
+### Added
+
+- **`BaselineKey` — the identity a calibration baseline belongs to.** `{ userId, exerciseId, setupId?, side? }`, exported from the root barrel with the `BaselineSide` (`'left' | 'right'`) alias and three helpers: `baselineKeyId(key)` (stable, percent-encoded storage key; omitted dimensions serialize to `*`), `matchesBaselineKey(key, filter)` (fields absent from the filter are wildcards) and `baselineKeyEquals(a, b)`.
+  - `setupId` is the *physical* configuration (bench height, cable attachment, stance) — typically inferred from ROM clustering, deliberately distinct from device settings (chains / damper / eccentric), which live on `LoadSettings`.
+  - `side` exists because a bilateral lift is two independent measurement streams. The side-agnostic view is **derived** by merging the two per-side distributions (`mergeDist`), not collected as a third stream, so time-to-calibrated does not double.
+- The key is threaded through the **baseline and series types only**, always as an optional field — no other API sees it:
+  - `VelocityBaseline.key?` and `SerializedBaseline.key?`. `buildBaseline(dataPoints, key?)` stamps it, `serializeBaseline` / `deserializeBaseline` round-trip it, `updateBaselineWithPoint` preserves it. The wire `version` stays `1` — a keyless payload still deserializes.
+  - `TechniqueBaseline.key?` and `TechniqueBaselineOptions.key?` (copied verbatim by `createTechniqueBaseline`).
+  - `ProcessedSession.key?`, `BuildTimeSeriesConfig.key?` (a `Partial<BaselineKey>` filter, intersected with the existing `exerciseId` filter; sessions carrying no key are excluded once a filter is supplied) and `MetricTimeSeries.key?`, which echoes the filter back.
+- `DEFAULT_CHAINS_FULL_EXTENSION` (`1`) is exported so callers can see the ramp reference they inherit.
+
+### Notes
+
+- `time-series.ts`'s `ProcessedSession` / `ProcessedSet` are a *different level of aggregation* from the sample-based `Set` model, not a competing duplicate of it — the file already documented that split. What they genuinely lacked was any notion of whose measurement stream they described; `key` supplies it, which is why the change lands there rather than in a collapse of the two shapes.
+- No stored data is converted and no conversion was added to this library. Units are the producer's responsibility at the bridge; WA's job is to state the contract and not assume the old one.
+- Semver: `2.0.0` because the *meaning* of a public input field changed. No type signature became incompatible (every new field is optional), so a purely structural reading would call this a minor — but a consumer who upgrades without touching its bridge gets silently wrong absolute numbers, which is exactly what a major exists to force a look at.
+
 ## 1.6.0
 
 ### Added

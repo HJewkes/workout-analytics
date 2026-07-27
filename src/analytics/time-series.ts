@@ -11,6 +11,8 @@
  *
  */
 
+import { type BaselineKey, matchesBaselineKey } from '@/models/baseline-key';
+
 // =============================================================================
 // MetricTimeSeries Types
 // =============================================================================
@@ -34,6 +36,12 @@ export interface MetricTimeSeries<T = number> {
   metric: MetricKey;
   bucketBy: 'session' | 'day' | 'week';
   exerciseId?: string;
+  /**
+   * The identity filter this series was built for, echoed back from the
+   * config. Present only when the caller supplied one — a series with no
+   * `key` spans every user/setup/side in the input.
+   */
+  key?: Partial<BaselineKey>;
   points: ReadonlyArray<MetricTimeSeriesPoint<T>>;
 }
 
@@ -66,6 +74,15 @@ export interface BuildTimeSeriesConfig {
   bucketBy?: 'session' | 'day' | 'week';
   /** If set, only sessions whose `exerciseId` matches are included. */
   exerciseId?: string;
+  /**
+   * If set, only sessions whose `key` satisfies this filter are included.
+   * Fields left undefined are wildcards (see `matchesBaselineKey`). Sessions
+   * carrying no `key` at all are excluded once a filter is supplied — an
+   * unidentified session cannot be claimed by a user.
+   *
+   * Independent of `exerciseId` above: when both are set, both must match.
+   */
+  key?: Partial<BaselineKey>;
   /** ISO lower bound (inclusive). Default no lower bound. */
   fromTs?: string;
   /** ISO upper bound (inclusive). Default no upper bound. */
@@ -109,6 +126,10 @@ export interface VolumeByMuscleGroup {
  * etc.). For cross-session aggregation the caller has already collapsed
  * those samples to per-set summary numbers (typical when reading from the
  * storage layer). This interface is the contract for that aggregated form.
+ *
+ * It is a *different level of aggregation* from `Set`, not a competing model
+ * of the same thing — but it did lack any notion of whose measurement stream
+ * it came from, which is what `key` supplies.
  */
 export interface ProcessedSession {
   id: string;
@@ -116,6 +137,12 @@ export interface ProcessedSession {
   startedAt: string;
   /** Optional exercise id; required for `exerciseId` filtering and muscle attribution. */
   exerciseId?: string;
+  /**
+   * Identity of the measurement stream — `(user, exercise, setup, side)`.
+   * Required for `key` filtering. `key.exerciseId` and the `exerciseId` field
+   * above are not cross-validated; populate both consistently.
+   */
+  key?: BaselineKey;
   sets: ReadonlyArray<ProcessedSet>;
 }
 
@@ -136,11 +163,15 @@ export interface ProcessedSet {
  */
 function filterSessions(
   sessions: ReadonlyArray<ProcessedSession>,
-  filter: { exerciseId?: string; fromTs?: string; toTs?: string }
+  filter: { exerciseId?: string; key?: Partial<BaselineKey>; fromTs?: string; toTs?: string }
 ): ProcessedSession[] {
   return sessions.filter((s) => {
     if (filter.exerciseId !== undefined && s.exerciseId !== filter.exerciseId) {
       return false;
+    }
+    if (filter.key !== undefined) {
+      if (s.key === undefined) return false;
+      if (!matchesBaselineKey(s.key, filter.key)) return false;
     }
     if (filter.fromTs !== undefined && s.startedAt < filter.fromTs) {
       return false;
@@ -254,8 +285,8 @@ function bucketTimestamp(iso: string, bucketBy: 'session' | 'day' | 'week'): str
 /**
  * Build a TimeSeries over a metric, optionally bucketed by day/week.
  *
- * Sessions are filtered by `exerciseId` (if set) and the ISO window
- * `[fromTs, toTs]`. Within each bucket, values are combined per metric:
+ * Sessions are filtered by `exerciseId` (if set), the `key` identity filter
+ * (if set) and the ISO window `[fromTs, toTs]`. Within each bucket, values are combined per metric:
  * `velocity_*` average, `volume` sums, `estimated_1rm` and `top_weight`
  * take the max. Sessions with no contributing data are dropped.
  *
@@ -268,6 +299,7 @@ export function buildTimeSeries(
   const bucketBy = config.bucketBy ?? 'session';
   const filtered = filterSessions(sessions, {
     exerciseId: config.exerciseId,
+    key: config.key,
     fromTs: config.fromTs,
     toTs: config.toTs,
   });
@@ -306,6 +338,7 @@ export function buildTimeSeries(
     metric: config.metric,
     bucketBy,
     exerciseId: config.exerciseId,
+    ...(config.key !== undefined ? { key: config.key } : {}),
     points,
   };
 }

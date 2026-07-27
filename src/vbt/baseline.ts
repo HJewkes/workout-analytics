@@ -6,6 +6,7 @@
  * Used for readiness assessment (comparing today's velocity to baseline).
  */
 
+import type { BaselineKey } from '@/models/baseline-key';
 import type { LoadVelocityDataPoint } from '@/vbt/profile';
 
 // =============================================================================
@@ -18,6 +19,12 @@ import type { LoadVelocityDataPoint } from '@/vbt/profile';
  */
 export interface VelocityBaseline {
   readonly dataPoints: readonly LoadVelocityDataPoint[];
+  /**
+   * Identity this baseline was collected for — `(user, exercise, setup, side)`.
+   * Optional: a caller that keeps one baseline per stream externally need not
+   * stamp it. When present it survives serialize/deserialize round-trips.
+   */
+  readonly key?: BaselineKey;
 }
 
 /**
@@ -31,6 +38,12 @@ export interface SerializedBaseline {
     readonly velocity: number;
     readonly timestamp?: number;
   }>;
+  /**
+   * Baseline identity, when the in-memory baseline carried one. Absent on
+   * payloads written before keys existed — `deserializeBaseline` tolerates
+   * that, so the wire `version` stays at 1.
+   */
+  readonly key?: BaselineKey;
 }
 
 // =============================================================================
@@ -45,11 +58,15 @@ export interface SerializedBaseline {
  * (averaging could be done upstream if desired).
  *
  * @param dataPoints - Historical load-velocity observations
+ * @param key - Optional identity the observations belong to
  * @returns Immutable VelocityBaseline
  */
-export function buildBaseline(dataPoints: LoadVelocityDataPoint[]): VelocityBaseline {
+export function buildBaseline(
+  dataPoints: LoadVelocityDataPoint[],
+  key?: BaselineKey
+): VelocityBaseline {
   const sorted = [...dataPoints].sort((a, b) => a.load - b.load);
-  return { dataPoints: sorted };
+  return { dataPoints: sorted, ...(key !== undefined ? { key } : {}) };
 }
 
 /**
@@ -147,7 +164,7 @@ export function updateBaselineWithPoint(
     }
   }
 
-  return buildBaseline(combined);
+  return buildBaseline(combined, baseline.key);
 }
 
 /**
@@ -167,13 +184,15 @@ export function serializeBaseline(baseline: VelocityBaseline): SerializedBaselin
       velocity: p.velocity,
       ...(p.timestamp !== undefined ? { timestamp: p.timestamp } : {}),
     })),
+    ...(baseline.key !== undefined ? { key: baseline.key } : {}),
   };
 }
 
 /**
  * Restore a VelocityBaseline from its serialized form.
  *
- * Tolerates missing optional fields (`timestamp`) on individual data points.
+ * Tolerates missing optional fields (`timestamp`, `key`) on individual data
+ * points and on the payload itself.
  * Unknown fields on the raw object are ignored for forward compatibility.
  *
  * @param raw - Serialized baseline (as produced by `serializeBaseline`)
@@ -185,5 +204,5 @@ export function deserializeBaseline(raw: SerializedBaseline): VelocityBaseline {
     velocity: p.velocity,
     ...(p.timestamp !== undefined ? { timestamp: p.timestamp } : {}),
   }));
-  return buildBaseline(points);
+  return buildBaseline(points, raw.key);
 }

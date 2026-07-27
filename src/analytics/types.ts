@@ -5,6 +5,7 @@
  * and technique baseline definitions.
  */
 
+import type { BaselineKey } from '@/models/baseline-key';
 import { type StreamingDistribution, getMean, getZScore, getStdDev } from '@/stats/distribution';
 import {
   classifyByBreakpoints,
@@ -61,7 +62,12 @@ export interface ChangeResult {
  * Used to compare rep/set metrics against expected values.
  */
 export interface TechniqueBaseline {
-  /** Expected range of motion */
+  /**
+   * Identity these expectations were collected for — `(user, exercise, setup,
+   * side)`. Optional; omit when the caller keys the baseline externally.
+   */
+  key?: BaselineKey;
+  /** Expected range of motion, in metres (see `WorkoutSample.position`) */
   rom: Expectation;
   /** Expected eccentric phase duration (seconds) */
   eccentricTime: Expectation;
@@ -185,6 +191,8 @@ export function computeChange(
  * Options for creating a technique baseline.
  */
 export interface TechniqueBaselineOptions {
+  /** Identity the baseline belongs to; copied verbatim onto the result. */
+  key?: BaselineKey;
   rom: number | StreamingDistribution;
   eccentricTime: number | StreamingDistribution;
   concentricTime: number | StreamingDistribution;
@@ -207,6 +215,7 @@ function toExpectation(value: number | StreamingDistribution): Expectation {
  */
 export function createTechniqueBaseline(options: TechniqueBaselineOptions): TechniqueBaseline {
   return {
+    ...(options.key !== undefined ? { key: options.key } : {}),
     rom: toExpectation(options.rom),
     eccentricTime: toExpectation(options.eccentricTime),
     concentricTime: toExpectation(options.concentricTime),

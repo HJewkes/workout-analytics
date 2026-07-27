@@ -13,9 +13,17 @@ export {
   PhaseNames,
   type WorkoutSample,
 
+  // Baseline identity
+  type BaselineKey,
+  type BaselineSide,
+  baselineKeyId,
+  matchesBaselineKey,
+  baselineKeyEquals,
+
   // Load
   type LoadSettings,
   DEFAULT_LOAD_SETTINGS,
+  DEFAULT_CHAINS_FULL_EXTENSION,
   calculateFrameLoad,
   getEffectiveLoad,
 

@@ -76,6 +76,11 @@ export const DEFAULT_ECC_RUSHED_SCHEME: BreakpointScheme<boolean> = {
 
 /**
  * Assess rep ROM against expectation.
+ *
+ * The expectation must be expressed in the same units as
+ * `WorkoutSample.position` (metres, as of 2.0.0). The assessment is a ratio /
+ * z-score and is therefore scale-invariant, but only if both sides share one
+ * scale — a baseline collected under the pre-2.0.0 contract must be rebuilt.
  */
 export function assessRepROM(
   rep: Rep,
@@ -155,6 +160,8 @@ export function getRepQualityFlags(
 
 /**
  * Quick check if a rep is a partial rep (ROM below threshold).
+ *
+ * `expectedROM` must be in the same units as `WorkoutSample.position` (metres).
  */
 export function isPartialRep(rep: Rep, expectedROM: number, threshold: number = 0.8): boolean {
   const actual = getRepRangeOfMotion(rep);

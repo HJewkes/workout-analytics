@@ -116,6 +116,45 @@ describe('calculateFrameLoad()', () => {
   });
 
   // ===========================================================================
+  // Chains ramp reference (chainsFullExtension) — position is metres, not 0..1
+  // ===========================================================================
+
+  describe('chainsFullExtension', () => {
+    it('reaches zero chains contribution at the configured full extension', () => {
+      const settings = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 0.6 });
+
+      const load = calculateFrameLoad(settings, 0.6, MovementPhase.CONCENTRIC);
+
+      expect(load).toBe(100);
+    });
+
+    it('interpolates against the configured reference, not against 1', () => {
+      const settings = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 0.6 });
+
+      const load = calculateFrameLoad(settings, 0.3, MovementPhase.CONCENTRIC);
+
+      expect(load).toBeCloseTo(120, 10); // 100 + 40 * (1 - 0.3/0.6)
+    });
+
+    it('defaults to a reference of 1, preserving the pre-2.0.0 ramp', () => {
+      const withDefault = makeSettings({ weight: 100, chains: 40 });
+      const explicit = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 1 });
+
+      expect(calculateFrameLoad(withDefault, 0.25, MovementPhase.CONCENTRIC)).toBe(
+        calculateFrameLoad(explicit, 0.25, MovementPhase.CONCENTRIC)
+      );
+    });
+
+    it('drops chains entirely when the reference is 0 (degenerate config)', () => {
+      const settings = makeSettings({ weight: 100, chains: 40, chainsFullExtension: 0 });
+
+      const load = calculateFrameLoad(settings, 0, MovementPhase.CONCENTRIC);
+
+      expect(load).toBe(100);
+    });
+  });
+
+  // ===========================================================================
   // Eccentric: percentage-adjustment branch
   // ===========================================================================
 

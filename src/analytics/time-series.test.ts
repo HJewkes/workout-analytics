@@ -19,6 +19,7 @@ function makeSession(overrides: Partial<ProcessedSession> = {}): ProcessedSessio
     id: overrides.id ?? 'sess-1',
     startedAt: overrides.startedAt ?? '2026-04-06T10:00:00.000Z', // a Monday
     exerciseId: overrides.exerciseId,
+    key: overrides.key,
     sets: overrides.sets ?? [
       { weightLbs: 100, repCount: 5, velocityMean: 0.8, velocityLoss: 10, estimated1rm: 115 },
       { weightLbs: 100, repCount: 5, velocityMean: 0.7, velocityLoss: 15, estimated1rm: 117 },
@@ -525,5 +526,83 @@ describe('getVolumeByMuscleGroup', () => {
     const lookup = () => ({ muscleGroups: ['biceps'] });
     const result = getVolumeByMuscleGroup(sessions, lookup);
     expect(result.byMuscleGroup.biceps).toBe(500 + 480);
+  });
+});
+
+// =============================================================================
+// BaselineKey filtering
+// =============================================================================
+
+describe('buildTimeSeries key filtering', () => {
+  const SESSIONS: ProcessedSession[] = [
+    makeSession({
+      id: 'a',
+      startedAt: '2026-04-06T10:00:00.000Z',
+      key: { userId: 'u1', exerciseId: 'row', side: 'left' },
+      sets: [{ weightLbs: 100, repCount: 5 }],
+    }),
+    makeSession({
+      id: 'b',
+      startedAt: '2026-04-07T10:00:00.000Z',
+      key: { userId: 'u1', exerciseId: 'row', side: 'right' },
+      sets: [{ weightLbs: 200, repCount: 5 }],
+    }),
+    makeSession({
+      id: 'c',
+      startedAt: '2026-04-08T10:00:00.000Z',
+      key: { userId: 'u2', exerciseId: 'row', side: 'left' },
+      sets: [{ weightLbs: 400, repCount: 5 }],
+    }),
+  ];
+
+  it('includes every session when no key filter is given', () => {
+    const series = buildTimeSeries(SESSIONS, { metric: 'volume' });
+
+    expect(series.points).toHaveLength(3);
+    expect(series.key).toBeUndefined();
+  });
+
+  it('separates two users sharing one machine', () => {
+    const series = buildTimeSeries(SESSIONS, { metric: 'volume', key: { userId: 'u1' } });
+
+    expect(series.points.map((p) => p.value)).toEqual([500, 1000]);
+  });
+
+  it('separates the two sides of a bilateral lift', () => {
+    const series = buildTimeSeries(SESSIONS, {
+      metric: 'volume',
+      key: { userId: 'u1', side: 'left' },
+    });
+
+    expect(series.points.map((p) => p.value)).toEqual([500]);
+  });
+
+  it('excludes sessions carrying no key once a filter is supplied', () => {
+    const unidentified = makeSession({ id: 'd', sets: [{ weightLbs: 50, repCount: 1 }] });
+
+    const series = buildTimeSeries([...SESSIONS, unidentified], {
+      metric: 'volume',
+      key: { userId: 'u1' },
+    });
+
+    expect(series.points).toHaveLength(2);
+  });
+
+  it('echoes the filter back on the series', () => {
+    const key = { userId: 'u1', side: 'right' as const };
+
+    expect(buildTimeSeries(SESSIONS, { metric: 'volume', key }).key).toEqual(key);
+  });
+
+  it('intersects with the exerciseId filter rather than replacing it', () => {
+    const series = buildTimeSeries(
+      [
+        ...SESSIONS,
+        makeSession({ id: 'e', exerciseId: 'squat', key: { userId: 'u1', exerciseId: 'squat' } }),
+      ],
+      { metric: 'volume', exerciseId: 'squat', key: { userId: 'u2' } }
+    );
+
+    expect(series.points).toHaveLength(0);
   });
 });

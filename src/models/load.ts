@@ -28,7 +28,25 @@ export interface LoadSettings {
   readonly chains: number;
   /** Eccentric load adjustment percentage (-195 to +195). 0 = none. */
   readonly eccentric: number;
+  /**
+   * Cable extension at which the chains have fully lifted off, in the SAME
+   * units as `WorkoutSample.position` (metres, as of 2.0.0). The chain ramp is
+   * `1 − position / chainsFullExtension`, clamped to [0, 1].
+   *
+   * Defaults to `1`, which reproduces the pre-2.0.0 ramp exactly for callers
+   * that were feeding normalised 0–1 positions. Callers now feeding metres
+   * MUST set this to the cable's real full-extension distance (~0.6 m on
+   * Voltra) — leaving it at 1 makes the chains fall off over a metre of travel
+   * and so never fully lift within a real rep. Ignored when `chains === 0`.
+   */
+  readonly chainsFullExtension?: number;
 }
+
+/**
+ * Chain ramp reference used when `LoadSettings.chainsFullExtension` is unset.
+ * `1` preserves the historical normalised-position behaviour.
+ */
+export const DEFAULT_CHAINS_FULL_EXTENSION = 1;
 
 /**
  * Default load settings (no load configured).
@@ -51,19 +69,23 @@ export const DEFAULT_LOAD_SETTINGS: LoadSettings = Object.freeze({
  * - Chains: reduce load as cable extends (chains lift off ground)
  * - Eccentric adjustment: percentage applied only during eccentric phase
  *
- * Position is normalized 0-1 where 0 = start (cable retracted) and 1 = full extension.
+ * Position is cable extension in metres (see `WorkoutSample.position`), 0 =
+ * start (cable retracted). This function is the ONLY place in the library that
+ * needs an absolute position scale, which is why it takes the full-extension
+ * reference explicitly rather than assuming a 0-1 range.
  *
  * Chains curve: At position 0 (cable in), full chains weight is applied.
- * As position increases toward 1, chains progressively lift off, reducing their
- * contribution linearly. This is a simplification -- real chain curves depend on
- * chain length and floor geometry, but linear is a reasonable first approximation.
+ * As position approaches `settings.chainsFullExtension` (default 1), chains
+ * progressively lift off, reducing their contribution linearly to zero. This is
+ * a simplification -- real chain curves depend on chain length and floor
+ * geometry, but linear is a reasonable first approximation.
  *
  * Eccentric adjustment: The eccentric percentage adjusts the base weight during
  * the eccentric phase only. Positive values increase eccentric load (overloading),
  * negative values decrease it (underloading).
  *
  * @param settings - Load configuration
- * @param position - Normalized position (0 = start, 1 = full extension)
+ * @param position - Cable extension in metres (0 = start / cable retracted)
  * @param phase - Current movement phase
  * @returns Instantaneous load in lbs
  */
@@ -74,9 +96,11 @@ export function calculateFrameLoad(
 ): number {
   let load = settings.weight;
 
-  // Chains: full effect at position 0, decreasing linearly to 0 at position 1
+  // Chains: full effect at position 0, decreasing linearly to 0 at full extension
   if (settings.chains > 0) {
-    const chainsFactor = Math.max(0, Math.min(1, 1 - position));
+    const fullExtension = settings.chainsFullExtension ?? DEFAULT_CHAINS_FULL_EXTENSION;
+    const chainsFactor =
+      fullExtension > 0 ? Math.max(0, Math.min(1, 1 - position / fullExtension)) : 0;
     load += settings.chains * chainsFactor;
   }
 

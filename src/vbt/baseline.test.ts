@@ -11,6 +11,7 @@ import {
   deserializeBaseline,
 } from '@/vbt/baseline';
 import type { SerializedBaseline } from '@/vbt/baseline';
+import type { BaselineKey } from '@/models/baseline-key';
 import type { LoadVelocityDataPoint } from '@/vbt/profile';
 
 // =============================================================================
@@ -290,5 +291,45 @@ describe('deserializeBaseline', () => {
     const baseline = deserializeBaseline(raw);
     expect(baseline.dataPoints).toHaveLength(0);
     expect(getExpectedVelocity(baseline, 50)).toBeNull();
+  });
+});
+
+// =============================================================================
+// BaselineKey identity
+// =============================================================================
+
+describe('baseline identity', () => {
+  const KEY: BaselineKey = {
+    userId: 'u1',
+    exerciseId: 'cable-row',
+    setupId: 'bench-low',
+    side: 'left',
+  };
+
+  it('omits key when none is supplied', () => {
+    expect(buildBaseline(HISTORICAL_DATA).key).toBeUndefined();
+    expect(serializeBaseline(buildBaseline(HISTORICAL_DATA)).key).toBeUndefined();
+  });
+
+  it('stamps the key onto the built baseline', () => {
+    expect(buildBaseline(HISTORICAL_DATA, KEY).key).toEqual(KEY);
+  });
+
+  it('survives a serialize/deserialize round trip', () => {
+    const restored = deserializeBaseline(serializeBaseline(buildBaseline(HISTORICAL_DATA, KEY)));
+
+    expect(restored.key).toEqual(KEY);
+  });
+
+  it('preserves the key when a point is added', () => {
+    const updated = updateBaselineWithPoint(buildBaseline(HISTORICAL_DATA, KEY), 55, 0.62);
+
+    expect(updated.key).toEqual(KEY);
+  });
+
+  it('tolerates a keyless payload written before keys existed', () => {
+    const raw: SerializedBaseline = { version: 1, dataPoints: [{ load: 50, velocity: 0.6 }] };
+
+    expect(deserializeBaseline(raw).key).toBeUndefined();
   });
 });
