@@ -202,7 +202,9 @@ load = weight
      + (eccentric != 0 && phase == ECCENTRIC ? weight * eccentric / 100 : 0)
 ```
 
-Floored at 0. The chains curve is a linear simplification — real chain geometry depends on length and floor height.
+Floored at 0. The chains curve is a linear simplification.
+
+**The chains term's DIRECTION is unresolved.** It is descending in extension (maximum at position 0, zero at `chainsFullExtension`). Physical barbell chains do the opposite — links leaving the floor transfer weight onto the bar, so resistance rises through the concentric. Per `voltra-node-sdk` `src/sdk/voltra-client.ts:693-700`, `setInverseChains` is documented as "reduce resistance during the concentric (lifting) phase and add resistance during the eccentric (lowering) phase - opposite of regular chains" — so a term that falls with position is modelling the device's *inverse*-chains behaviour under the name `chains`. The device also exposes inverse chains as a weight in pounds, and `LoadSettings` has no `inverseChains` field, so that mode is unmodelled. `eccentric` is unaffected — it is correctly phase-gated. Tracked in `KNOWN-ISSUES-2026-07-27.md`; do not rely on `chains` for regular-chain modelling until it is resolved.
 
 `getEffectiveLoad(settings)` (`src/models/load.ts:109-111`) returns `weight` only, used by `getSetLoad` and downstream analytics that want a single scalar load.
 

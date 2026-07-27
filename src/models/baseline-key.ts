@@ -17,6 +17,21 @@
  * (see `mergeDist` in `stats/distribution`), NOT collected as a third stream —
  * otherwise time-to-calibrated doubles.
  *
+ * BUT the merged view is for DISPLAY and collection economy only. It is not a
+ * valid comparison reference for assessing a rep. `mergeDist` is arithmetically
+ * correct, and that is exactly the problem: merged variance is within-side PLUS
+ * between-side, so any left/right asymmetry inflates the merged SD. With
+ * per-side SD 0.0205 m and means of 0.60 m left / 0.50 m right, the merged SD
+ * is 0.0545 m — 2.66x inflated. A right-side rep at 0.44 m then scores
+ * z = -2.92 (a clear warning) against its own side but only z = -2.02 against
+ * the merged view, while its ratio against the merged mean reads 0.800 —
+ * WORSE than against its own side. The z-score and the ratio move in OPPOSITE
+ * directions, and `getRepQualityFlags` computes both.
+ *
+ * So: assess a rep against the baseline for ITS OWN side. Use the merged view
+ * to show a single number, never to decide whether a rep was good. Asymmetry is
+ * the normal case on a bilateral lift, not an edge case.
+ *
  * This library does not store baselines; it only stamps the identity onto the
  * baseline and series types so a storage layer can key on it without inventing
  * a parallel model.

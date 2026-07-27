@@ -194,7 +194,20 @@ export function getRepEccentricImpulse(rep: Rep): number {
 }
 
 /**
- * Compute total work (both phases) for a rep.
+ * Sum of the concentric and eccentric work MAGNITUDES for a rep, in lbs·m.
+ *
+ * This is NOT net mechanical work, and the Joule conversion documented on
+ * `getRepWork` MUST NOT be applied to it. Both terms are built from
+ * `Math.abs(Δposition)` and so are positive regardless of direction: a closed
+ * cycle sums them instead of cancelling. Raising 0 → 0.6 m and lowering back at
+ * a constant 100 lbf returns 120 lbs·m, where the net mechanical work over the
+ * cycle is 0 and the concentric work alone is 60 lbs·m. Multiplying 120 by
+ * 4.448 yields a confident, wrong "533.76 J" against a true concentric
+ * 266.88 J.
+ *
+ * Read it as a volume-of-effort proxy — both phases load the muscle, so summing
+ * magnitudes is the useful training quantity — never as physics. Callers who
+ * want a convertible energy figure want `getRepConcentricWork`.
  */
 export function getRepTotalWork(rep: Rep): number {
   return getRepConcentricWork(rep) + getRepEccentricWork(rep);
@@ -250,6 +263,12 @@ export function getRepMeanConcentricPower(rep: Rep): number {
 /**
  * Compute mean eccentric power (work / time).
  * Note: Eccentric power is typically lower due to controlled lowering.
+ *
+ * Units: derived from `getRepEccentricWork` (lbs·m) divided by eccentric time
+ * (seconds), so output is in **lbs·m/s**, NOT Watts — the same contract as
+ * `getRepMeanConcentricPower`, including the 10x silent-inflation failure mode
+ * if an adapter passes tenths-of-lbs. Absolute values changed with the 2.0.0
+ * position contract.
  */
 export function getRepMeanEccentricPower(rep: Rep): number {
   const time = getRepEccentricTime(rep);

@@ -44,7 +44,7 @@ Data primitives. All hardware-agnostic.
 | `src/models/phase.ts` | `Phase` interface at `:15-35`; `EMPTY_PHASE` at `:41-55`; `addSampleToPhase` at `:61-91` (defensive `Math.abs` on velocity at `:74`); derived helpers at `:102-135`. |
 | `src/models/rep.ts` | `Rep` at `:24-28`; `createRep` at `:33-39`; `addSampleToRep` at `:52-65` (routes by phase + eccentric-state); `getRepTempo` at `:75-82`; derived helpers at `:84-110`. |
 | `src/models/set.ts` | `Set` at `:30-34`; `createSet` at `:39-41`; `addSampleToSet` at `:47-65` (rep boundary on eccentric→concentric); `completeSet` at `:94-104` (trims trailing IDLE); `trimTrailingIdle` at `:70-88`; load helpers at `:140-174`. |
-| `src/models/load.ts` | `LoadSettings` (weight, chains, eccentric) at `:24-31`; `calculateFrameLoad` at `:70-89` (linear chains decay, eccentric % adjustment); `getEffectiveLoad` at `:109-111` (returns base weight). |
+| `src/models/load.ts` | `LoadSettings` (weight, chains, eccentric, **required** `chainsFullExtension`); `calculateFrameLoad` (chains ramp `clamp(1 - position / chainsFullExtension, 0, 1)`, eccentric % adjustment); `getEffectiveLoad` (returns base weight). **Chains ramp direction is unresolved — see data-model.md and KNOWN-ISSUES-2026-07-27.md.** |
 | `src/models/tempo.ts` | `TempoParts` at `:11-16`; `formatTempo` (`E-PB-C-PT`) at `:19-21`; `parseTempo` at `:24-28`. |
 | `src/models/index.ts` | Barrel for the models module. |
 
@@ -65,7 +65,7 @@ Stateless analytics over `Rep` / `Set`.
 | File | Responsibility |
 | --- | --- |
 | `src/analytics/types.ts` | `Expectation<T>` (fixed or distribution) at `:24-26`; `ComparisonResult` at `:31-40`; `ChangeResult` at `:46-57`; `TechniqueBaseline` at `:63-72`; factories + `compareToExpectation` at `:81-178`. |
-| `src/analytics/rep-analytics.ts` | Eccentric velocity at `:19-21`; force getters at `:31-57`; concentric/eccentric time at `:67-77`; impulse at `:95-117` (trapezoidal, lbs·s); work at `:135-157` (trapezoidal, lbs·position-units); total/concentric/eccentric variants at `:162-229`; mean power at `:244-258`. **Unit warnings on `:88-94`, `:122-133`, `:236-243`.** |
+| `src/analytics/rep-analytics.ts` | Eccentric velocity at `:19-21`; force getters at `:31-57`; concentric/eccentric time at `:67-77`; impulse at `:95-117` (trapezoidal, lbs·s); work at `:135-157` (trapezoidal, **lbs·m**); total/concentric/eccentric variants at `:162-229` (`getRepTotalWork` sums MAGNITUDES — not net work, not Joule-convertible); mean power at `:244-258` (**lbs·m/s**). **Unit warnings on `:88-94`, `:122-133`, `:236-243`.** |
 | `src/analytics/set-analytics.ts` | First/last/best/mean/peak velocity at `:20-83`; eccentric velocity at `:93-138`; ROM helpers at `:148-189`; per-rep accessors at `:199-213`; `SetVelocitySummary` at `:222-245`. |
 | `src/analytics/quality.ts` | `RepQualityFlags` at `:32-41`; `QualitySchemes` at `:46-55`; partial-rep + rushed-eccentric defaults at `:60-71`; `assessRep*` at `:80-111`; `getRepQualityFlags` at `:120-150`; convenience boolean checks at `:159-198`; `assessRepQuality` at `:217-233`. |
 | `src/analytics/fatigue.ts` | `FatigueSchemes`/`FatigueIndex`/`ConsistencyScore`/`RIREstimate`/`OutlierRep` types at `:46-109`; change analytics (velocity/tempo/ROM/eccentric-velocity) at `:118-164`; `EccentricControl` at `:173-180` and score/warning at `:191-229`; `DEFAULT_FATIGUE_WEIGHTS` at `:239-243`; `getSetFatigueIndex` at `:253-294`; consistency at `:310-352`; `findOutlierReps` at `:361-415`; `estimateSetRIR` at `:424-447`; `isSetFatigued` + `getSetFatigueSummary` at `:456-495`. |
