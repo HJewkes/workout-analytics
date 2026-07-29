@@ -18,7 +18,7 @@ Reading order inside `voltra_vbt_autoregulation_spec.md`:
 
 ## Status of the spec
 
-- **The spec PRECEDES the current integration plan.** It was authored 2026-01-24. The Phase 4 / 2.0.0 work in `coordination/integration-plans/raw-signal-architecture.md` is the **active** plan and supersedes the spec where they conflict.
+- **The spec PRECEDES the current integration plan.** It was authored 2026-01-24. The Phase 4 / 2.0.0 work in `sources/integration-plans/raw-signal-architecture.md` is the **active** plan and supersedes the spec where they conflict.
 - Specifically: the spec's section 1.2 ("Prefer device-provided rep markers if available") aligns with the planned `DeviceAssertedRep` type in 2.0.0. The integration plan is the more concrete, scheduled version.
 - The spec's user-profile and autoregulation sections describe surface that **does not yet exist** in the package. They are post-2.0.0 work — referenced for design direction, not for current behavior.
 
@@ -30,7 +30,7 @@ Reading order inside `voltra_vbt_autoregulation_spec.md`:
 
 ## Cross-references
 
-- Integration plan (active): `../../../coordination/integration-plans/raw-signal-architecture.md` — Phase 4 covers the bridge and orchestrator landing concurrent with workout-analytics 2.0.0.
+- Integration plan (active): `../../../sources/integration-plans/raw-signal-architecture.md` — Phase 4 covers the bridge and orchestrator landing concurrent with workout-analytics 2.0.0.
 - Workspace memory: workspace `CLAUDE.md` and the project memory note `voltra_vbt_autoregulation_spec.md` as a key reference.
 
 ## Why this is a stub

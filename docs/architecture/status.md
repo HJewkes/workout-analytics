@@ -38,7 +38,7 @@ Engine: Node `>=20.0.0` (`package.json:120-122`).
 
 Per `../../CHANGELOG.md` 1.1.0 "Fixed" notes: **"Adapter relocation, `DeviceAssertedSet`, and `repDurationMs` integration are deferred to 2.0.0."**
 
-The active plan is `../../../coordination/integration-plans/raw-signal-architecture.md` Phase 4. Headline items:
+The active plan is `../../../sources/integration-plans/raw-signal-architecture.md` Phase 4. Headline items:
 
 | Item | What's coming | Plan section |
 | --- | --- | --- |
@@ -86,4 +86,4 @@ These cost time before. See `data-model.md` "Unit hazards" for full detail.
 | Storage Expo driver | Type resolution at build time. Runtime conformance suite skips on plain Node CI (native module unavailable). |
 | Expo runtime functional tests | Owned by `voltras/mobile`. |
 | Capture-replay regression (planned) | `voltras-mcp` Phase 4k — replay phase-5 captures through new adapter + `WorkoutSession`. |
-| Integration tests against real captures (planned) | New `src/__tests__/voltra-integration/` suite per `coordination/integration-plans/workout-analytics-integration.md`. |
+| Integration tests against real captures (planned) | New `src/__tests__/voltra-integration/` suite per `sources/integration-plans/workout-analytics-integration.md`. |
