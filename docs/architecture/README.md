@@ -36,5 +36,5 @@ The package is the largest and most under-documented of the four published libra
 - Package README: `../../README.md` (consumer-facing usage).
 - Changelog: `../../CHANGELOG.md`.
 - VBT autoregulation spec: `../../voltra_vbt_autoregulation_spec.md` (v2026-01-24, internal). The closest thing to a target spec for the analytics surface.
-- Workspace integration plan: `../../../coordination/integration-plans/raw-signal-architecture.md` — Phase 4 covers the planned 2.0.0 work.
-- Workspace coordination notes: `../../../coordination/integration-plans/workout-analytics-integration.md`.
+- Workspace integration plan: `../../../sources/integration-plans/raw-signal-architecture.md` — Phase 4 covers the planned 2.0.0 work.
+- Workspace coordination notes: `../../../sources/integration-plans/workout-analytics-integration.md`.

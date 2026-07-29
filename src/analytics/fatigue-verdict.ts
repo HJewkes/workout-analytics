@@ -21,7 +21,7 @@
  * same NDA posture as `view-model.ts`. It ADDS a thin pure layer; it does not
  * modify the primitives it composes.
  *
- * Spec: `voltras-workspace/coordination/design-explorations/fatigue-verdict-spec.md`.
+ * Spec: `voltras-workspace/sources/design/fatigue-verdict-spec.md`.
  */
 import type { Set } from '@/models/set';
 import { getPhaseMovementDuration } from '@/models/phase';
