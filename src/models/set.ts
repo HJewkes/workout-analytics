@@ -200,7 +200,10 @@ export function completeSet(set: Set): Set {
   const firstRep = set.reps[0];
   const reps =
     firstRep.repNumber === 1
-      ? [{ ...firstRep, concentric: trimLeadingArtifact(firstRep.concentric) }, ...set.reps.slice(1)]
+      ? [
+          { ...firstRep, concentric: trimLeadingArtifact(firstRep.concentric) },
+          ...set.reps.slice(1),
+        ]
       : set.reps;
 
   const lastRep = reps.at(-1);
