@@ -127,19 +127,91 @@ function trimTrailingIdle(phase: Phase): Phase {
 }
 
 /**
- * Finalize set - trims trailing IDLE from last rep.
+ * Minimum net displacement (metres) a phase's samples must travel from the
+ * phase's own first sample before we trust it as REAL concentric motion,
+ * rather than a pre-lift cable-engagement/settling artifact.
+ *
+ * WA-rep1-segmentation: rep 1's concentric phase routinely opens with a run
+ * of samples the device/adapter tags CONCENTRIC (nonzero directed velocity)
+ * even though the athlete hasn't actually started the lift yet -- cable
+ * slack takeup, handle engagement, initial settling. This is the same
+ * artifact voltras-mcp's `peakConcentricBaseline` works around for velocity
+ * (`src/tools/plan-tools.ts` / `src/state/channel-payloads.ts`: "rep 1 is
+ * routinely a cable-engagement artifact with a tiny ROM and a meaninglessly
+ * low velocity") -- but that workaround never trusts a value COMPUTED FROM
+ * rep 1 (it substitutes the set's peak rep as the baseline instead). That
+ * substitution has no analogue here: there's no "other rep" to stand in for
+ * rep 1's own concentric span, so segmentation has to re-anchor rep 1's
+ * phase directly rather than avoid reading it.
+ *
+ * 2cm is comfortably below any deliberate concentric drive's first few
+ * samples of travel (typical strength-training ROM runs tens of cm), and
+ * comfortably above cable slack/sensor jitter, which shows near-zero NET
+ * displacement even while individual samples register nonzero velocity.
+ */
+const LEADING_ARTIFACT_DISPLACEMENT_M = 0.02;
+
+/**
+ * Minimum number of leading samples that must stay within
+ * `LEADING_ARTIFACT_DISPLACEMENT_M` of the phase's first sample before we
+ * call that leading run an engagement artifact rather than just the natural
+ * first frame(s) of a real concentric drive. Every real rep's very first
+ * sample is, trivially, within the floor of itself (diff 0) -- without this
+ * floor a real rep's own opening sample would be misread as "artifact" the
+ * moment the very next sample shows genuine travel. Requiring the low-
+ * displacement run to last at least 2 samples restricts the cut to an
+ * actual settling PERIOD, not a single real starting frame.
+ */
+const LEADING_ARTIFACT_MIN_SAMPLES = 2;
+
+/**
+ * Trim leading samples that haven't yet moved
+ * `LEADING_ARTIFACT_DISPLACEMENT_M` from the phase's own first sample.
+ *
+ * A no-op (returns `phase` unchanged) when fewer than
+ * `LEADING_ARTIFACT_MIN_SAMPLES` samples stay within the floor -- a clean
+ * rep 1 start is never truncated -- or when NO sample ever clears it, since
+ * there is then no real-motion anchor to re-cut to and guessing would be
+ * worse than leaving the (short, low-signal) phase as recorded.
+ */
+function trimLeadingArtifact(phase: Phase): Phase {
+  if (phase.samples.length === 0) return phase;
+
+  const anchor = phase.samples[0].position;
+  const cutIndex = phase.samples.findIndex(
+    (s) => Math.abs(s.position - anchor) >= LEADING_ARTIFACT_DISPLACEMENT_M
+  );
+
+  if (cutIndex < LEADING_ARTIFACT_MIN_SAMPLES) return phase;
+  return rebuildPhaseFromSamples(phase.samples.slice(cutIndex));
+}
+
+/**
+ * Finalize set - trims trailing IDLE from the last rep, and a pre-lift
+ * engagement artifact from the leading edge of rep 1's concentric phase.
  * Call this when the set is complete (user stopped exercising).
  */
 export function completeSet(set: Set): Set {
-  const lastRep = set.reps.at(-1);
-  if (!lastRep) return set;
+  if (set.reps.length === 0) return set;
+
+  // Correct rep 1's concentric phase first (WA-rep1-segmentation). Independent
+  // of the trailing-IDLE trim below (different rep in general, opposite end
+  // of the phase) and a no-op when there's nothing to correct.
+  const firstRep = set.reps[0];
+  const reps =
+    firstRep.repNumber === 1
+      ? [{ ...firstRep, concentric: trimLeadingArtifact(firstRep.concentric) }, ...set.reps.slice(1)]
+      : set.reps;
+
+  const lastRep = reps.at(-1);
+  if (!lastRep) return { ...set, reps };
 
   // Trim from whichever phase is "active" (eccentric if started, else concentric)
   const trimmedRep = isInEccentricPhase(lastRep)
     ? { ...lastRep, eccentric: trimTrailingIdle(lastRep.eccentric) }
     : { ...lastRep, concentric: trimTrailingIdle(lastRep.concentric) };
 
-  return { ...set, reps: [...set.reps.slice(0, -1), trimmedRep] };
+  return { ...set, reps: [...reps.slice(0, -1), trimmedRep] };
 }
 
 // ============================================================

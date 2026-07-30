@@ -4,6 +4,12 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- **Rep 1's concentric span no longer inflated by a pre-lift engagement artifact (WA-rep1-segmentation).** Rep 1's concentric phase routinely opened with a leading run of samples the device/adapter tags `CONCENTRIC` (nonzero directed velocity) before the athlete actually starts the lift — cable slack takeup, handle engagement, initial settling — and `completeSet()` had no mechanism to exclude it, so `getRepDuration` / `getPhaseDuration(rep.concentric)` and rep 1's ROM measured 15-35% too high relative to later reps in the same set. `completeSet()` now also re-anchors rep 1's concentric phase, dropping any leading run of samples that never travels more than 2cm (`LEADING_ARTIFACT_DISPLACEMENT_M`) from the phase's own first sample, provided that low-displacement run lasts at least 2 samples — a single real starting frame is never mistaken for a settling period, so a rep 1 with a clean start is untouched. This mirrors the same artifact voltras-mcp's `peakConcentricBaseline` works around for velocity by substituting the set's peak rep as baseline instead of trusting rep 1 — but segmentation has no "other rep" to substitute for rep 1's own span, so this corrects the phase directly. Applies at `completeSet()` time only, consistent with the existing trailing-IDLE trim; live in-progress reads of rep 1 before the set completes are unaffected.
+
 ## 2.0.0
 
 Two changes ship in one release on purpose: both redefine what a measured value *means* — whose stream it belongs to, and what units it is in — and the consumer that has to re-read the sample contract is the same consumer that has to adopt the baseline identity. Splitting them would cost two migrations for one coherent revision of the data contract.
