@@ -18,6 +18,8 @@ import {
   getSetPeakLoad,
 } from '@/models/set';
 import { MovementPhase } from '@/models';
+import { getRepRangeOfMotion } from '@/models/rep';
+import { getPhaseDuration, getPhaseRangeOfMotion } from '@/models/phase';
 import type { WorkoutSample } from '@/models/sample';
 import type { Set } from '@/models/set';
 import type { LoadSettings } from '@/models/load';
@@ -343,6 +345,107 @@ describe('completeSet()', () => {
     const completed = completeSet(set);
 
     expect(completed).toBe(set);
+  });
+
+  describe('rep 1 pre-lift engagement artifact (WA-rep1-segmentation)', () => {
+    /**
+     * Builds an explicit timestamp/position/velocity/phase sample sequence
+     * (unlike `createSampleSequence`, which derives position purely from
+     * index within a phase and can't express a low-displacement "jitter"
+     * prefix followed by real travel).
+     */
+    function buildSamples(
+      entries: { phase: MovementPhase; position: number; velocity: number }[]
+    ): WorkoutSample[] {
+      return entries.map((entry, i) => ({
+        sequence: i,
+        timestamp: 1000 + i * 90,
+        phase: entry.phase,
+        position: entry.position,
+        velocity: entry.velocity,
+        force: 100,
+      }));
+    }
+
+    // Cable-engagement jitter: tagged CONCENTRIC (nonzero velocity) but net
+    // displacement never leaves a ~1cm band -- below the 2cm real-motion floor.
+    const artifactPrefix = [
+      { phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.05 },
+      { phase: MovementPhase.CONCENTRIC, position: 0.005, velocity: 0.06 },
+      { phase: MovementPhase.CONCENTRIC, position: 0.01, velocity: 0.04 },
+      { phase: MovementPhase.CONCENTRIC, position: 0.003, velocity: 0.05 },
+      { phase: MovementPhase.CONCENTRIC, position: 0.008, velocity: 0.05 },
+      { phase: MovementPhase.CONCENTRIC, position: 0.0, velocity: 0.05 },
+    ];
+
+    // Real concentric drive: 0 -> 0.5m over 10 samples.
+    const realConcentric = Array.from({ length: 10 }, (_, i) => ({
+      phase: MovementPhase.CONCENTRIC,
+      position: (i + 1) * 0.05,
+      velocity: 0.5,
+    }));
+
+    const eccentric = Array.from({ length: 10 }, (_, i) => ({
+      phase: MovementPhase.ECCENTRIC,
+      position: 0.5 - (i + 1) * 0.05,
+      velocity: 0.5,
+    }));
+
+    it('reproduces the bug: rep 1 concentric span is inflated before the fix runs', () => {
+      const samples = buildSamples([...artifactPrefix, ...realConcentric, ...eccentric]);
+      const set = processSamples(samples);
+      const rep1 = set.reps[0];
+
+      // Pre-completeSet(), the artifact prefix is still part of the phase --
+      // this is the bug: all 16 samples (6 artifact + 10 real) are attributed
+      // to rep 1's concentric span, and its ROM includes the artifact's tiny
+      // net displacement even though the real drive alone spans 0.5m.
+      expect(rep1.concentric.samples.length).toBe(16);
+      expect(getPhaseRangeOfMotion(rep1.concentric)).toBeCloseTo(0.5, 5);
+      // Span includes the artifact's leading samples (indices 0-5) through
+      // the real drive's last sample (index 15): 15 intervals * 90ms.
+      expect(getPhaseDuration(rep1.concentric)).toBeCloseTo((15 * 90) / 1000, 5);
+    });
+
+    it('fixes rep 1: completeSet() excludes the pre-lift artifact from the concentric span', () => {
+      const samples = buildSamples([...artifactPrefix, ...realConcentric, ...eccentric]);
+      let set = processSamples(samples);
+      set = completeSet(set);
+      const rep1 = set.reps[0];
+
+      // Only the 10 real-drive samples remain in rep 1's concentric phase.
+      expect(rep1.concentric.samples.length).toBe(10);
+      // Real drive spans 0.05m -> 0.5m (0.45m), not the artifact-inflated 0.5m.
+      expect(getRepRangeOfMotion(rep1)).toBeCloseTo(0.45, 5);
+      // Span now covers only the 10 real-drive samples (9 intervals * 90ms),
+      // no longer inflated by the artifact's leading ~540ms.
+      expect(getPhaseDuration(rep1.concentric)).toBeCloseTo((9 * 90) / 1000, 5);
+    });
+
+    it('does not truncate a rep 1 with a clean start (no regression)', () => {
+      const samples = buildSamples([...realConcentric, ...eccentric]);
+      let set = processSamples(samples);
+      set = completeSet(set);
+      const rep1 = set.reps[0];
+
+      expect(rep1.concentric.samples.length).toBe(10);
+      expect(getRepRangeOfMotion(rep1)).toBeCloseTo(0.45, 5);
+    });
+
+    it('leaves rep 2+ concentric phases untouched even when rep 1 had an artifact', () => {
+      const rep1Samples = [...artifactPrefix, ...realConcentric, ...eccentric];
+      const rep2Samples = [...realConcentric, ...eccentric];
+      const samples = buildSamples([...rep1Samples, ...rep2Samples]);
+
+      let set = processSamples(samples);
+      set = completeSet(set);
+
+      expect(set.reps.length).toBe(2);
+      expect(set.reps[0].concentric.samples.length).toBe(10);
+      expect(set.reps[1].concentric.samples.length).toBe(10);
+      expect(getRepRangeOfMotion(set.reps[0])).toBeCloseTo(0.45, 5);
+      expect(getRepRangeOfMotion(set.reps[1])).toBeCloseTo(0.45, 5);
+    });
   });
 });
 
