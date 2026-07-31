@@ -4,7 +4,11 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 2.1.0
+
+### Added
+
+- **Drift guard for cross-session comparability (VW-90 / B15).** `evaluateDriftGuard` and `summarizeSetsForDrift` compare median concentric tempo and ROM between a baseline session and a current session, and return a verdict (`comparable`, `flagged`, `reasoning`) that gates whether downstream cross-session analytics (progression detection, MRV/underperformance detection) should trust the comparison. A drift beyond 15% on either metric is flagged; beyond ~22.5% the comparison is marked not comparable. Sets with fewer than 4 qualifying reps are flagged rather than trusted outright. This is the foundation step for the two-session MRV detector (VW-91 / B04); it does not itself run any comparison.
 
 ### Fixed
 
