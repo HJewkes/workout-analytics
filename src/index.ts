@@ -262,6 +262,16 @@ export {
   detectPlateau,
 } from './analytics';
 
+// Analytics - Drift Guard
+export {
+  type DriftSummary,
+  type DriftGuardVerdict,
+  type DriftGuardOptions,
+  DRIFT_GUARD_THRESHOLDS,
+  summarizeSetsForDrift,
+  evaluateDriftGuard,
+} from './analytics';
+
 // Analytics - State-Space Strength Model
 export {
   type StrengthState,
