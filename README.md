@@ -190,6 +190,19 @@ Set
 | `getPhaseMeanForce(phase)` | Mean force during movement |
 | `getPhaseRangeOfMotion(phase)` | Absolute position change, in metres |
 
+### Drift Guard
+
+Execution-comparability gate. Run it before any cross-session comparison (progression, MRV / underperformance): if tempo or ROM moved too far between the two sessions, the comparison is not measuring what it claims to.
+
+| Export | Description |
+|----------|-------------|
+| `summarizeSetsForDrift(sets)` | Median concentric tempo + ROM across qualifying reps; `undefined` when none qualify |
+| `evaluateDriftGuard(baseline, current, options?)` | `DriftGuardVerdict` — `comparable`, `flagged`, signed drift percentages, `reasoning` |
+| `DRIFT_GUARD_THRESHOLDS` | Hard tolerance (15%), flagged-band multiplier (1.5×), minimum reps for a confident read (4) |
+| `DriftSummary` / `DriftGuardVerdict` / `DriftGuardOptions` | Types |
+
+Consumers MUST skip their comparison when `comparable === false`, and MUST propagate `reasoning` as a caveat when `flagged === true`.
+
 ### Tempo
 
 ```typescript

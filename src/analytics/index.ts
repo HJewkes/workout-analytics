@@ -158,6 +158,16 @@ export {
   detectPlateau,
 } from './trend';
 
+// Drift Guard (execution-comparability gate for cross-session comparisons)
+export {
+  type DriftSummary,
+  type DriftGuardVerdict,
+  type DriftGuardOptions,
+  DRIFT_GUARD_THRESHOLDS,
+  summarizeSetsForDrift,
+  evaluateDriftGuard,
+} from './drift-guard';
+
 // State-Space Strength Model
 export {
   type StrengthState,
