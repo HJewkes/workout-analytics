@@ -168,6 +168,18 @@ export {
   evaluateDriftGuard,
 } from './drift-guard';
 
+// MRV Underperformance (two-session underperformance detector, drift-gated)
+export {
+  type WeightedSet,
+  type PerformanceSummary,
+  type MrvUnderperformanceVerdict,
+  type MrvGuardVerdict,
+  MRV_UNDERPERFORMANCE_THRESHOLDS,
+  summarizeSetsForPerformance,
+  evaluateMrvUnderperformance,
+  evaluateMrvGuard,
+} from './mrv-underperformance';
+
 // State-Space Strength Model
 export {
   type StrengthState,
