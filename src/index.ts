@@ -272,6 +272,18 @@ export {
   evaluateDriftGuard,
 } from './analytics';
 
+// Analytics - MRV Underperformance
+export {
+  type WeightedSet,
+  type PerformanceSummary,
+  type MrvUnderperformanceVerdict,
+  type MrvGuardVerdict,
+  MRV_UNDERPERFORMANCE_THRESHOLDS,
+  summarizeSetsForPerformance,
+  evaluateMrvUnderperformance,
+  evaluateMrvGuard,
+} from './analytics';
+
 // Analytics - State-Space Strength Model
 export {
   type StrengthState,
