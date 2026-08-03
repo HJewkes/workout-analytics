@@ -29,8 +29,9 @@ export interface LoadSettings {
    * 0 = none.
    *
    * DIRECTION IS UNRESOLVED — see the note on `calculateFrameLoad`. This term
-   * is DESCENDING in extension, which matches the device's *inverse*-chains
-   * behaviour rather than its regular-chains behaviour. Do not rely on it to
+   * is DESCENDING in extension. The device SDK documents both directions for
+   * regular chains in different places, so it is an open question whether this
+   * models chains or the device's *inverse*-chains mode. Do not rely on it to
    * model regular chains until that is settled.
    */
   readonly chains: number;
@@ -98,21 +99,23 @@ export const DEFAULT_LOAD_SETTINGS: LoadSettings = Object.freeze({
  * chain geometry.
  *
  * DIRECTION CAVEAT — READ BEFORE RELYING ON THIS TERM.
- * This ramp is DESCENDING in extension. That is the opposite of physical
- * barbell chains, where links leaving the floor transfer their weight onto the
- * bar and resistance RISES through the concentric. It is also, per the device
- * SDK, the opposite of what this device calls regular chains: `voltra-node-sdk`
+ * This ramp is DESCENDING in extension, and whether that is correct is an open
+ * question: the device SDK states both answers. Its README settings table and
+ * `setChains`' own "reverse resistance" naming say chains REDUCE load as you
+ * extend, which is what this code does. But `voltra-node-sdk`
  * `src/sdk/voltra-client.ts:693-700` documents `setInverseChains` as "reduce
  * resistance during the concentric (lifting) phase and add resistance during
- * the eccentric (lowering) phase - opposite of regular chains". Since
- * `position` grows through the concentric, a term that falls with position is
- * modelling the device's INVERSE-chains behaviour under the name `chains`.
+ * the eccentric (lowering) phase - opposite of regular chains" — and since
+ * `position` grows through the concentric, that reading makes regular chains
+ * ASCENDING and this term the device's INVERSE-chains mode under the wrong
+ * name. The two SDK statements were introduced by the same commit.
  *
  * The formula is deliberately left as-is: changing its direction moves every
- * chains-set load and belongs in its own change with its own review. Until
- * then, treat `chains` as unvalidated for regular-chain modelling. `eccentric`
- * below is NOT affected — it is phase-gated and behaves as documented. Tracked
- * in `KNOWN-ISSUES-2026-07-27.md`.
+ * chains-set load, and the docs do not justify picking a side. Until a
+ * force-vs-position trace from a chains-loaded set settles it, treat `chains`
+ * as unvalidated for regular-chain modelling. `eccentric` below is NOT
+ * affected — it is phase-gated and behaves as documented. Tracked in
+ * `KNOWN-ISSUES-2026-07-27.md`.
  *
  * Eccentric adjustment: The eccentric percentage adjusts the base weight during
  * the eccentric phase only. Positive values increase eccentric load (overloading),
