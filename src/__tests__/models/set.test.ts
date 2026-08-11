@@ -446,6 +446,44 @@ describe('completeSet()', () => {
       expect(getRepRangeOfMotion(set.reps[0])).toBeCloseTo(0.45, 5);
       expect(getRepRangeOfMotion(set.reps[1])).toBeCloseTo(0.45, 5);
     });
+
+    /**
+     * Real capture, 2026-05-18, 25lb single-arm (VW-159). This phase never
+     * opens with an artifact and then drives -- it drifts slowly backwards
+     * across all 12 samples, so the ONLY sample clearing the 2cm floor from
+     * the 0.812m anchor is the last one (0.789m, a 0.023m difference).
+     * Cutting at index 11 would leave a single sample.
+     *
+     * Positions are the captured device-native millimetres put through the
+     * producer's mm->m bridge, otherwise unchanged.
+     */
+    const slowDriftAcrossThreshold = [
+      0.812, 0.802, 0.801, 0.801, 0.803, 0.806, 0.807, 0.805, 0.8, 0.798, 0.795, 0.789,
+    ].map((position) => ({ phase: MovementPhase.CONCENTRIC, position, velocity: 0.05 }));
+
+    it('refuses a cut that would leave a single sample (real 2026-05-18 capture)', () => {
+      const samples = buildSamples([...slowDriftAcrossThreshold, ...eccentric]);
+      let set = processSamples(samples);
+      set = completeSet(set);
+      const rep1 = set.reps[0];
+
+      // The phase survives intact rather than collapsing onto its last sample.
+      expect(rep1.concentric.samples.length).toBe(slowDriftAcrossThreshold.length);
+      // And it still reports the small motion it actually recorded, instead of
+      // the zero-ROM / zero-duration reading a 1-sample phase produces.
+      expect(getPhaseRangeOfMotion(rep1.concentric)).toBeCloseTo(0.023, 5);
+      expect(getPhaseDuration(rep1.concentric)).toBeGreaterThan(0);
+    });
+
+    it('still cuts when enough samples remain after the anchor', () => {
+      // Control for the guard above: it must not disable the fix itself. Here
+      // the floor is cleared early, so a usable phase remains and the cut runs.
+      const samples = buildSamples([...artifactPrefix, ...realConcentric, ...eccentric]);
+      let set = processSamples(samples);
+      set = completeSet(set);
+
+      expect(set.reps[0].concentric.samples.length).toBe(10);
+    });
   });
 });
 

@@ -165,14 +165,32 @@ const LEADING_ARTIFACT_DISPLACEMENT_M = 0.02;
 const LEADING_ARTIFACT_MIN_SAMPLES = 2;
 
 /**
+ * Minimum samples a phase must retain for the re-cut to describe motion at
+ * all. Two points are the fewest that can span a displacement or a duration;
+ * a single surviving sample yields ROM 0 and duration 0, which reads
+ * downstream as a confident "this rep did not move" rather than the truthful
+ * "this phase is too short to say."
+ */
+const LEADING_ARTIFACT_MIN_REMAINING = 2;
+
+/**
  * Trim leading samples that haven't yet moved
  * `LEADING_ARTIFACT_DISPLACEMENT_M` from the phase's own first sample.
  *
- * A no-op (returns `phase` unchanged) when fewer than
- * `LEADING_ARTIFACT_MIN_SAMPLES` samples stay within the floor -- a clean
- * rep 1 start is never truncated -- or when NO sample ever clears it, since
- * there is then no real-motion anchor to re-cut to and guessing would be
- * worse than leaving the (short, low-signal) phase as recorded.
+ * A no-op (returns `phase` unchanged) in three cases, all the same principle
+ * -- refuse the cut rather than guess:
+ *   - fewer than `LEADING_ARTIFACT_MIN_SAMPLES` samples stay within the
+ *     floor, so a clean rep 1 start is never truncated;
+ *   - NO sample ever clears the floor, leaving no real-motion anchor to
+ *     re-cut to;
+ *   - the cut would leave fewer than `LEADING_ARTIFACT_MIN_REMAINING`
+ *     samples. This happens when the ONLY sample clearing the floor is at
+ *     the very end of the phase -- a phase that drifted slowly across the
+ *     threshold rather than one that opened with an engagement artifact and
+ *     then drove. Observed on real hardware (1 of 446 pre-fix concentric
+ *     phases): 12 samples whose net travel was 2.3cm, cut at index 11.
+ *     Cutting there would collapse a low-signal phase into a zero-ROM,
+ *     zero-duration one, which is a stronger claim than the data supports.
  */
 function trimLeadingArtifact(phase: Phase): Phase {
   if (phase.samples.length === 0) return phase;
@@ -183,6 +201,7 @@ function trimLeadingArtifact(phase: Phase): Phase {
   );
 
   if (cutIndex < LEADING_ARTIFACT_MIN_SAMPLES) return phase;
+  if (phase.samples.length - cutIndex < LEADING_ARTIFACT_MIN_REMAINING) return phase;
   return rebuildPhaseFromSamples(phase.samples.slice(cutIndex));
 }
 
