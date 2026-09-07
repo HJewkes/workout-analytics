@@ -9,41 +9,79 @@ Ordered roughly by severity.
 
 ---
 
-## 1. `calculateFrameLoad`'s chains ramp models INVERSE chains, not chains
+## 1. `calculateFrameLoad`'s chains direction is UNRESOLVED — the SDK contradicts itself
 
 `src/models/load.ts` — `chainsFactor = clamp(1 − position / chainsFullExtension, 0, 1)`
 
 The ramp is **descending** in extension: maximum at `position = 0`, zero at full
-extension. That is the opposite of physical barbell chains, where links leaving
-the floor transfer their weight onto the bar and resistance **rises** through the
+extension. `WorkoutSample.position` is 0 at rest and grows with extension, and the
+concentric is the extending phase, so this term *reduces* resistance through the
 concentric.
 
-It is also the opposite of what this device calls regular chains.
-`voltra-node-sdk` `src/sdk/voltra-client.ts:693-700` documents `setInverseChains`
-as:
+Whether that is right depends on which direction the device's regular chains
+actually ramp — and `voltra-node-sdk` states **both answers**, in the same
+release.
 
-> "Inverse chains reduce resistance during the concentric (lifting) phase and add
-> resistance during the eccentric (lowering) phase - opposite of regular chains."
+**Says chains DESCEND with extension (agrees with the code as written):**
 
-`WorkoutSample.position` is 0 at rest and grows with extension, and the concentric
-is the extending phase. So a term that falls with position reduces resistance
-through the concentric — the device's **inverse**-chains behaviour, carried under
-the name `chains`.
+- `README.md:111` — "**Chains** | 0-100 lbs | Reverse resistance - reduces load as
+  you extend"
+- `README.md:112` — "**Inverse Chains** | 0-100 lbs | Progressive resistance -
+  increases load as you extend"
+- `src/sdk/voltra-client.ts:672` — `setChains` is named "chains (reverse
+  resistance)"
+- `README.md:68-69` and `examples/node/basic-connection.ts:67,71` repeat the same
+  pairing ("reduces load as you extend" / "increases load as you extend")
 
-Two consequences:
+**Says chains ASCEND with extension (would make the code the inverse mode):**
+
+- `src/sdk/voltra-client.ts:693-700`, `setInverseChains` — "Inverse chains reduce
+  resistance during the concentric (lifting) phase and add resistance during the
+  eccentric (lowering) phase - opposite of regular chains."
+- The physical barbell-chain metaphor the feature is named after, where links
+  leaving the floor transfer weight onto the bar and resistance rises through the
+  concentric.
+
+`README.md:112` and the `setInverseChains` JSDoc were added by the **same commit**
+(`52e38ef`, 2026-02-15, per `MIGRATION.md:247` "added inverse chains
+documentation") and directly contradict each other about the same mode: one says
+inverse chains *increase* load as you extend, the other says they *reduce* it
+through the concentric. Neither can be treated as authoritative.
+
+There is currently **no empirical tiebreaker**: no recorded set in the local
+session store has `chains_lbs` set (114 sets, all NULL), so no force-vs-position
+trace exists to settle it. `voltras-mcp` stores `inverse_chains` as a boolean flag
+(`src/store/sqlite-store.ts:2163`, `row.inverse_chains !== 0`), which loses the
+pounds value and so cannot help either.
+
+Consequences, unchanged by which answer is right:
 
 - If the sign is wrong, every chains-set load is wrong, and no ratio-based
   analytic will reveal it — the error is monotone in position, so ROM ratios,
   velocity loss and fatigue indices all look normal.
 - `LoadSettings` has no `inverseChains` field at all, so the device's inverse-chains
-  mode (exposed as a weight in pounds, not a boolean) is entirely unmodelled.
+  mode (exposed by the SDK as a weight in pounds, not a boolean) is entirely
+  unmodelled — regardless of which ramp it turns out to be.
 
-`eccentric` is **not** affected — it is correctly phase-gated to
-`MovementPhase.ECCENTRIC`.
+`eccentric` is **not** affected by the direction question — it is correctly
+phase-gated to `MovementPhase.ECCENTRIC`. (Separately: the SDK now documents
+`setEccentric` as taking **pounds** of overload, not a percentage of base weight
+— `src/sdk/voltra-client.ts:719-731`. `LoadSettings.eccentric` is a percentage.
+That unit mismatch is its own unfiled issue.)
 
-**Not fixed here deliberately.** Flipping the direction changes every chains-set
-load and needs its own change with its own review. The 2.0.0 tests pin the current
-shape as a change-detector, explicitly not as a validated physical model.
+**Not fixed.** An attempt was made to flip `chains` to ascending and add an
+`inverseChains` term as its mirror; it was stopped at the verification step on
+finding the contradiction above. The direction flip moves every chains-set load,
+so it must not be made on a 50/50 reading of the docs. What is needed first is one
+instrumented set on hardware: set `chains` to a nonzero weight with a nonzero base
+weight, record force against position through a full rep, and observe which end of
+the stroke carries the extra resistance. The 2.0.0 tests pin the current shape as a
+change-detector, explicitly not as a validated physical model.
+
+Note that the position-vs-phase modelling question *is* settled: a pure position
+ramp does reproduce the SDK's phase language, because position rises through the
+concentric and falls through the eccentric. So whichever direction is correct,
+neither chains term needs phase gating — only the sign is open.
 
 ## 2. `findOutlierReps` is mathematically unreachable for n ≤ 5
 
