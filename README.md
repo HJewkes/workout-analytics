@@ -21,9 +21,12 @@ A hardware-agnostic TypeScript library for analyzing workout telemetry data. Pro
 | --- | --- | --- |
 | `@voltras/workout-analytics` | Existing analytics surface (reps, sets, VBT). | — |
 | `@voltras/workout-analytics/schema` | Schema record types and zod validators. | — |
+| `@voltras/workout-analytics/view` | Derived workout-view metrics (RPE, e1RM, tempo, per-rep velocity, volume status). The intended door for these — see [Derived metrics: the `/view` subpath](#derived-metrics-the-view-subpath). | — |
 | `@voltras/workout-analytics/store` | `SessionStore` interface, error classes, transaction shim. | — |
 | `@voltras/workout-analytics/store/sqlite-node` | Node SQLite driver. | `better-sqlite3@^11` |
 | `@voltras/workout-analytics/store/sqlite-expo` | Expo / React Native SQLite driver. | `expo-sqlite@^15` |
+
+These six are the package's complete set of public entry points — every subpath declared in `package.json`'s `exports` map.
 
 The SQLite drivers are declared as **optional peer dependencies**. Install only the driver you need:
 
@@ -190,6 +193,27 @@ Set
 | `getPhaseMeanForce(phase)` | Mean force during movement |
 | `getPhaseRangeOfMotion(phase)` | Absolute position change, in metres |
 
+### Derived metrics: the `/view` subpath
+
+`@voltras/workout-analytics/view` is the intended sole consumer door for derived workout-view metrics — RPE estimation, e1RM tracking, tempo, per-rep velocity, weight deviation, and volume status:
+
+```typescript
+import { estimateSetRpe, bestE1RMAcrossSets, classifyWeeklyVolume } from '@voltras/workout-analytics/view';
+```
+
+| Export | Description |
+|----------|-------------|
+| `estimateSetRpe(set, ...)` | Estimated RPE for a completed set |
+| `velocityLossVerdict(...)` | Velocity-loss banding verdict |
+| `getSetRepPeakVelocities(set)` / `getSetRepMeanVelocities(set)` | Per-rep peak/mean velocity arrays |
+| `getSetTempoSeconds(set)` | Tempo phases in seconds |
+| `bestE1RMAcrossSets(sets)` / `isNewE1RM(...)` | Estimated 1RM tracking |
+| `weightDeviationRatio(...)` | Prescribed-vs-actual weight deviation |
+| `classifyWeeklyVolume(...)` | Weekly volume status against landmarks |
+| `E1RMSetInput` / `VolumeLandmarks` / `VolumeStatusName` / `VelocityLossVerdict` | Types |
+
+These same functions are also re-exported from the package root, but that root re-export is **deprecated**: it is kept for one minor release as a compatibility window, then removed (see the 2.3.0 entry in `CHANGELOG.md`). New code should import from `/view`; existing root imports should migrate before the window closes.
+
 ### Drift Guard
 
 Execution-comparability gate. Run it before any cross-session comparison (progression, MRV / underperformance): if tempo or ROM moved too far between the two sessions, the comparison is not measuring what it claims to.
@@ -262,7 +286,12 @@ npm run lint
 
 # Build
 npm run build
+
+# Verify public exports resolve as a consumer would
+npm run check:exports
 ```
+
+`check:exports` packs the library, installs the tarball into a scratch project, and imports every public door (root, `/view`, `/schema`, ...) the way a real consumer would — catching cases where the `exports` map and the built output have drifted apart. Run it after `npm run build` and whenever you add, remove, or move a public export, since `typecheck` alone resolves against source, not the packed tarball.
 
 ## License
 
