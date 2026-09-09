@@ -202,7 +202,7 @@ import { estimateSetRpe, bestE1RMAcrossSets, classifyWeeklyVolume } from '@voltr
 ```
 
 | Export | Description |
-|----------|-------------|
+|--------|-------------|
 | `estimateSetRpe(set, ...)` | Estimated RPE for a completed set |
 | `velocityLossVerdict(...)` | Velocity-loss banding verdict |
 | `getSetRepPeakVelocities(set)` / `getSetRepMeanVelocities(set)` | Per-rep peak/mean velocity arrays |
@@ -291,7 +291,7 @@ npm run build
 npm run check:exports
 ```
 
-`check:exports` packs the library, installs the tarball into a scratch project, and imports every public door (root, `/view`, `/schema`, ...) the way a real consumer would — catching cases where the `exports` map and the built output have drifted apart. Run it after `npm run build` and whenever you add, remove, or move a public export, since `typecheck` alone resolves against source, not the packed tarball.
+`check:exports` packs the library, installs the tarball into a scratch project, and imports the root, `/view`, and `/schema` doors the way a real consumer would — catching cases where the `exports` map and the built output have drifted apart. It does **not** cover `/store`, `/store/sqlite-node`, or `/store/sqlite-expo`; the two drivers need their optional peer dependencies (`better-sqlite3`, `expo-sqlite`), which the scratch project doesn't install, and `/store` itself is simply not exercised by the script. Run it after `npm run build` and whenever you add, remove, or move a public export, since `typecheck` alone resolves against source, not the packed tarball.
 
 ## License
 
