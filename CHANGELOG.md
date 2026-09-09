@@ -4,6 +4,14 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.3.0
+
+### Added
+
+- **`@voltras/workout-analytics/view` subpath (VW-64, 1/2).** The view-model functions (`estimateSetRpe`, `velocityLossVerdict`, `getSetRepPeakVelocities`, `getSetRepMeanVelocities`, `getSetTempoSeconds`, `bestE1RMAcrossSets`, `isNewE1RM`, `weightDeviationRatio`, `classifyWeeklyVolume`, and the `VolumeLandmarks` / `VolumeStatusName` / `VelocityLossVerdict` / `E1RMSetInput` types) are now reachable through a dedicated `./view` export, the intended sole consumer door for derived metrics. The root barrel keeps re-exporting them for one minor as a compatibility window (deprecated there).
+- **Root re-exports of the weekly volume time-series API (VW-201).** `getWeeklySummaries`, `getVolumeByMuscleGroup`, `WeeklySummary`, `VolumeByMuscleGroup`, and `MetricKey` are exported from the package root; they were previously internal to `analytics/time-series`.
+- **`npm run check:exports`.** Packs the library, installs the tarball into a scratch project, and imports every public door as a consumer would (`scripts/check-exports.mjs`).
+
 ## 2.1.0
 
 ### Added

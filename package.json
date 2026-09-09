@@ -1,6 +1,6 @@
 {
   "name": "@voltras/workout-analytics",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Hardware-agnostic workout analytics library for analyzing reps, sets, estimating RPE/RIR, calculating strength (1RM), velocity profiles, and fatigue estimates",
   "type": "module",
   "module": "./dist/esm/index.js",
@@ -57,7 +57,8 @@
     "docs:api": "typedoc --out docs/api src/index.ts",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build && npm run test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "check:exports": "node scripts/check-exports.mjs"
   },
   "dependencies": {
     "zod": "^3.23.0"
