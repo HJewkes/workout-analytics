@@ -401,11 +401,16 @@ export {
 
 // Analytics - Time Series (cross-session aggregation, T25)
 export {
+  type MetricKey,
+  type WeeklySummary,
+  type VolumeByMuscleGroup,
   type MetricTimeSeries,
   type MetricTimeSeriesPoint,
   type ProcessedSession,
   type ProcessedSet,
   buildTimeSeries,
+  getWeeklySummaries,
+  getVolumeByMuscleGroup,
 } from './analytics';
 
 // Analytics - Fatigue Verdict (always-on live set verdict + per-dimension lights)
