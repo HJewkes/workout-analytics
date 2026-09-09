@@ -9,6 +9,7 @@
  * This file deliberately does NOT depend on the sample-based `Set` model;
  * those primitives belong in set-analytics / session.ts.
  *
+ * VW-201 follow-up: getWeeklySummaries, getVolumeByMuscleGroup, WeeklySummary, VolumeByMuscleGroup, and MetricKey are not re-exported from src/index.ts today (only src/analytics/index.ts); voltras-mcp needs them — separate versioned change, not done here.
  */
 
 import {
@@ -459,6 +460,14 @@ export function getWeeklySummaries(
  * whose `exerciseId` is unknown to the lookup are skipped for attribution
  * but still count toward `totalVolumeLbs`, so callers can detect coverage
  * gaps.
+ *
+ * Decision record (B47, voltras-mcp#263): set-counting toward MEV/MRV
+ * landmarks by muscle group credits the PRIMARY muscle group only.
+ * Weighted or fractional synergist counting was RP's own explored path for
+ * a single non-responding-muscle diagnostic — built, then scrapped — so it
+ * stays deferred as a future diagnostic, not built speculatively here. This
+ * is unrelated to the weight×reps volume split above, which already
+ * fractions evenly across all muscle groups.
  */
 export function getVolumeByMuscleGroup(
   sessions: ReadonlyArray<ProcessedSession>,
