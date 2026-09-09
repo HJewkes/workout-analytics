@@ -401,11 +401,16 @@ export {
 
 // Analytics - Time Series (cross-session aggregation, T25)
 export {
+  type MetricKey,
+  type WeeklySummary,
+  type VolumeByMuscleGroup,
   type MetricTimeSeries,
   type MetricTimeSeriesPoint,
   type ProcessedSession,
   type ProcessedSet,
   buildTimeSeries,
+  getWeeklySummaries,
+  getVolumeByMuscleGroup,
 } from './analytics';
 
 // Analytics - Fatigue Verdict (always-on live set verdict + per-dimension lights)
@@ -425,6 +430,9 @@ export {
 } from './analytics';
 
 // Analytics - View-Model Derivations (exact, unrounded metrics for workout views)
+// @deprecated Import from `@voltras/workout-analytics/view` instead (VW-64).
+// Kept here for one minor as a compatibility window; will be removed from the
+// root barrel in a future major.
 export {
   type E1RMSetInput,
   type VolumeLandmarks,
