@@ -4,6 +4,12 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- **README now documents the `/view` subpath, the full public entry-point list, and `npm run check:exports`.** The 2.3.0 `/view` subpath and the deprecated-root-re-export compatibility window went unmentioned in the README; both are now documented, alongside a complete table of the package's `exports`-map subpaths and what `check:exports` verifies.
+
 ## 2.3.0
 
 ### Added

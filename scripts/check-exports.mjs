@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Packs the library, installs the tarball into a scratch project, and imports
-// every public door the way a consumer would. Run after `npm run build`.
+// the root, `/view`, and `/schema` doors the way a consumer would. Does not
+// cover `/store`, `/store/sqlite-node`, or `/store/sqlite-expo` — the two
+// drivers need optional peer deps (better-sqlite3, expo-sqlite) this scratch
+// project doesn't install. Run after `npm run build`.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
