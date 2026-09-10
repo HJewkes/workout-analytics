@@ -29,6 +29,7 @@ import {
   VBT_DEFAULT_FATIGUE_LAMBDA,
 } from '@/analytics/fatigue';
 import { createInterpolationScheme, createBreakpointScheme } from '@/stats/schemes';
+import { getZScore } from '@/stats/distribution';
 import { createSet, addSampleToSet } from '@/models/set';
 import { MovementPhase } from '@/models/types';
 import type { WorkoutSample } from '@/models/sample';
@@ -132,6 +133,20 @@ function createSetWithOutlier(): Set {
     ...createRepSamples(20, 16000, 0.5, 1.0, 1000),
   ];
   return buildSet(samples);
+}
+
+/**
+ * The KNOWN-ISSUES-2026-07-27.md:108-111 reproduction: five reps, the last at
+ * one third the ROM of its neighbours, velocity and tempo held constant.
+ */
+function buildRomCollapseSet(): Set {
+  return buildSet([
+    ...createRepSamples(0, 1000, 0.5, 0.6, 1000),
+    ...createRepSamples(4, 4000, 0.5, 0.6, 1000),
+    ...createRepSamples(8, 7000, 0.5, 0.6, 1000),
+    ...createRepSamples(12, 10000, 0.5, 0.6, 1000),
+    ...createRepSamples(16, 13000, 0.5, 0.2, 1000),
+  ]);
 }
 
 function createEmptySet(): Set {
@@ -353,6 +368,60 @@ describe('findOutlierReps()', () => {
     const outliers = findOutlierReps(set, { outlier: lenientScheme });
 
     expect(outliers.length).toBe(0);
+  });
+});
+
+// =============================================================================
+// Baseline pins — behaviour BEFORE the KNOWN-ISSUES-2026-07-27 §2/§7 fixes.
+// Written against unmodified source so the change they describe is provable.
+// =============================================================================
+
+describe('BASELINE findOutlierReps() on a 5-rep set (KNOWN-ISSUES §2)', () => {
+  it('returns [] for ROMs [0.6, 0.6, 0.6, 0.6, 0.2]', () => {
+    const outliers = findOutlierReps(buildRomCollapseSet());
+
+    expect(outliers).toEqual([]);
+  });
+
+  it('leaves the collapsed rep at |z| = 1.7889, the largest value n=5 allows', () => {
+    const set = buildRomCollapseSet();
+    const dist = getSetROMDistribution(set);
+    const zScores = [0.6, 0.6, 0.6, 0.6, 0.2].map((rom) => getZScore(dist, rom));
+
+    // Samuelson's inequality with Bessel's correction bounds |z| at
+    // (n - 1) / sqrt(n) = 1.7889 for n = 5 (KNOWN-ISSUES-2026-07-27.md:96-104).
+    expect(Math.max(...zScores.map(Math.abs))).toBeCloseTo(1.7889, 4);
+    expect(Math.max(...zScores.map(Math.abs))).toBeLessThan(2.0);
+  });
+});
+
+describe('BASELINE computeVBTSetFatigueIndex() weight redistribution (KNOWN-ISSUES §7)', () => {
+  it('gives a missing ROM weight entirely to velocity, not proportionally', () => {
+    // Rep 1 has zero ROM, so romRatio is null while tempo creep still computes.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.6, 0, 1000),
+      ...createRepSamples(4, 4000, 0.42, 0.9, 1200),
+    ]);
+    const result = computeVBTSetFatigueIndex(set);
+
+    expect(result.romRatio).toBeNull();
+    // velocity absorbs 0.15: 0.3 * 0.85 + 0.2 * 0.15 = 0.285.
+    // Proportional redistribution would give 0.3 * 0.82353 + 0.2 * 0.17647 = 0.282353.
+    expect(result.fatigueIndex).toBeCloseTo(0.285, 6);
+  });
+
+  it('gives a missing tempo weight entirely to velocity, not proportionally', () => {
+    // Rep 1 has a zero-duration concentric, so tempoCrepRatio is null.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.6, 1.0, 0),
+      ...createRepSamples(4, 4000, 0.42, 0.9, 1200),
+    ]);
+    const result = computeVBTSetFatigueIndex(set);
+
+    expect(result.tempoCrepRatio).toBeNull();
+    // velocity absorbs 0.15: 0.3 * 0.85 + 0.1 * 0.15 = 0.27.
+    // Proportional redistribution would give 0.3 * 0.82353 + 0.1 * 0.17647 = 0.264706.
+    expect(result.fatigueIndex).toBeCloseTo(0.27, 6);
   });
 });
 
