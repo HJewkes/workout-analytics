@@ -1,11 +1,15 @@
 # Known issues — filed 2026-07-27
 
 Findings from the adversarial math/physics review of the 2.0.0 position-units PR
-(#25). Each was **verified against source** at the cited location. None is fixed
-here: they are pre-existing and out of scope for a units change, and fixing them
-inside that PR would have made its diff unreviewable. Filed so they are not lost.
+(#25). Each was **verified against source** at the cited location. None was fixed
+at filing time: they are pre-existing and out of scope for a units change, and
+fixing them inside that PR would have made its diff unreviewable. Filed so they
+are not lost.
 
 Ordered roughly by severity.
+
+**Status:** items 2 and 7 are FIXED (see the notes on each). Items 1, 3, 4, 5 and
+6 remain open.
 
 ---
 
@@ -83,7 +87,7 @@ ramp does reproduce the SDK's phase language, because position rises through the
 concentric and falls through the eccentric. So whichever direction is correct,
 neither chains term needs phase gating — only the sign is open.
 
-## 2. `findOutlierReps` is mathematically unreachable for n ≤ 5
+## 2. `findOutlierReps` is mathematically unreachable for n ≤ 5 — **FIXED**
 
 `src/analytics/fatigue.ts:379-433`, threshold `src/stats/schemes.ts:191-194`
 
@@ -112,6 +116,24 @@ max `|z| = 1.7889` and `findOutlierReps` returns `[]`.
 
 Fix: an n-aware threshold (Grubbs' critical value), or an explicit documented
 `n >= 6` gate so callers stop expecting it to fire.
+
+**FIXED** — the n-aware threshold was taken, not the gate. `findOutlierReps` now
+compares each metric's largest within-set |z| against Grubbs' critical value for
+the rep count (`src/stats/grubbs.ts`, NIST/SEMATECH e-Handbook §1.3.5.17). The
+critical value sits strictly inside the Samuelson bound at every n ≥ 3, so the
+test is reachable at all rep counts the function accepts: 1.1543 / 1.4812 /
+1.7150 / 1.8871 at n = 3 / 4 / 5 / 6, against the bounds above. The
+`[0.6, 0.6, 0.6, 0.6, 0.2]` reproduction now returns the rep-5 ROM outlier.
+
+The gate answer was rejected because it keeps the function useless on 3-5 rep
+sets, which the finding above identifies as its primary input.
+
+Two consequences of the fix, both deliberate: Grubbs tests one outlier at a
+time, so at most one rep is returned per metric (the largest |z|); and
+`FatigueSchemes.outlier` is no longer read by this function, replaced by
+`FatigueSchemes.outlierAlpha`. `DEFAULT_OUTLIER_SCHEME` is untouched and still
+serves `compareToExpectation` and `getRepQualityFlags`, whose z-scores are
+against an external baseline where a fixed cut is sound.
 
 ## 3. `detectPlateau`'s early `break` under-reports plateau length
 
@@ -177,7 +199,7 @@ is most real progressions.
 Fix: scale the threshold to the series (e.g. a fraction of its mean or SD), or
 require it per metric.
 
-## 7. `computeVBTSetFatigueIndex` does not redistribute weight as documented
+## 7. `computeVBTSetFatigueIndex` does not redistribute weight as documented — **FIXED**
 
 `src/analytics/fatigue.ts:559-562` (doc) vs `:608-612` (implementation)
 
@@ -189,3 +211,21 @@ primary signal — but it is not what the doc says, and it changes the index for
 every single-rep or zero-baseline set relative to the documented behaviour.
 
 Fix the doc or the code; they cannot both be right.
+
+**FIXED by changing the DOC.** The code is unchanged and no index value moves.
+Reasons, in order of weight:
+
+1. `voltras-mcp` consumes this function in its live fatigue path
+   (`src/tools/metrics-tools.ts:293`, per-set `fatigueIndex`, and `:1326`,
+   `velLossPct`). A silent numeric shift in a reading a coach is watching
+   mid-session is worse than a docstring that was wrong.
+2. The VBT autoregulation spec §6.2 (`voltra_vbt_autoregulation_spec.md:384-390`)
+   does not state a redistribution rule at all: it gives the augmentations as
+   options on a velocity-loss base. So the spec does not favour proportional
+   over velocity-absorbing, and there is no authority to override the shipped
+   behaviour.
+3. Velocity loss is the primary signal, which makes absorbing the missing weight
+   there the defensible reading the finding above already grants.
+
+`src/analytics/fatigue.test.ts` now pins the velocity-absorbing arithmetic on
+both the ROM-missing and tempo-missing cases, so this cannot drift back.

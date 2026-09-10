@@ -26,12 +26,12 @@ import {
   getCV,
   getZScore,
 } from '@/stats/distribution';
+import { GRUBBS_DEFAULT_ALPHA, grubbsCriticalValue } from '@/stats/grubbs';
 import {
   interpolate,
   classifyByBreakpoints,
   DEFAULT_RIR_SCHEME,
   DEFAULT_CONSISTENCY_SCHEME,
-  DEFAULT_OUTLIER_SCHEME,
   type InterpolationScheme,
   type BreakpointScheme,
 } from '@/stats/schemes';
@@ -48,8 +48,17 @@ export interface FatigueSchemes {
   rir?: InterpolationScheme;
   /** CV to consistency classification */
   consistency?: BreakpointScheme<'stable' | 'variable' | 'erratic'>;
-  /** Z-score threshold for outlier detection */
+  /**
+   * Z-score threshold for outlier detection.
+   *
+   * @deprecated No longer read by `findOutlierReps`, which now uses Grubbs'
+   * critical value. A fixed z cut cannot work on a within-set distribution:
+   * it is unreachable for n <= 5. Use `outlierAlpha`. Still honoured by
+   * `getRepQualityFlags`, whose z-scores are against an external baseline.
+   */
   outlier?: BreakpointScheme<boolean>;
+  /** Significance level for Grubbs' test in `findOutlierReps` (default 0.05) */
+  outlierAlpha?: number;
 }
 
 /**
@@ -106,6 +115,8 @@ export interface OutlierRep {
   zScore: number;
   /** Direction of deviation */
   direction: 'high' | 'low';
+  /** Grubbs critical value this z-score was compared against */
+  criticalValue: number;
 }
 
 // =============================================================================
@@ -374,62 +385,57 @@ export function getSetConsistencyScore(set: Set, schemes?: FatigueSchemes): Cons
 // =============================================================================
 
 /**
- * Find reps that are statistical outliers within the set.
+ * Find reps that are statistical outliers within the set, by Grubbs' test.
+ *
+ * A within-set z-score is compared against Grubbs' critical value for this
+ * set's rep count, NOT against a fixed cut. Samuelson's inequality bounds |z|
+ * at `(n - 1) / sqrt(n)` here, so the fixed 2.0 this used to apply was
+ * unreachable at n <= 5 and the function could not fire on a 3-, 4- or
+ * 5-rep set whatever the data (`KNOWN-ISSUES-2026-07-27.md:86-114`).
+ *
+ * Grubbs tests one outlier at a time, so at most one rep is returned per
+ * metric: the one with the largest |z|. Iterated detection of a second
+ * outlier is deliberately not implemented — it needs a stopping rule that no
+ * source here states.
+ *
+ * Still requires at least 3 reps, below which the test is undefined.
  */
 export function findOutlierReps(set: Set, schemes?: FatigueSchemes): OutlierRep[] {
-  const outlierScheme = schemes?.outlier ?? DEFAULT_OUTLIER_SCHEME;
-  const outliers: OutlierRep[] = [];
-
-  if (set.reps.length < 3) {
-    return outliers; // Need at least 3 reps for meaningful outlier detection
+  const n = set.reps.length;
+  if (n < 3) {
+    return [];
   }
 
-  const velocityDist = getSetVelocityDistribution(set);
-  const romDist = getSetROMDistribution(set);
-  const tempoDist = getSetTempoDistribution(set);
+  const criticalValue = grubbsCriticalValue(n, schemes?.outlierAlpha ?? GRUBBS_DEFAULT_ALPHA);
 
-  const velocities = getSetRepVelocities(set);
-  const roms = getSetRepROMs(set);
-  const tempos = getSetTempoValues(set);
+  return [
+    findMostExtremeRep(getSetVelocityDistribution(set), getSetRepVelocities(set), 'velocity'),
+    findMostExtremeRep(getSetROMDistribution(set), getSetRepROMs(set), 'rom'),
+    findMostExtremeRep(getSetTempoDistribution(set), getSetTempoValues(set), 'tempo'),
+  ]
+    .filter((candidate) => Math.abs(candidate.zScore) > criticalValue)
+    .map((candidate) => ({ ...candidate, criticalValue }));
+}
 
-  for (let i = 0; i < set.reps.length; i++) {
-    const repNumber = i + 1;
-
-    // Check velocity
-    const velZScore = getZScore(velocityDist, velocities[i]);
-    if (classifyByBreakpoints(Math.abs(velZScore), outlierScheme)) {
-      outliers.push({
-        repNumber,
-        metric: 'velocity',
-        zScore: velZScore,
-        direction: velZScore > 0 ? 'high' : 'low',
-      });
-    }
-
-    // Check ROM
-    const romZScore = getZScore(romDist, roms[i]);
-    if (classifyByBreakpoints(Math.abs(romZScore), outlierScheme)) {
-      outliers.push({
-        repNumber,
-        metric: 'rom',
-        zScore: romZScore,
-        direction: romZScore > 0 ? 'high' : 'low',
-      });
-    }
-
-    // Check tempo
-    const tempoZScore = getZScore(tempoDist, tempos[i]);
-    if (classifyByBreakpoints(Math.abs(tempoZScore), outlierScheme)) {
-      outliers.push({
-        repNumber,
-        metric: 'tempo',
-        zScore: tempoZScore,
-        direction: tempoZScore > 0 ? 'high' : 'low',
-      });
-    }
+/** The rep whose value sits furthest from the set mean, in z units. */
+function findMostExtremeRep(
+  dist: StreamingDistribution,
+  values: number[],
+  metric: OutlierRep['metric']
+): Omit<OutlierRep, 'criticalValue'> {
+  const zScores = values.map((value) => getZScore(dist, value));
+  let extreme = 0;
+  for (let i = 1; i < zScores.length; i++) {
+    if (Math.abs(zScores[i]) > Math.abs(zScores[extreme])) extreme = i;
   }
 
-  return outliers;
+  const zScore = zScores[extreme];
+  return {
+    repNumber: extreme + 1,
+    metric,
+    zScore,
+    direction: zScore > 0 ? 'high' : 'low',
+  };
 }
 
 // =============================================================================
@@ -559,8 +565,13 @@ export interface VBTSetFatigueIndexResult {
  *   - ROM shrinkage: range-of-motion decrease from first to last rep.
  *
  * When an augmentation cannot be computed (single-rep set, zero baseline),
- * its weight is redistributed proportionally to the remaining components
- * so the weights always sum to 1.
+ * its weight goes entirely to velocity loss, the primary signal, so the
+ * weights always sum to 1. This is deliberately NOT a proportional
+ * redistribution across the remaining components: the doc promised
+ * proportional and the code has always done otherwise
+ * (`KNOWN-ISSUES-2026-07-27.md:180-193`), and the doc is the side that was
+ * wrong. Switching the code would move a published index on every single-rep
+ * and zero-baseline set, including in `voltras-mcp`'s live fatigue readout.
  *
  * Returns `fatigueIndex` clamped to [0, 1].
  */
@@ -601,7 +612,7 @@ export function computeVBTSetFatigueIndex(
     }
   }
 
-  // Redistribute weight from unavailable components.
+  // Move weight from unavailable components onto velocity — see the docstring.
   const tempoAvail = tempoCrepRatio !== null;
   const romAvail = romRatio !== null;
 

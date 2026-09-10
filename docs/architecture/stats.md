@@ -125,7 +125,26 @@ Used by `getSetConsistencyScore` (`src/analytics/fatigue.ts:331-352`).
 | < 2.0 | `false` |
 | ≥ 2.0 | `true` |
 
-Used by `compareToExpectation` (`src/analytics/types.ts:121-151`), `findOutlierReps` (`src/analytics/fatigue.ts:361-415`), `getRepQualityFlags` (`src/analytics/quality.ts:120-150`).
+Used by `compareToExpectation` (`src/analytics/types.ts:121-151`) and `getRepQualityFlags` (`src/analytics/quality.ts:120-150`). Both score against an EXTERNAL baseline distribution, where a fixed cut is fine.
+
+**Not** used by `findOutlierReps`, whose z-scores are within-set: Samuelson's inequality bounds those at `(n-1)/√n`, so 2.0 is unreachable for n ≤ 5. That function uses Grubbs' critical value instead — see below.
+
+### `grubbsCriticalValue(n, alpha)` (`src/stats/grubbs.ts`)
+
+Two-sided Grubbs critical value for a single outlier, per NIST/SEMATECH e-Handbook §1.3.5.17:
+
+    G_crit = ((n - 1) / √n) * √(t² / (n - 2 + t²))
+
+with `t` the upper t critical value at `alpha / (2n)` on `n - 2` degrees of freedom. `alpha` defaults to `GRUBBS_DEFAULT_ALPHA = 0.05`, the level the published table uses. `studentTTwoSidedTail(t, nu)` supplies the t distribution in closed form for integer `nu` (Abramowitz & Stegun 26.7.3 / 26.7.4), so no dependency is needed. `maxAbsZScore(n)` returns the Samuelson bound `(n - 1) / √n`.
+
+| n | `maxAbsZScore` | `grubbsCriticalValue(n, 0.05)` |
+| --- | --- | --- |
+| 3 | 1.1547 | 1.1543 |
+| 4 | 1.5000 | 1.4812 |
+| 5 | 1.7889 | 1.7150 |
+| 6 | 2.0412 | 1.8871 |
+| 10 | 2.8460 | 2.2900 |
+| 20 | 4.2485 | 2.7082 |
 
 ### `DEFAULT_QUALITY_SCHEME` (`:203-209`)
 

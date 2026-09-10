@@ -360,27 +360,70 @@ describe('findOutlierReps()', () => {
     expect(outliers.length).toBe(0);
   });
 
-  it('uses custom outlier scheme', () => {
-    const set = createSetWithOutlier();
+  it('reports the Grubbs critical value it compared against', () => {
+    const outliers = findOutlierReps(createSetWithOutlier());
 
-    // Very lenient scheme (z > 10)
-    const lenientScheme = createBreakpointScheme([{ below: 10, value: false }], true);
-    const outliers = findOutlierReps(set, { outlier: lenientScheme });
+    expect(outliers.length).toBeGreaterThan(0);
+    // n = 6 at alpha 0.05, NIST/SEMATECH §1.3.5.17.
+    expect(outliers[0].criticalValue).toBeCloseTo(1.8871, 3);
+  });
 
-    expect(outliers.length).toBe(0);
+  it('returns only the most extreme rep per metric', () => {
+    // Velocities [0.9, 0.5, 0.5, 0.5, 0.5, 0.45] → z = [2.027, ..., -0.643].
+    // Grubbs tests one outlier at a time, so only rep 1 comes back.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.9, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.5, 1.0, 1000),
+      ...createRepSamples(8, 7000, 0.5, 1.0, 1000),
+      ...createRepSamples(12, 10000, 0.5, 1.0, 1000),
+      ...createRepSamples(16, 13000, 0.5, 1.0, 1000),
+      ...createRepSamples(20, 16000, 0.45, 1.0, 1000),
+    ]);
+    const velocityOutliers = findOutlierReps(set).filter((o) => o.metric === 'velocity');
+
+    expect(velocityOutliers).toHaveLength(1);
+    expect(velocityOutliers[0].repNumber).toBe(1);
+    expect(velocityOutliers[0].direction).toBe('high');
+  });
+
+  it('honours a stricter outlierAlpha', () => {
+    // ROMs [0.60, 0.58, 0.62, 0.59, 0.61, 0.45] → max |z| = 1.9889, which sits
+    // above the n=6 critical value at alpha 0.05 (1.8871) and below it at
+    // alpha 0.001 (2.0197).
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.5, 0.6, 1000),
+      ...createRepSamples(4, 4000, 0.5, 0.58, 1000),
+      ...createRepSamples(8, 7000, 0.5, 0.62, 1000),
+      ...createRepSamples(12, 10000, 0.5, 0.59, 1000),
+      ...createRepSamples(16, 13000, 0.5, 0.61, 1000),
+      ...createRepSamples(20, 16000, 0.5, 0.45, 1000),
+    ]);
+
+    expect(findOutlierReps(set).some((o) => o.metric === 'rom')).toBe(true);
+    expect(findOutlierReps(set, { outlierAlpha: 0.001 }).some((o) => o.metric === 'rom')).toBe(
+      false
+    );
   });
 });
 
 // =============================================================================
-// Baseline pins — behaviour BEFORE the KNOWN-ISSUES-2026-07-27 §2/§7 fixes.
-// Written against unmodified source so the change they describe is provable.
+// KNOWN-ISSUES-2026-07-27 §2 / §7. These were written against unmodified
+// source and passed there, pinning [] and 0.285 / 0.27; the outlier
+// assertion below is the one that flipped.
 // =============================================================================
 
-describe('BASELINE findOutlierReps() on a 5-rep set (KNOWN-ISSUES §2)', () => {
-  it('returns [] for ROMs [0.6, 0.6, 0.6, 0.6, 0.2]', () => {
+describe('findOutlierReps() on a 5-rep set (KNOWN-ISSUES §2)', () => {
+  it('flags the collapsed rep for ROMs [0.6, 0.6, 0.6, 0.6, 0.2]', () => {
     const outliers = findOutlierReps(buildRomCollapseSet());
 
-    expect(outliers).toEqual([]);
+    // Returned [] before the Grubbs change: |z| = 1.7889 could not reach the
+    // fixed 2.0 cut at n = 5.
+    const romOutlier = outliers.find((o) => o.metric === 'rom');
+    expect(romOutlier).toBeDefined();
+    expect(romOutlier!.repNumber).toBe(5);
+    expect(romOutlier!.direction).toBe('low');
+    // n = 5 at alpha 0.05, NIST/SEMATECH §1.3.5.17.
+    expect(romOutlier!.criticalValue).toBeCloseTo(1.715, 3);
   });
 
   it('leaves the collapsed rep at |z| = 1.7889, the largest value n=5 allows', () => {
@@ -395,7 +438,7 @@ describe('BASELINE findOutlierReps() on a 5-rep set (KNOWN-ISSUES §2)', () => {
   });
 });
 
-describe('BASELINE computeVBTSetFatigueIndex() weight redistribution (KNOWN-ISSUES §7)', () => {
+describe('computeVBTSetFatigueIndex() weight redistribution (KNOWN-ISSUES §7)', () => {
   it('gives a missing ROM weight entirely to velocity, not proportionally', () => {
     // Rep 1 has zero ROM, so romRatio is null while tempo creep still computes.
     const set = buildSet([
