@@ -97,6 +97,20 @@ describe('analyzeTrend', () => {
       const resultTight = analyzeTrend(series, { flatThresholdPerDay: 0.0001 });
       expect(resultTight.direction).toBe('up');
     });
+
+    it('brackets the supplied threshold: 0.0005/day is flat and 0.0015/day is up', () => {
+      const at = (perDay: number) =>
+        makeSeries(Array.from({ length: 10 }, (_, i) => [i, i * perDay] as [number, number]));
+      const opts = { flatThresholdPerDay: 0.001 };
+      expect(analyzeTrend(at(0.0005), opts).direction).toBe('flat');
+      expect(analyzeTrend(at(0.0015), opts).direction).toBe('up');
+    });
+
+    it('calls a slope exactly equal to the threshold flat, not up', () => {
+      const series = ascendingSeries(6, 1);
+      const { slope } = analyzeTrend(series, { flatThresholdPerDay: 0 });
+      expect(analyzeTrend(series, { flatThresholdPerDay: slope }).direction).toBe('flat');
+    });
   });
 
   describe('R² and confidence', () => {
@@ -240,6 +254,17 @@ describe('detectPlateau', () => {
   });
 
   describe('threshold sensitivity', () => {
+    it('keeps a point deviating exactly the threshold inside the plateau', () => {
+      // median 100, 5% of it is exactly 5.0, and 95 sits exactly 5.0 below
+      const series = makeSeries([
+        [0, 95],
+        [1, 105],
+      ]);
+      const result = detectPlateau(series, 5, 1);
+      expect(result.plateauDays).toBe(1);
+      expect(result.isPlateau).toBe(true);
+    });
+
     it('tighter threshold causes values with small variance to fail', () => {
       // Values deviate 3% from median — passes 5% but fails 2%
       const series = makeSeries([
