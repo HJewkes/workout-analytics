@@ -8,8 +8,8 @@ are not lost.
 
 Ordered roughly by severity.
 
-**Status:** items 2 and 7 are FIXED (see the notes on each). Items 1, 3, 4, 5 and
-6 remain open.
+**Status:** items 2, 3, 6 and 7 are FIXED (see the notes on each). Items 1, 4
+and 5 remain open.
 
 ---
 
@@ -139,7 +139,7 @@ Passing `outlier` logs a one-time `console.warn` rather than failing silently;
 it is scheduled to THROW at the next major (recorded in `CHANGELOG.md` and on
 the field's `@deprecated` comment).
 
-## 3. `detectPlateau`'s early `break` under-reports plateau length
+## 3. `detectPlateau`'s early `break` under-reports plateau length — **FIXED**
 
 `src/analytics/trend.ts:262-268`
 
@@ -154,6 +154,20 @@ breaks, so `[95, 95, 102, 102]` is never tested — though it qualifies (median
 
 Verified empirically: `detectPlateau(series, 5, 1)` returns
 `plateauDays: 1` ("2 points") where the full 4-point window spans 3 days.
+
+**FIXED** — the `break` is gone, so all n runs anchored at the most recent
+point are tested rather than only those up to the first failure. The
+counterexample now returns `plateauDays: 3` over 4 points. Cost is O(n² log n)
+in the point count; callers bucket by session, day or week, so n stays in the
+hundreds for a multi-year history and no window bound was imposed.
+
+`plateauDays` can only grow, never shrink, so `isPlateau` can flip false to
+true and never true to false. On 26-week weekly series (200 trials per shape,
+`thresholdPct` 5): a stepped top-weight progression moves in 10% of trials by
++14 to +35 days, a steady e1RM climb in 12.5% by +14 to +56 days, noisy volume
+in 7.5% by +14 to +35 days (3.5% of those flip `isPlateau` to true), and a true
+stall at a single weight never moves, because it already spanned the whole
+window.
 
 ## 4. `updateBaselineWithPoint`'s documented timestamp default is not implemented
 
@@ -189,7 +203,7 @@ Related, and already documented in 2.0.0 rather than fixed: `getRepTotalWork` su
 two positive magnitudes, so it is not net mechanical work and must not be
 converted to Joules.
 
-## 6. `analyzeTrend`'s flat threshold is an absolute constant on a metric-agnostic series
+## 6. `analyzeTrend`'s flat threshold is an absolute constant on a metric-agnostic series — **FIXED**
 
 `src/analytics/trend.ts:123` — `flatThresholdPerDay ?? 0.001`
 
@@ -202,6 +216,31 @@ is most real progressions.
 
 Fix: scale the threshold to the series (e.g. a fraction of its mean or SD), or
 require it per metric.
+
+**FIXED by requiring it per metric.** Scaling to the series was rejected
+because no source in this repo or in the RP corpus says what fraction of a
+mean or an SD counts as flat, and picking one would put an uncited number at
+the centre of every trend verdict. `analyzeTrend` now resolves the threshold
+from an explicit `flatThresholdPerDay`, else from `FLAT_THRESHOLD_PER_DAY`
+keyed on `opts.metric`, else not at all; with no threshold it returns
+`direction: null` and the raw slope. `TrendAnalysis` also reports the
+`flatThresholdPerDay` the verdict was reached under. The table is typed
+`Record<MetricKey, number | null>`, so the ROM series this finding worried
+about cannot be added without an explicit decision.
+
+One correction to the finding above: **"every current caller is
+velocity-shaped" is false**, and was false when this was filed. The only
+production caller is `voltras-mcp`'s `history.trend`
+(`src/tools/metrics-tools.ts:580`), which calls `analyzeTrend(series)` with no
+options on a `top_weight`, `estimated_1rm` or `volume` series — all in pounds.
+At 0.001 lb/day the threshold never bound, so `direction` was decided by the
+sign of the slope alone whenever `rSquared > 0.3`: a top weight creeping 0.365
+lb a year was reported as "up". That call site is exactly the silent failure
+this item predicted, already in production rather than hypothetical.
+
+`velocity_mean` keeps 0.001 as the sole stated entry. It is the incumbent for
+the units the constant was written in — not a validated figure, and now not
+one with a caller behind it either.
 
 ## 7. `computeVBTSetFatigueIndex` does not redistribute weight as documented — **FIXED**
 
