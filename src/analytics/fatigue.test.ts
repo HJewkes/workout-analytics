@@ -4,7 +4,7 @@
  * Tests for second-order fatigue and consistency assessment functions.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   getSetVelocityChange,
   getSetTempoChange,
@@ -29,6 +29,8 @@ import {
   VBT_DEFAULT_FATIGUE_LAMBDA,
 } from '@/analytics/fatigue';
 import { createInterpolationScheme, createBreakpointScheme } from '@/stats/schemes';
+import { getZScore } from '@/stats/distribution';
+import { isGrubbsOutlier } from '@/stats/grubbs';
 import { createSet, addSampleToSet } from '@/models/set';
 import { MovementPhase } from '@/models/types';
 import type { WorkoutSample } from '@/models/sample';
@@ -132,6 +134,20 @@ function createSetWithOutlier(): Set {
     ...createRepSamples(20, 16000, 0.5, 1.0, 1000),
   ];
   return buildSet(samples);
+}
+
+/**
+ * The KNOWN-ISSUES-2026-07-27.md:108-111 reproduction: five reps, the last at
+ * one third the ROM of its neighbours, velocity and tempo held constant.
+ */
+function buildRomCollapseSet(): Set {
+  return buildSet([
+    ...createRepSamples(0, 1000, 0.5, 0.6, 1000),
+    ...createRepSamples(4, 4000, 0.5, 0.6, 1000),
+    ...createRepSamples(8, 7000, 0.5, 0.6, 1000),
+    ...createRepSamples(12, 10000, 0.5, 0.6, 1000),
+    ...createRepSamples(16, 13000, 0.5, 0.2, 1000),
+  ]);
 }
 
 function createEmptySet(): Set {
@@ -345,14 +361,155 @@ describe('findOutlierReps()', () => {
     expect(outliers.length).toBe(0);
   });
 
-  it('uses custom outlier scheme', () => {
+  it('reports the Grubbs critical value it compared against', () => {
+    const outliers = findOutlierReps(createSetWithOutlier());
+
+    expect(outliers.length).toBeGreaterThan(0);
+    // n = 6 at alpha 0.05, NIST/SEMATECH §1.3.5.17.
+    expect(outliers[0].criticalValue).toBeCloseTo(1.8871, 3);
+  });
+
+  it('returns only the most extreme rep per metric', () => {
+    // Velocities [0.9, 0.5, 0.5, 0.5, 0.5, 0.45] → z = [2.027, ..., -0.643].
+    // Grubbs tests one outlier at a time, so only rep 1 comes back.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.9, 1.0, 1000),
+      ...createRepSamples(4, 4000, 0.5, 1.0, 1000),
+      ...createRepSamples(8, 7000, 0.5, 1.0, 1000),
+      ...createRepSamples(12, 10000, 0.5, 1.0, 1000),
+      ...createRepSamples(16, 13000, 0.5, 1.0, 1000),
+      ...createRepSamples(20, 16000, 0.45, 1.0, 1000),
+    ]);
+    const velocityOutliers = findOutlierReps(set).filter((o) => o.metric === 'velocity');
+
+    expect(velocityOutliers).toHaveLength(1);
+    expect(velocityOutliers[0].repNumber).toBe(1);
+    expect(velocityOutliers[0].direction).toBe('high');
+  });
+
+  it('honours a stricter outlierAlpha', () => {
+    // ROMs [0.60, 0.58, 0.62, 0.59, 0.61, 0.45] → max |z| = 1.9889, which sits
+    // above the n=6 critical value at alpha 0.05 (1.8871) and below it at
+    // alpha 0.001 (2.0197).
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.5, 0.6, 1000),
+      ...createRepSamples(4, 4000, 0.5, 0.58, 1000),
+      ...createRepSamples(8, 7000, 0.5, 0.62, 1000),
+      ...createRepSamples(12, 10000, 0.5, 0.59, 1000),
+      ...createRepSamples(16, 13000, 0.5, 0.61, 1000),
+      ...createRepSamples(20, 16000, 0.5, 0.45, 1000),
+    ]);
+
+    expect(findOutlierReps(set).some((o) => o.metric === 'rom')).toBe(true);
+    expect(findOutlierReps(set, { outlierAlpha: 0.001 }).some((o) => o.metric === 'rom')).toBe(
+      false
+    );
+  });
+
+  it('routes its verdict through isGrubbsOutlier, so the boundary rule reaches here', () => {
+    // The boundary itself is only reachable in grubbs.test.ts (the critical
+    // value comes out of a bisection). This pins the seam instead: whatever
+    // isGrubbsOutlier says about the largest |z| is what comes back.
     const set = createSetWithOutlier();
+    const dist = getSetVelocityDistribution(set);
+    const maxAbsZ = Math.max(
+      ...[0.5, 0.5, 0.5, 0.5, 0.1, 0.5].map((v) => Math.abs(getZScore(dist, v)))
+    );
 
-    // Very lenient scheme (z > 10)
-    const lenientScheme = createBreakpointScheme([{ below: 10, value: false }], true);
-    const outliers = findOutlierReps(set, { outlier: lenientScheme });
+    for (const alpha of [0.05, 0.01, 0.001]) {
+      const flagged = findOutlierReps(set, { outlierAlpha: alpha }).some(
+        (o) => o.metric === 'velocity'
+      );
+      expect(flagged).toBe(isGrubbsOutlier(maxAbsZ, set.reps.length, alpha));
+    }
+  });
 
-    expect(outliers.length).toBe(0);
+  it('warns once per process when the deprecated outlier scheme is passed', async () => {
+    vi.resetModules();
+    const { findOutlierReps: freshFindOutlierReps } = await import('@/analytics/fatigue');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scheme = createBreakpointScheme([{ below: 10, value: false }], true);
+
+    freshFindOutlierReps(createSetWithOutlier(), { outlier: scheme });
+    freshFindOutlierReps(createSetWithOutlier(), { outlier: scheme });
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('outlierAlpha');
+    warn.mockRestore();
+  });
+
+  it('does not warn when no outlier scheme is passed', async () => {
+    vi.resetModules();
+    const { findOutlierReps: freshFindOutlierReps } = await import('@/analytics/fatigue');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    freshFindOutlierReps(createSetWithOutlier());
+    freshFindOutlierReps(createSetWithOutlier(), { outlierAlpha: 0.01 });
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
+// =============================================================================
+// KNOWN-ISSUES-2026-07-27 §2 / §7. These were written against unmodified
+// source and passed there, pinning [] and 0.285 / 0.27; the outlier
+// assertion below is the one that flipped.
+// =============================================================================
+
+describe('findOutlierReps() on a 5-rep set (KNOWN-ISSUES §2)', () => {
+  it('flags the collapsed rep for ROMs [0.6, 0.6, 0.6, 0.6, 0.2]', () => {
+    const outliers = findOutlierReps(buildRomCollapseSet());
+
+    // Returned [] before the Grubbs change: |z| = 1.7889 could not reach the
+    // fixed 2.0 cut at n = 5.
+    const romOutlier = outliers.find((o) => o.metric === 'rom');
+    expect(romOutlier).toBeDefined();
+    expect(romOutlier!.repNumber).toBe(5);
+    expect(romOutlier!.direction).toBe('low');
+    // n = 5 at alpha 0.05, NIST/SEMATECH §1.3.5.17.
+    expect(romOutlier!.criticalValue).toBeCloseTo(1.715, 3);
+  });
+
+  it('leaves the collapsed rep at |z| = 1.7889, the largest value n=5 allows', () => {
+    const set = buildRomCollapseSet();
+    const dist = getSetROMDistribution(set);
+    const zScores = [0.6, 0.6, 0.6, 0.6, 0.2].map((rom) => getZScore(dist, rom));
+
+    // Samuelson's inequality with Bessel's correction bounds |z| at
+    // (n - 1) / sqrt(n) = 1.7889 for n = 5 (KNOWN-ISSUES-2026-07-27.md:96-104).
+    expect(Math.max(...zScores.map(Math.abs))).toBeCloseTo(1.7889, 4);
+    expect(Math.max(...zScores.map(Math.abs))).toBeLessThan(2.0);
+  });
+});
+
+describe('computeVBTSetFatigueIndex() weight redistribution (KNOWN-ISSUES §7)', () => {
+  it('gives a missing ROM weight entirely to velocity, not proportionally', () => {
+    // Rep 1 has zero ROM, so romRatio is null while tempo creep still computes.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.6, 0, 1000),
+      ...createRepSamples(4, 4000, 0.42, 0.9, 1200),
+    ]);
+    const result = computeVBTSetFatigueIndex(set);
+
+    expect(result.romRatio).toBeNull();
+    // velocity absorbs 0.15: 0.3 * 0.85 + 0.2 * 0.15 = 0.285.
+    // Proportional redistribution would give 0.3 * 0.82353 + 0.2 * 0.17647 = 0.282353.
+    expect(result.fatigueIndex).toBeCloseTo(0.285, 6);
+  });
+
+  it('gives a missing tempo weight entirely to velocity, not proportionally', () => {
+    // Rep 1 has a zero-duration concentric, so tempoCrepRatio is null.
+    const set = buildSet([
+      ...createRepSamples(0, 1000, 0.6, 1.0, 0),
+      ...createRepSamples(4, 4000, 0.42, 0.9, 1200),
+    ]);
+    const result = computeVBTSetFatigueIndex(set);
+
+    expect(result.tempoCrepRatio).toBeNull();
+    // velocity absorbs 0.15: 0.3 * 0.85 + 0.1 * 0.15 = 0.27.
+    // Proportional redistribution would give 0.3 * 0.82353 + 0.1 * 0.17647 = 0.264706.
+    expect(result.fatigueIndex).toBeCloseTo(0.27, 6);
   });
 });
 

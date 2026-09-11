@@ -136,11 +136,11 @@ Source: `src/analytics/fatigue.ts`. Set-level fatigue, RIR, consistency, outlier
 
 | Type | Source line | Description |
 | --- | --- | --- |
-| `FatigueSchemes` | `:46-53` | RIR (interpolation), consistency (breakpoint), outlier (breakpoint). |
+| `FatigueSchemes` | `:46-62` | RIR (interpolation), consistency (breakpoint), `outlierAlpha` (Grubbs significance level). `outlier` (breakpoint) is deprecated and no longer read by `findOutlierReps`. |
 | `FatigueIndex` | `:58-69` | `value` (0-100), `components` (velocityChange, tempoChange, romChange), `confidence`. |
 | `ConsistencyScore` | `:74-83` | CV per metric + overall classification. |
 | `RIREstimate` | `:88-95` | `rir`, `rpe = 10 - rir`, confidence. |
-| `OutlierRep` | `:100-109` | `{ repNumber, metric, zScore, direction }`. |
+| `OutlierRep` | `:109-120` | `{ repNumber, metric, zScore, direction, criticalValue }`. |
 | `EccentricControl` | `:173-180` | `score` (0-100), `eccentricChangePct`, `formWarning`. |
 | `FatigueSummary` | `:463-469` | Quick display: `velocityLossPct`, `rir`, `rpe`, `consistency`, `fatigueLevel`. |
 
@@ -184,7 +184,7 @@ All return `ChangeResult` from `src/analytics/types.ts:46-57`.
 
 | Function | Source line | Notes |
 | --- | --- | --- |
-| `findOutlierReps(set, schemes?)` | `:361-415` | Requires ≥3 reps. Per-rep z-score on velocity / ROM / tempo. |
+| `findOutlierReps(set, schemes?)` | `:403-418` | Requires ≥3 reps. Compares each metric's largest within-set \|z\| against Grubbs' critical value for the rep count (`src/stats/grubbs.ts`), so at most one rep per metric is returned. A fixed z cut cannot work here: Samuelson's inequality bounds \|z\| at `(n-1)/√n`. |
 | `estimateSetRIR(set, schemes?)` | `:424-447` | Interpolates from velocity loss % via `DEFAULT_RIR_SCHEME`. RIR clamped to `[0, 6]`, RPE to `[4, 10]`. |
 | `isSetFatigued(set, threshold=20)` | `:456-458` | Velocity loss > threshold. |
 | `getSetFatigueSummary(set)` | `:474-495` | Composite summary with `fatigueLevel: 'low'/'moderate'/'high'`. |

@@ -109,6 +109,15 @@ export {
   DEFAULT_CONFIDENCE_SCHEME,
 } from './stats';
 
+// Stats - Grubbs' test for a single outlier
+export {
+  GRUBBS_DEFAULT_ALPHA,
+  grubbsCriticalValue,
+  isGrubbsOutlier,
+  maxAbsZScore,
+  studentTTwoSidedTail,
+} from './stats';
+
 // Analytics - Types
 export {
   type Expectation,

@@ -19,6 +19,15 @@ export {
   buildDistribution,
 } from './distribution';
 
+// Grubbs' test for a single outlier
+export {
+  GRUBBS_DEFAULT_ALPHA,
+  grubbsCriticalValue,
+  isGrubbsOutlier,
+  maxAbsZScore,
+  studentTTwoSidedTail,
+} from './grubbs';
+
 // Schemes
 export {
   type BreakpointScheme,
