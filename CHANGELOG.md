@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **BREAKING: `analyzeTrend`'s flat threshold is now per metric, and `TrendAnalysis.direction` can be `null` (KNOWN-ISSUES-2026-07-27 §6).** The threshold defaulted to `0.001` per day — an absolute constant on a `TimeSeries` that carries no units, while `MetricKey` spans velocity in m/s, volume in lbs and weight in lbs. It is now resolved from an explicit `flatThresholdPerDay`, else from `FLAT_THRESHOLD_PER_DAY[opts.metric]`, else not at all. A series with no resolvable threshold comes back with `direction: null` and its raw slope instead of a verdict, the shape `quality.hesitation` and `quality.bounce` already ship in. `TrendAnalysis` gains `flatThresholdPerDay`, the figure the verdict was reached under.
+
+  **The alternative was rejected on purpose.** The finding offered scaling the threshold to the series (a fraction of its mean or SD) as the other fix. Nothing in this repo or in the RP corpus states what fraction of a mean or an SD counts as flat, so taking that route would have put an invented number at the centre of every trend verdict. A null verdict beside a real slope is the honest answer where no figure exists.
+
+  **Only `velocity_mean` has a stated figure**, the existing `0.001` m/s/day. It is kept because that is the metric whose units the constant was written in — **not because it is validated**. Nothing derives it. The table is typed `Record<MetricKey, number | null>`, so a new metric (the ROM series the finding worried about) cannot be added without an explicit decision.
+
+  **What moves for existing consumers.** Any call that supplied neither `metric` nor `flatThresholdPerDay` now gets `direction: null` where it used to get a verdict against `0.001`/day. `slope`, `intercept`, `rSquared`, `percentChange`, `pointCount`, `windowDays` and `confidence` are untouched. The old verdict is one argument away: `analyzeTrend(series, { flatThresholdPerDay: 0.001 })` reproduces it exactly, now visibly at the call site. Consumers that switch exhaustively on `direction` need a `null` arm to compile.
+
+  `voltras-mcp`'s `history.trend` (`src/tools/metrics-tools.ts:580`) **is** such a caller, and its `trend.direction` does go null until it passes a threshold or a metric. Worth stating plainly: the finding said "every current caller is velocity-shaped", and that is **false** — `history.trend` runs on `top_weight`, `estimated_1rm` and `volume`, all in pounds. At 0.001 lb/day the threshold never bound, so `direction` was the sign of the slope whenever `rSquared > 0.3`, and a top weight creeping 0.365 lb a **year** came back as "up". The reading being withdrawn is one that had no basis in the first place; its `plateau` verdict, which is percentage-based and unit-free, is unaffected.
+
 - **`findOutlierReps` now uses Grubbs' test instead of a fixed z-score cut (KNOWN-ISSUES-2026-07-27 §2).** It previously flagged `|z| >= 2.0` against the set's own distribution. Samuelson's inequality bounds that `|z|` at `(n-1)/√n`, so 2.0 was **unreachable for n ≤ 5** — a 3-, 4- or 5-rep set could not produce a result whatever the data, and most working sets are 3-5 reps. It now compares against `grubbsCriticalValue(n, alpha)` (NIST/SEMATECH e-Handbook §1.3.5.17), which stays strictly inside that bound at every n ≥ 3.
 
   **What moves for existing consumers**, all of it in `findOutlierReps` only:
@@ -33,6 +43,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **`FLAT_THRESHOLD_PER_DAY` and `AnalyzeTrendOptions`, exported from the root barrel.** The per-metric flat-threshold table and the options type `analyzeTrend` now takes (`flatThresholdPerDay`, `metric`).
+- **`TrendAnalysis.flatThresholdPerDay`** — the threshold the direction verdict was reached under, in the series' own units per day, or `null` when none was resolvable. Additive field; existing readers are unaffected.
 - **`src/stats/grubbs.ts`, exported from the root barrel.** `grubbsCriticalValue(n, alpha)`, `isGrubbsOutlier(absZScore, n, alpha)`, `GRUBBS_DEFAULT_ALPHA` (0.05, the level the published table uses), `maxAbsZScore(n)` (Samuelson's bound), and `studentTTwoSidedTail(t, nu)` (closed-form Student's t for integer degrees of freedom, Abramowitz & Stegun 26.7.3 / 26.7.4 — no new dependency). All are verified in tests against published t and Grubbs critical-value tables, not against their own output.
 
   `isGrubbsOutlier` is the sole home of the `G > G_crit` comparison, deliberately: **the boundary is exclusive**, and equality with the critical value cannot be reached through constructed sample data because the critical value comes out of a bisection. Centralising the comparison makes the boundary directly testable by passing the critical value itself, which is the only way a `>` / `>=` slip becomes visible.
@@ -40,6 +52,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **`FatigueSchemes.outlierAlpha`** — significance level for Grubbs' test in `findOutlierReps`, default 0.05.
 
 ### Fixed
+
+- **`detectPlateau` now evaluates longer windows after a shorter one fails (KNOWN-ISSUES-2026-07-27 §3).** The scan broke on the first failing window, on the reasoning that extending a failing run cannot rescue it. That is false: the reference is a **median**, which moves as the window grows. At `thresholdPct` 5 on `[95, 95, 102, 102]`, the window `[95, 102, 102]` fails on a median of 102, so the scan stopped and the full four-point window — median 98.5, maximum deviation 3.55% — was never tested. It reported `plateauDays: 1` over a run spanning 3 days. All n runs anchored at the most recent point are now tested; cost is O(n² log n) in the point count, which callers bucket by session, day or week.
+
+  **Plateaus get longer, never shorter**, so `isPlateau` can flip false to true and never true to false. On 26-week weekly series (200 trials per shape, `thresholdPct` 5): a stepped top-weight progression moves in 10% of trials by +14 to +35 days; a steady e1RM climb in 12.5% by +14 to +56 days; noisy volume in 7.5% by +14 to +35 days, of which 3.5% flip `isPlateau` to true at the default 14-day minimum; a true stall at one weight never moves, having already spanned the window.
+
+  `voltras-mcp`'s `history.trend` calls this function, so **its plateau readout does move**: longer runs, and a `plateauDays` of 0 stays 0. Its VW-150 diet-phase lookback is sized from `plateauDays`, so a longer plateau widens that window and makes a phase-straddling `'unknown'` marginally more likely.
 
 - **`computeVBTSetFatigueIndex`'s docstring now matches its code (KNOWN-ISSUES-2026-07-27 §7).** The doc promised that an uncomputable augmentation's weight is "redistributed **proportionally** to the remaining components"; the code has always given all of it to velocity loss. **The doc was fixed, not the code — no index value moves.** Changing the code would have shifted the index for every single-rep and zero-baseline set, including in `voltras-mcp`'s live fatigue readout (`src/tools/metrics-tools.ts:293`). The VBT autoregulation spec §6.2 states no redistribution rule at all, which does not authorise either behaviour on its own — but it does rule out any claim that the spec *requires* proportional. With a live consumer already depending on the shipped value, that leaves the burden on a spec-driven change rather than on documenting reality. Tests now pin the velocity-absorbing arithmetic on both the ROM-missing and tempo-missing cases.
 

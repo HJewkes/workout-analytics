@@ -6,6 +6,8 @@
  * generic (ts, value) time series and have no dependency on Set/Rep models.
  */
 
+import type { MetricKey } from './time-series';
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -19,8 +21,18 @@ export interface TimeSeriesPoint {
 export type TimeSeries = TimeSeriesPoint[];
 
 export interface TrendAnalysis {
-  /** Categorical direction; 'flat' when slope is small or fit is poor */
-  direction: 'up' | 'down' | 'flat';
+  /**
+   * Categorical direction; 'flat' when slope is small or fit is poor.
+   * `null` when no flat threshold was resolvable for the series, in which
+   * case `slope` is still reported — see `FLAT_THRESHOLD_PER_DAY`.
+   */
+  direction: 'up' | 'down' | 'flat' | null;
+  /**
+   * The flat threshold this verdict was reached under, in value-units per
+   * day; `null` when none was resolvable, which is exactly when `direction`
+   * is null.
+   */
+  flatThresholdPerDay: number | null;
   /** Slope in value-units per day */
   slope: number;
   /** Y-intercept of the linear fit (in value units, at day 0 = first point) */
@@ -103,27 +115,86 @@ function ols(x: number[], y: number[]): { slope: number; intercept: number; rSqu
 // =============================================================================
 
 /**
+ * The per-day slope below which a metric counts as flat, in that metric's own
+ * units per day. `TimeSeries` carries no units, so this table is the only
+ * place that knows what a slope means.
+ *
+ * `null` means no source states a figure for that metric. Rather than invent
+ * one, `analyzeTrend` returns `direction: null` with the raw slope and leaves
+ * the verdict to a caller who can cite a number, the same way
+ * `quality.hesitation` and `quality.bounce` ship in voltras-mcp.
+ *
+ * `velocity_mean` carries the 0.001 m/s/day this function has defaulted to
+ * since it was written. It is kept for the metric whose units that constant
+ * was written in, and for no stronger reason: nothing in this repo or the RP
+ * corpus derives it, and it is NOT validated.
+ */
+export const FLAT_THRESHOLD_PER_DAY: Readonly<Record<MetricKey, number | null>> = {
+  velocity_mean: 0.001,
+  velocity_loss: null,
+  estimated_1rm: null,
+  volume: null,
+  top_weight: null,
+};
+
+export interface AnalyzeTrendOptions {
+  /**
+   * Flat threshold in the series' own units per day. Takes precedence over
+   * `metric`; supply it for any series `MetricKey` does not describe.
+   */
+  flatThresholdPerDay?: number;
+  /** Which metric the series holds, used to look up `FLAT_THRESHOLD_PER_DAY`. */
+  metric?: MetricKey;
+}
+
+/**
+ * The flat threshold for this call, or null when neither the caller nor the
+ * table supplies one.
+ */
+function resolveFlatThreshold(opts?: AnalyzeTrendOptions): number | null {
+  if (opts?.flatThresholdPerDay !== undefined) return opts.flatThresholdPerDay;
+  if (opts?.metric !== undefined) return FLAT_THRESHOLD_PER_DAY[opts.metric];
+  return null;
+}
+
+function directionFor(
+  slope: number,
+  rSquared: number,
+  flatThreshold: number | null
+): TrendAnalysis['direction'] {
+  if (flatThreshold === null) return null;
+  if (rSquared > 0.3 && slope > flatThreshold) return 'up';
+  if (rSquared > 0.3 && slope < -flatThreshold) return 'down';
+  return 'flat';
+}
+
+function confidenceFor(rSquared: number, pointCount: number): TrendAnalysis['confidence'] {
+  if (rSquared > 0.7 && pointCount >= 5) return 'high';
+  if (rSquared > 0.4 && pointCount >= 3) return 'medium';
+  return 'low';
+}
+
+/**
  * Linear regression on the time series. Returns slope, fit quality,
  * and a categorical direction label.
  *
  * direction:
  *   - 'up'   if slope > flatThresholdPerDay AND rSquared > 0.3
  *   - 'down' if slope < -flatThresholdPerDay AND rSquared > 0.3
- *   - 'flat' otherwise
+ *   - 'flat' if a threshold applies and neither holds
+ *   - null   if no threshold was resolvable (see `FLAT_THRESHOLD_PER_DAY`)
  *
  * confidence:
  *   - 'high'   if rSquared > 0.7 AND pointCount >= 5
  *   - 'medium' if rSquared > 0.4 AND pointCount >= 3
  *   - 'low'    otherwise
  */
-export function analyzeTrend(
-  series: TimeSeries,
-  opts?: { flatThresholdPerDay?: number }
-): TrendAnalysis {
-  const flatThreshold = opts?.flatThresholdPerDay ?? 0.001;
+export function analyzeTrend(series: TimeSeries, opts?: AnalyzeTrendOptions): TrendAnalysis {
+  const flatThreshold = resolveFlatThreshold(opts);
 
   const empty: TrendAnalysis = {
-    direction: 'flat',
+    direction: directionFor(0, 0, flatThreshold),
+    flatThresholdPerDay: flatThreshold,
     slope: 0,
     intercept: 0,
     rSquared: 0,
@@ -153,33 +224,16 @@ export function analyzeTrend(
   const last = values[values.length - 1];
   const percentChange = first !== 0 ? ((last - first) / first) * 100 : 0;
 
-  let direction: 'up' | 'down' | 'flat';
-  if (rSquared > 0.3 && slope > flatThreshold) {
-    direction = 'up';
-  } else if (rSquared > 0.3 && slope < -flatThreshold) {
-    direction = 'down';
-  } else {
-    direction = 'flat';
-  }
-
-  let confidence: 'low' | 'medium' | 'high';
-  if (rSquared > 0.7 && series.length >= 5) {
-    confidence = 'high';
-  } else if (rSquared > 0.4 && series.length >= 3) {
-    confidence = 'medium';
-  } else {
-    confidence = 'low';
-  }
-
   return {
-    direction,
+    direction: directionFor(slope, rSquared, flatThreshold),
+    flatThresholdPerDay: flatThreshold,
     slope,
     intercept,
     rSquared,
     percentChange,
     pointCount: series.length,
     windowDays,
-    confidence,
+    confidence: confidenceFor(rSquared, series.length),
   };
 }
 
@@ -198,6 +252,11 @@ export function analyzeTrend(
  * Why median and not mean? The median is more resistant to the single spike
  * that would otherwise inflate the mean and shrink the measured deviation,
  * masking the plateau for the remaining points.
+ *
+ * Every candidate run is anchored at the most recent point, so the scan is
+ * O(n² log n) in the point count: n runs, each costing a median (a sort of up
+ * to n values) and a scan of up to n values. Callers bucket by session, day or
+ * week, which keeps n in the hundreds for a multi-year history.
  */
 export function detectPlateau(
   series: TimeSeries,
@@ -233,9 +292,11 @@ export function detectPlateau(
     return slice.length % 2 === 1 ? slice[mid] : (slice[mid - 1] + slice[mid]) / 2;
   }
 
-  // Walk forward from the most recent point and find the longest qualifying run.
-  // We try every possible start index from the most recent backward,
-  // extending as far as the plateau holds.
+  // Every candidate run is anchored at the most recent point, so there are
+  // exactly n of them. Each is tested independently: a run that fails can
+  // still be rescued by extending it, because the median moves as the window
+  // grows. `[95, 102, 102]` fails (median 102) where `[95, 95, 102, 102]`
+  // passes (median 98.5).
   let bestStart = n - 1;
   let bestEnd = n - 1;
 
@@ -253,18 +314,10 @@ export function detectPlateau(
       }
     }
 
+    // Starts descend, so any qualifying run is longer than the current best
     if (allWithin) {
-      // This run [start, n-1] qualifies; it's longer than any prior candidate
-      if (start < bestStart) {
-        bestStart = start;
-        bestEnd = n - 1;
-      }
-    } else {
-      // Once the run from 'start' to 'end' fails we cannot make it longer by
-      // going further back; but we can check if a shorter run is better.
-      // The algorithm above already keeps the longest qualifying run anchored
-      // at the recent end. Break now — further starts only produce sub-runs.
-      break;
+      bestStart = start;
+      bestEnd = n - 1;
     }
   }
 

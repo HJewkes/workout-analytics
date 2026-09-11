@@ -267,6 +267,8 @@ export {
   type TimeSeries,
   type TrendAnalysis,
   type PlateauDetection,
+  type AnalyzeTrendOptions,
+  FLAT_THRESHOLD_PER_DAY,
   analyzeTrend,
   detectPlateau,
 } from './analytics';
