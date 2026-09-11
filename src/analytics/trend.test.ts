@@ -253,6 +253,34 @@ describe('detectPlateau', () => {
     });
   });
 
+  describe('window scanning', () => {
+    it('evaluates a longer window after a shorter one fails', () => {
+      // [95, 102, 102] fails on a median of 102, but [95, 95, 102, 102] holds
+      // on a median of 98.5 — the reference moves as the window grows
+      const series = makeSeries([
+        [0, 95],
+        [1, 95],
+        [2, 102],
+        [3, 102],
+      ]);
+      const result = detectPlateau(series, 5, 1);
+      expect(result.plateauDays).toBe(3);
+      expect(result.isPlateau).toBe(true);
+      expect(result.reasoning).toContain('4 points');
+    });
+
+    it('does not extend a run past a point no window median can cover', () => {
+      const series = makeSeries([
+        [0, 40],
+        [1, 100],
+        [2, 100],
+        [3, 100],
+      ]);
+      const result = detectPlateau(series, 5, 1);
+      expect(result.plateauDays).toBe(2);
+    });
+  });
+
   describe('threshold sensitivity', () => {
     it('keeps a point deviating exactly the threshold inside the plateau', () => {
       // median 100, 5% of it is exactly 5.0, and 95 sits exactly 5.0 below

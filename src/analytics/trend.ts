@@ -198,6 +198,11 @@ export function analyzeTrend(
  * Why median and not mean? The median is more resistant to the single spike
  * that would otherwise inflate the mean and shrink the measured deviation,
  * masking the plateau for the remaining points.
+ *
+ * Every candidate run is anchored at the most recent point, so the scan is
+ * O(n² log n) in the point count: n runs, each costing a median (a sort of up
+ * to n values) and a scan of up to n values. Callers bucket by session, day or
+ * week, which keeps n in the hundreds for a multi-year history.
  */
 export function detectPlateau(
   series: TimeSeries,
@@ -233,9 +238,11 @@ export function detectPlateau(
     return slice.length % 2 === 1 ? slice[mid] : (slice[mid - 1] + slice[mid]) / 2;
   }
 
-  // Walk forward from the most recent point and find the longest qualifying run.
-  // We try every possible start index from the most recent backward,
-  // extending as far as the plateau holds.
+  // Every candidate run is anchored at the most recent point, so there are
+  // exactly n of them. Each is tested independently: a run that fails can
+  // still be rescued by extending it, because the median moves as the window
+  // grows. `[95, 102, 102]` fails (median 102) where `[95, 95, 102, 102]`
+  // passes (median 98.5).
   let bestStart = n - 1;
   let bestEnd = n - 1;
 
@@ -253,18 +260,10 @@ export function detectPlateau(
       }
     }
 
+    // Starts descend, so any qualifying run is longer than the current best
     if (allWithin) {
-      // This run [start, n-1] qualifies; it's longer than any prior candidate
-      if (start < bestStart) {
-        bestStart = start;
-        bestEnd = n - 1;
-      }
-    } else {
-      // Once the run from 'start' to 'end' fails we cannot make it longer by
-      // going further back; but we can check if a shorter run is better.
-      // The algorithm above already keeps the longest qualifying run anchored
-      // at the recent end. Break now — further starts only produce sub-runs.
-      break;
+      bestStart = start;
+      bestEnd = n - 1;
     }
   }
 
