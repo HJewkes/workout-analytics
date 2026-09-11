@@ -113,6 +113,7 @@ export {
 export {
   GRUBBS_DEFAULT_ALPHA,
   grubbsCriticalValue,
+  isGrubbsOutlier,
   maxAbsZScore,
   studentTTwoSidedTail,
 } from './stats';

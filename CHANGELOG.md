@@ -25,17 +25,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
   Two further behaviour changes: Grubbs tests one outlier at a time, so **at most one rep is returned per metric** (the largest `|z|`) where the old loop could return several; and `FatigueSchemes.outlier` is **no longer read by this function** (deprecated, replaced by `FatigueSchemes.outlierAlpha`). `DEFAULT_OUTLIER_SCHEME` itself is unchanged and still serves `compareToExpectation` and `getRepQualityFlags`, whose z-scores are against an external baseline where a fixed cut is sound.
 
+- **Passing `FatigueSchemes.outlier` now logs a one-time `console.warn`.** A caller passing it is expressing an intent that does nothing, and silence would let a real behaviour change hide as a no-op for exactly the callers working from older knowledge. The warning names `outlierAlpha` and fires once per process, not per call.
+
+  **ACTION FOR THE NEXT MAJOR: make `FatigueSchemes.outlier` THROW and drop the warning.** Throwing today would be correct on the merits but breaks callers without a major bump, so the warning is the interim step — it is not the intended end state. The same note is on the field's `@deprecated` comment in `src/analytics/fatigue.ts`.
+
   `voltras-mcp` does not call `findOutlierReps`, so its behaviour does not move.
 
 ### Added
 
-- **`src/stats/grubbs.ts`, exported from the root barrel.** `grubbsCriticalValue(n, alpha)`, `GRUBBS_DEFAULT_ALPHA` (0.05, the level the published table uses), `maxAbsZScore(n)` (Samuelson's bound), and `studentTTwoSidedTail(t, nu)` (closed-form Student's t for integer degrees of freedom, Abramowitz & Stegun 26.7.3 / 26.7.4 — no new dependency). Both are verified in tests against published t and Grubbs critical-value tables, not against their own output.
+- **`src/stats/grubbs.ts`, exported from the root barrel.** `grubbsCriticalValue(n, alpha)`, `isGrubbsOutlier(absZScore, n, alpha)`, `GRUBBS_DEFAULT_ALPHA` (0.05, the level the published table uses), `maxAbsZScore(n)` (Samuelson's bound), and `studentTTwoSidedTail(t, nu)` (closed-form Student's t for integer degrees of freedom, Abramowitz & Stegun 26.7.3 / 26.7.4 — no new dependency). All are verified in tests against published t and Grubbs critical-value tables, not against their own output.
+
+  `isGrubbsOutlier` is the sole home of the `G > G_crit` comparison, deliberately: **the boundary is exclusive**, and equality with the critical value cannot be reached through constructed sample data because the critical value comes out of a bisection. Centralising the comparison makes the boundary directly testable by passing the critical value itself, which is the only way a `>` / `>=` slip becomes visible.
 - **`OutlierRep.criticalValue`** — the Grubbs critical value a rep's z-score was compared against. Additive field; existing readers are unaffected.
 - **`FatigueSchemes.outlierAlpha`** — significance level for Grubbs' test in `findOutlierReps`, default 0.05.
 
 ### Fixed
 
-- **`computeVBTSetFatigueIndex`'s docstring now matches its code (KNOWN-ISSUES-2026-07-27 §7).** The doc promised that an uncomputable augmentation's weight is "redistributed **proportionally** to the remaining components"; the code has always given all of it to velocity loss. **The doc was fixed, not the code — no index value moves.** Changing the code would have shifted the index for every single-rep and zero-baseline set, including in `voltras-mcp`'s live fatigue readout (`src/tools/metrics-tools.ts:293`), and the VBT autoregulation spec §6.2 states no redistribution rule that would justify it. Tests now pin the velocity-absorbing arithmetic on both the ROM-missing and tempo-missing cases.
+- **`computeVBTSetFatigueIndex`'s docstring now matches its code (KNOWN-ISSUES-2026-07-27 §7).** The doc promised that an uncomputable augmentation's weight is "redistributed **proportionally** to the remaining components"; the code has always given all of it to velocity loss. **The doc was fixed, not the code — no index value moves.** Changing the code would have shifted the index for every single-rep and zero-baseline set, including in `voltras-mcp`'s live fatigue readout (`src/tools/metrics-tools.ts:293`). The VBT autoregulation spec §6.2 states no redistribution rule at all, which does not authorise either behaviour on its own — but it does rule out any claim that the spec *requires* proportional. With a live consumer already depending on the shipped value, that leaves the burden on a spec-driven change rather than on documenting reality. Tests now pin the velocity-absorbing arithmetic on both the ROM-missing and tempo-missing cases.
 
 ### Documentation
 

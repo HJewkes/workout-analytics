@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   GRUBBS_DEFAULT_ALPHA,
   grubbsCriticalValue,
+  isGrubbsOutlier,
   maxAbsZScore,
   studentTTwoSidedTail,
 } from '@/stats/grubbs';
@@ -111,5 +112,36 @@ describe('grubbsCriticalValue()', () => {
   it('defaults to alpha 0.05', () => {
     expect(GRUBBS_DEFAULT_ALPHA).toBe(0.05);
     expect(grubbsCriticalValue(10)).toBe(grubbsCriticalValue(10, 0.05));
+  });
+});
+
+describe('isGrubbsOutlier() boundary', () => {
+  // Grubbs rejects on G > G_crit, so equality is NOT an outlier. Passing the
+  // critical value itself is the only way to land on the boundary exactly:
+  // it comes out of a bisection, so no set of reps produces a z-score equal
+  // to it in floating point. A `>` / `>=` slip is invisible without this.
+  const REP_COUNTS = [3, 5, 6, 10, 20];
+
+  it.each(REP_COUNTS)('is false exactly AT the critical value for n=%i', (n) => {
+    expect(isGrubbsOutlier(grubbsCriticalValue(n), n)).toBe(false);
+  });
+
+  it.each(REP_COUNTS)('is true just above the critical value for n=%i', (n) => {
+    const critical = grubbsCriticalValue(n);
+    expect(isGrubbsOutlier(critical * (1 + 1e-12), n)).toBe(true);
+  });
+
+  it.each(REP_COUNTS)('is false just below the critical value for n=%i', (n) => {
+    const critical = grubbsCriticalValue(n);
+    expect(isGrubbsOutlier(critical * (1 - 1e-12), n)).toBe(false);
+  });
+
+  it('holds the boundary at a non-default alpha too', () => {
+    expect(isGrubbsOutlier(grubbsCriticalValue(8, 0.01), 8, 0.01)).toBe(false);
+    expect(isGrubbsOutlier(grubbsCriticalValue(8, 0.01) * (1 + 1e-12), 8, 0.01)).toBe(true);
+  });
+
+  it('is false below three samples, where the test is undefined', () => {
+    expect(isGrubbsOutlier(1e6, 2)).toBe(false);
   });
 });

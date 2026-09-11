@@ -56,7 +56,7 @@ Distribution + classification primitives.
 | --- | --- |
 | `src/stats/distribution.ts` | `StreamingDistribution` (Welford) at `:12-23`; `addSample` at `:48-64`; `mergeDist` (parallel variance) at `:70-93`; `getMean`/`Variance`/`StdDev`/`ZScore`/`CV` at `:99-139`; `isOutlier`/`isWithinRange` at `:145-163`; `buildDistribution` at `:169-171`. |
 | `src/stats/schemes.ts` | `BreakpointScheme<T>` at `:29-32`; `InterpolationScheme` at `:49-51`; `classifyByBreakpoints` at `:62-69`; `interpolate` at `:77-111`; factories at `:120-139`; defaults at `:158-224` (`DEFAULT_RIR_SCHEME`, `DEFAULT_CONSISTENCY_SCHEME`, `DEFAULT_OUTLIER_SCHEME`, `DEFAULT_QUALITY_SCHEME`, `DEFAULT_CONFIDENCE_SCHEME`). |
-| `src/stats/grubbs.ts` | Grubbs' test for a single outlier. `GRUBBS_DEFAULT_ALPHA = 0.05`; `maxAbsZScore` (Samuelson's bound `(n-1)/√n`); `studentTTwoSidedTail` (closed-form t for integer d.f., A&S 26.7.3/26.7.4); `grubbsCriticalValue` (NIST/SEMATECH §1.3.5.17). Used by `findOutlierReps`, where a fixed z cut is unreachable for n ≤ 5. |
+| `src/stats/grubbs.ts` | Grubbs' test for a single outlier. `GRUBBS_DEFAULT_ALPHA = 0.05`; `maxAbsZScore` (Samuelson's bound `(n-1)/√n`); `studentTTwoSidedTail` (closed-form t for integer d.f., A&S 26.7.3/26.7.4); `grubbsCriticalValue` (NIST/SEMATECH §1.3.5.17); `isGrubbsOutlier` (sole home of the `G > G_crit` comparison — boundary is exclusive and only testable here). Used by `findOutlierReps`, where a fixed z cut is unreachable for n ≤ 5. |
 | `src/stats/index.ts` | Barrel. |
 
 ## `src/analytics/`

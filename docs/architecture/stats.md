@@ -137,6 +137,8 @@ Two-sided Grubbs critical value for a single outlier, per NIST/SEMATECH e-Handbo
 
 with `t` the upper t critical value at `alpha / (2n)` on `n - 2` degrees of freedom. `alpha` defaults to `GRUBBS_DEFAULT_ALPHA = 0.05`, the level the published table uses. `studentTTwoSidedTail(t, nu)` supplies the t distribution in closed form for integer `nu` (Abramowitz & Stegun 26.7.3 / 26.7.4), so no dependency is needed. `maxAbsZScore(n)` returns the Samuelson bound `(n - 1) / √n`.
 
+`isGrubbsOutlier(absZScore, n, alpha)` is the **sole home** of the `G > G_crit` comparison. The boundary is **exclusive**: a value exactly equal to the critical value is not an outlier. Keep the comparison there rather than inlining it — the critical value comes out of a bisection, so no set of reps produces a z-score equal to it in floating point, and passing the critical value to this function is the only way the boundary can be tested at all.
+
 | n | `maxAbsZScore` | `grubbsCriticalValue(n, 0.05)` |
 | --- | --- | --- |
 | 3 | 1.1547 | 1.1543 |

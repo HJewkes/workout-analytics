@@ -4,7 +4,7 @@
  * Tests for second-order fatigue and consistency assessment functions.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   getSetVelocityChange,
   getSetTempoChange,
@@ -30,6 +30,7 @@ import {
 } from '@/analytics/fatigue';
 import { createInterpolationScheme, createBreakpointScheme } from '@/stats/schemes';
 import { getZScore } from '@/stats/distribution';
+import { isGrubbsOutlier } from '@/stats/grubbs';
 import { createSet, addSampleToSet } from '@/models/set';
 import { MovementPhase } from '@/models/types';
 import type { WorkoutSample } from '@/models/sample';
@@ -403,6 +404,50 @@ describe('findOutlierReps()', () => {
     expect(findOutlierReps(set, { outlierAlpha: 0.001 }).some((o) => o.metric === 'rom')).toBe(
       false
     );
+  });
+
+  it('routes its verdict through isGrubbsOutlier, so the boundary rule reaches here', () => {
+    // The boundary itself is only reachable in grubbs.test.ts (the critical
+    // value comes out of a bisection). This pins the seam instead: whatever
+    // isGrubbsOutlier says about the largest |z| is what comes back.
+    const set = createSetWithOutlier();
+    const dist = getSetVelocityDistribution(set);
+    const maxAbsZ = Math.max(
+      ...[0.5, 0.5, 0.5, 0.5, 0.1, 0.5].map((v) => Math.abs(getZScore(dist, v)))
+    );
+
+    for (const alpha of [0.05, 0.01, 0.001]) {
+      const flagged = findOutlierReps(set, { outlierAlpha: alpha }).some(
+        (o) => o.metric === 'velocity'
+      );
+      expect(flagged).toBe(isGrubbsOutlier(maxAbsZ, set.reps.length, alpha));
+    }
+  });
+
+  it('warns once per process when the deprecated outlier scheme is passed', async () => {
+    vi.resetModules();
+    const { findOutlierReps: freshFindOutlierReps } = await import('@/analytics/fatigue');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scheme = createBreakpointScheme([{ below: 10, value: false }], true);
+
+    freshFindOutlierReps(createSetWithOutlier(), { outlier: scheme });
+    freshFindOutlierReps(createSetWithOutlier(), { outlier: scheme });
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('outlierAlpha');
+    warn.mockRestore();
+  });
+
+  it('does not warn when no outlier scheme is passed', async () => {
+    vi.resetModules();
+    const { findOutlierReps: freshFindOutlierReps } = await import('@/analytics/fatigue');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    freshFindOutlierReps(createSetWithOutlier());
+    freshFindOutlierReps(createSetWithOutlier(), { outlierAlpha: 0.01 });
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 

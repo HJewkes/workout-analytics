@@ -26,7 +26,7 @@ import {
   getCV,
   getZScore,
 } from '@/stats/distribution';
-import { GRUBBS_DEFAULT_ALPHA, grubbsCriticalValue } from '@/stats/grubbs';
+import { GRUBBS_DEFAULT_ALPHA, grubbsCriticalValue, isGrubbsOutlier } from '@/stats/grubbs';
 import {
   interpolate,
   classifyByBreakpoints,
@@ -55,6 +55,11 @@ export interface FatigueSchemes {
    * critical value. A fixed z cut cannot work on a within-set distribution:
    * it is unreachable for n <= 5. Use `outlierAlpha`. Still honoured by
    * `getRepQualityFlags`, whose z-scores are against an external baseline.
+   *
+   * Passing it logs a one-time `console.warn`. **This field will THROW at the
+   * next major version** — removing it silently would let a real behaviour
+   * change hide as a no-op for exactly the callers working from older
+   * knowledge. Whoever cuts that major: make it throw and drop the warning.
    */
   outlier?: BreakpointScheme<boolean>;
   /** Significance level for Grubbs' test in `findOutlierReps` (default 0.05) */
@@ -401,20 +406,38 @@ export function getSetConsistencyScore(set: Set, schemes?: FatigueSchemes): Cons
  * Still requires at least 3 reps, below which the test is undefined.
  */
 export function findOutlierReps(set: Set, schemes?: FatigueSchemes): OutlierRep[] {
+  if (schemes?.outlier !== undefined) {
+    warnOutlierSchemeIgnored();
+  }
+
   const n = set.reps.length;
   if (n < 3) {
     return [];
   }
 
-  const criticalValue = grubbsCriticalValue(n, schemes?.outlierAlpha ?? GRUBBS_DEFAULT_ALPHA);
+  const alpha = schemes?.outlierAlpha ?? GRUBBS_DEFAULT_ALPHA;
+  const criticalValue = grubbsCriticalValue(n, alpha);
 
   return [
     findMostExtremeRep(getSetVelocityDistribution(set), getSetRepVelocities(set), 'velocity'),
     findMostExtremeRep(getSetROMDistribution(set), getSetRepROMs(set), 'rom'),
     findMostExtremeRep(getSetTempoDistribution(set), getSetTempoValues(set), 'tempo'),
   ]
-    .filter((candidate) => Math.abs(candidate.zScore) > criticalValue)
+    .filter((candidate) => isGrubbsOutlier(Math.abs(candidate.zScore), n, alpha))
     .map((candidate) => ({ ...candidate, criticalValue }));
+}
+
+let outlierSchemeWarned = false;
+
+/** Warn once per process: a passed `outlier` scheme is dead, with no other signal. */
+function warnOutlierSchemeIgnored(): void {
+  if (outlierSchemeWarned) return;
+  outlierSchemeWarned = true;
+  console.warn(
+    '[@voltras/workout-analytics] FatigueSchemes.outlier is ignored by findOutlierReps and ' +
+      'will throw in the next major version. A fixed z-score cut is unreachable within a set ' +
+      'for n <= 5 (Samuelson). Use FatigueSchemes.outlierAlpha instead.'
+  );
 }
 
 /** The rep whose value sits furthest from the set mean, in z units. */

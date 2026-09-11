@@ -135,6 +135,10 @@ time, so at most one rep is returned per metric (the largest |z|); and
 serves `compareToExpectation` and `getRepQualityFlags`, whose z-scores are
 against an external baseline where a fixed cut is sound.
 
+Passing `outlier` logs a one-time `console.warn` rather than failing silently;
+it is scheduled to THROW at the next major (recorded in `CHANGELOG.md` and on
+the field's `@deprecated` comment).
+
 ## 3. `detectPlateau`'s early `break` under-reports plateau length
 
 `src/analytics/trend.ts:262-268`
@@ -220,10 +224,11 @@ Reasons, in order of weight:
    `velLossPct`). A silent numeric shift in a reading a coach is watching
    mid-session is worse than a docstring that was wrong.
 2. The VBT autoregulation spec §6.2 (`voltra_vbt_autoregulation_spec.md:384-390`)
-   does not state a redistribution rule at all: it gives the augmentations as
-   options on a velocity-loss base. So the spec does not favour proportional
-   over velocity-absorbing, and there is no authority to override the shipped
-   behaviour.
+   states no redistribution rule at all: it gives the augmentations as options
+   on a velocity-loss base. That silence does not authorise either behaviour on
+   its own, but it does rule out any claim that the spec REQUIRES proportional.
+   With a live consumer already depending on the shipped value, the burden
+   falls on a spec-driven change rather than on documenting reality.
 3. Velocity loss is the primary signal, which makes absorbing the missing weight
    there the defensible reading the finding above already grants.
 

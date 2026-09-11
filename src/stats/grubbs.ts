@@ -111,3 +111,21 @@ export function grubbsCriticalValue(n: number, alpha: number = GRUBBS_DEFAULT_AL
   const t = studentTUpperQuantile(alpha / (2 * n), n - 2);
   return maxAbsZScore(n) * Math.sqrt((t * t) / (n - 2 + t * t));
 }
+
+/**
+ * Whether `absZScore` is a Grubbs outlier among `n` samples at `alpha`.
+ *
+ * The boundary is EXCLUSIVE: a value exactly equal to the critical value is
+ * not an outlier, matching the test's `G > G_crit` rejection rule. This is
+ * the sole home of that comparison, because the boundary cannot be reached
+ * through constructed sample data — the critical value comes out of a
+ * bisection, so no set of reps lands a z-score exactly on it in floating
+ * point. Keeping the comparison here makes the boundary directly testable.
+ */
+export function isGrubbsOutlier(
+  absZScore: number,
+  n: number,
+  alpha: number = GRUBBS_DEFAULT_ALPHA
+): boolean {
+  return absZScore > grubbsCriticalValue(n, alpha);
+}
