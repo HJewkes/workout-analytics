@@ -8,8 +8,8 @@ are not lost.
 
 Ordered roughly by severity.
 
-**Status:** items 2, 3, 6 and 7 are FIXED (see the notes on each). Items 1, 4
-and 5 remain open.
+**Status:** items 2, 3, 5, 6 and 7 are FIXED (see the notes on each). Items 1
+and 4 remain open.
 
 ---
 
@@ -186,7 +186,7 @@ profile is systematically eaten from below, biasing the regression's intercept
 Fix either the doc or the default — but note that implementing the documented
 default also silently changes eviction order for existing callers.
 
-## 5. `getRepWork` integrates path length; ROM integrates net displacement
+## 5. `getRepWork` integrates path length; ROM integrates net displacement — **FIXED**
 
 `src/analytics/rep-analytics.ts:135-157` vs `src/models/phase.ts` (`getPhaseRangeOfMotion`)
 
@@ -201,7 +201,23 @@ does.
 
 Related, and already documented in 2.0.0 rather than fixed: `getRepTotalWork` sums
 two positive magnitudes, so it is not net mechanical work and must not be
-converted to Joules.
+converted to Joules. Untouched by this fix.
+
+**FIXED for HOLD/IDLE dwell, open for jitter during genuine movement.**
+`getRepWork` and `getRepEccentricWork` now exclude HOLD/IDLE samples before
+summing, matching `getPhaseMeanVelocity`'s exclusion — a fixture with ±1mm
+IDLE zigzag ahead of a clean 0.6 m raise went from 30.2 lbs·m (0.604 m path
+length) to 30 lbs·m (true 0.6 m displacement).
+
+This does **not** close the finding's own worked example. "1 mm of noise per
+sample on a 0.6 m raise inflates work by 1.83%" describes noise arriving
+already labeled as movement (no HOLD/IDLE sample in sight), which a
+phase-based filter cannot touch by construction — verified directly: a
+fixture with the same ±1-2mm zigzag riding on a genuine CONCENTRIC-labeled
+0.6 m climb still returns 30.6 lbs·m (2% over the true 30 lbs·m) both before
+and after this fix. Reaching for a movement-magnitude threshold to close
+that gap was explicitly out of scope for this fix (no such threshold is
+sourced anywhere in this repo or the RP corpus) and remains so.
 
 ## 6. `analyzeTrend`'s flat threshold is an absolute constant on a metric-agnostic series — **FIXED**
 
