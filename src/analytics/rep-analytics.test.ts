@@ -616,11 +616,12 @@ describe('getRepWork() — HOLD/IDLE jitter', () => {
     return buildRep(1, [...idleSamples, ...raiseSamples]);
   }
 
-  it('BASELINE (unmodified source): IDLE jitter inflates work above the 50 lbs × 0.6m = 30 lbs·m true value', () => {
-    // Path length = 0.004m (IDLE zigzag) + 0.6m (raise) = 0.604m; × 50 lbf = 30.2 lbs·m.
-    // This is the pre-fix, buggy value — pinned here so the fix's effect is provable.
+  it('AFTER FIX: IDLE jitter no longer inflates work — matches the true 50 lbs × 0.6m = 30 lbs·m', () => {
+    // Pre-fix (pinned in the prior commit, unmodified source): 30.2 lbs·m
+    // (0.604m path length, including the 0.004m IDLE zigzag). Post-fix: the
+    // IDLE samples are excluded entirely, leaving only the 0.6m raise.
     const rep = createIdleJitterThenRaiseRep();
-    expect(getRepWork(rep)).toBeCloseTo(30.2, 5);
+    expect(getRepWork(rep)).toBeCloseTo(30, 5);
   });
 
   /**
@@ -637,24 +638,89 @@ describe('getRepWork() — HOLD/IDLE jitter', () => {
    */
   function createEccentricHoldJitterRep(): Rep {
     const concentricLeg: WorkoutSample[] = [
-      { sequence: 0, timestamp: 500, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.75, force: 50 },
-      { sequence: 1, timestamp: 700, phase: MovementPhase.CONCENTRIC, position: 0.6, velocity: 0.75, force: 50 },
+      {
+        sequence: 0,
+        timestamp: 500,
+        phase: MovementPhase.CONCENTRIC,
+        position: 0,
+        velocity: 0.75,
+        force: 50,
+      },
+      {
+        sequence: 1,
+        timestamp: 700,
+        phase: MovementPhase.CONCENTRIC,
+        position: 0.6,
+        velocity: 0.75,
+        force: 50,
+      },
     ];
     const eccentricSamples: WorkoutSample[] = [
-      { sequence: 2, timestamp: 1300, phase: MovementPhase.ECCENTRIC, position: 0.6, velocity: 0, force: 50 },
-      { sequence: 3, timestamp: 1400, phase: MovementPhase.HOLD, position: 0.601, velocity: 0, force: 50 },
-      { sequence: 4, timestamp: 1500, phase: MovementPhase.HOLD, position: 0.6, velocity: 0, force: 50 },
-      { sequence: 5, timestamp: 1600, phase: MovementPhase.HOLD, position: 0.601, velocity: 0, force: 50 },
-      { sequence: 6, timestamp: 1700, phase: MovementPhase.HOLD, position: 0.6, velocity: 0, force: 50 },
-      { sequence: 7, timestamp: 1900, phase: MovementPhase.ECCENTRIC, position: 0.3, velocity: 0.75, force: 50 },
-      { sequence: 8, timestamp: 2100, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.75, force: 50 },
+      {
+        sequence: 2,
+        timestamp: 1300,
+        phase: MovementPhase.ECCENTRIC,
+        position: 0.6,
+        velocity: 0,
+        force: 50,
+      },
+      {
+        sequence: 3,
+        timestamp: 1400,
+        phase: MovementPhase.HOLD,
+        position: 0.601,
+        velocity: 0,
+        force: 50,
+      },
+      {
+        sequence: 4,
+        timestamp: 1500,
+        phase: MovementPhase.HOLD,
+        position: 0.6,
+        velocity: 0,
+        force: 50,
+      },
+      {
+        sequence: 5,
+        timestamp: 1600,
+        phase: MovementPhase.HOLD,
+        position: 0.601,
+        velocity: 0,
+        force: 50,
+      },
+      {
+        sequence: 6,
+        timestamp: 1700,
+        phase: MovementPhase.HOLD,
+        position: 0.6,
+        velocity: 0,
+        force: 50,
+      },
+      {
+        sequence: 7,
+        timestamp: 1900,
+        phase: MovementPhase.ECCENTRIC,
+        position: 0.3,
+        velocity: 0.75,
+        force: 50,
+      },
+      {
+        sequence: 8,
+        timestamp: 2100,
+        phase: MovementPhase.ECCENTRIC,
+        position: 0,
+        velocity: 0.75,
+        force: 50,
+      },
     ];
     return buildRep(1, [...concentricLeg, ...eccentricSamples]);
   }
 
-  it('BASELINE (unmodified source): HOLD jitter mid-eccentric inflates work the same way via getRepEccentricWork', () => {
+  it('AFTER FIX: HOLD jitter mid-eccentric no longer inflates getRepEccentricWork', () => {
+    // Pre-fix (pinned in the prior commit): 30.2 lbs·m. Post-fix: the HOLD
+    // samples are excluded, leaving only the 0.6m lowering leg (30 lbs·m).
     const rep = createEccentricHoldJitterRep();
-    expect(getRepEccentricWork(rep)).toBeCloseTo(30.2, 5);
+    expect(getRepEccentricWork(rep)).toBeCloseTo(30, 5);
   });
 });
 

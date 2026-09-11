@@ -7,6 +7,18 @@
 
 import type { Rep } from '@/models/rep';
 import { getPhaseMeanVelocity, getPhaseMeanForce, getPhaseMovementDuration } from '@/models/phase';
+import { MovementPhase } from '@/models/types';
+import type { WorkoutSample } from '@/models/sample';
+
+/**
+ * Drop HOLD/IDLE samples the way `getPhaseMeanVelocity` already excludes
+ * them from its running sum (KNOWN-ISSUES-2026-07-27 §5) — a pause
+ * contributes zero net movement, but summing `Math.abs(Δposition)` across
+ * its samples accumulates sensor jitter as if it were work.
+ */
+function excludeHoldAndIdle(samples: readonly WorkoutSample[]): WorkoutSample[] {
+  return samples.filter((s) => s.phase !== MovementPhase.HOLD && s.phase !== MovementPhase.IDLE);
+}
 
 // =============================================================================
 // Velocity Analytics
@@ -132,9 +144,14 @@ export function getRepImpulse(rep: Rep): number {
  * Note: This is an approximation since we're using cable position, not true
  * displacement of the load. If an adapter passes inflated tenths-of-lbs
  * values, this function silently returns 10x the true work.
+ *
+ * HOLD/IDLE samples are excluded (KNOWN-ISSUES-2026-07-27 §5), matching
+ * `getPhaseMeanVelocity`'s exclusion — otherwise sensor jitter during a
+ * pause accumulates as path length even though the phase contributed no
+ * net movement.
  */
 export function getRepWork(rep: Rep): number {
-  const samples = rep.concentric.samples;
+  const samples = excludeHoldAndIdle(rep.concentric.samples);
   if (samples.length < 2) {
     return 0;
   }
@@ -222,9 +239,14 @@ export function getRepConcentricWork(rep: Rep): number {
 
 /**
  * Compute eccentric work.
+ *
+ * HOLD/IDLE samples are excluded, the same as `getRepWork` (see its
+ * docstring) — kept as a duplicate loop rather than a shared call so the
+ * concentric/eccentric split here mirrors `getRepImpulse`/
+ * `getRepEccentricImpulse` above.
  */
 export function getRepEccentricWork(rep: Rep): number {
-  const samples = rep.eccentric.samples;
+  const samples = excludeHoldAndIdle(rep.eccentric.samples);
   if (samples.length < 2) {
     return 0;
   }
