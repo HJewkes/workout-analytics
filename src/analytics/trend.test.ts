@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeTrend, detectPlateau } from './trend';
+import { analyzeTrend, detectPlateau, FLAT_THRESHOLD_PER_DAY } from './trend';
 import type { TimeSeries } from './trend';
+
+/** The one metric the threshold table has a figure for (0.001/day). */
+const VELOCITY = { metric: 'velocity_mean' } as const;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -39,7 +42,7 @@ function flatSeries(n: number, v: number, step = 1): TimeSeries {
 describe('analyzeTrend', () => {
   describe('edge cases', () => {
     it('returns flat/low for empty series', () => {
-      const result = analyzeTrend([]);
+      const result = analyzeTrend([], VELOCITY);
       expect(result.direction).toBe('flat');
       expect(result.confidence).toBe('low');
       expect(result.pointCount).toBe(0);
@@ -50,7 +53,7 @@ describe('analyzeTrend', () => {
     });
 
     it('returns flat/low for a single point', () => {
-      const result = analyzeTrend(makeSeries([[0, 50]]));
+      const result = analyzeTrend(makeSeries([[0, 50]]), VELOCITY);
       expect(result.direction).toBe('flat');
       expect(result.confidence).toBe('low');
       expect(result.pointCount).toBe(1);
@@ -66,31 +69,31 @@ describe('analyzeTrend', () => {
   describe('direction detection', () => {
     it('detects "up" for a strictly increasing series with enough points', () => {
       const series = ascendingSeries(10, 2); // 10 points, 2-day steps, value = days
-      const result = analyzeTrend(series);
+      const result = analyzeTrend(series, VELOCITY);
       expect(result.direction).toBe('up');
       expect(result.slope).toBeGreaterThan(0);
     });
 
     it('detects "down" for a strictly decreasing series', () => {
       const series = descendingSeries(10, 2);
-      const result = analyzeTrend(series);
+      const result = analyzeTrend(series, VELOCITY);
       expect(result.direction).toBe('down');
       expect(result.slope).toBeLessThan(0);
     });
 
     it('detects "flat" for a flat series (all same value)', () => {
       const series = flatSeries(8, 100);
-      const result = analyzeTrend(series);
+      const result = analyzeTrend(series, VELOCITY);
       expect(result.direction).toBe('flat');
       expect(Math.abs(result.slope)).toBeLessThan(1e-9);
     });
 
     it('respects custom flatThresholdPerDay', () => {
-      // slope of 0.0005 per day — below default threshold of 0.001 so flat
+      // slope of 0.0005 per day — below velocity_mean's 0.001 so flat
       const series = makeSeries(
         Array.from({ length: 10 }, (_, i) => [i, i * 0.0005] as [number, number])
       );
-      const resultDefault = analyzeTrend(series);
+      const resultDefault = analyzeTrend(series, VELOCITY);
       expect(resultDefault.direction).toBe('flat');
 
       // With a tighter threshold the same slope becomes 'up'
@@ -110,6 +113,65 @@ describe('analyzeTrend', () => {
       const series = ascendingSeries(6, 1);
       const { slope } = analyzeTrend(series, { flatThresholdPerDay: 0 });
       expect(analyzeTrend(series, { flatThresholdPerDay: slope }).direction).toBe('flat');
+    });
+  });
+
+  describe('flat threshold resolution', () => {
+    /** Top weight creeping 0.01 lb a week: a plateau by any reading. */
+    const poundsSeries = makeSeries([
+      [0, 225],
+      [7, 225.01],
+      [14, 225.02],
+      [21, 225.03],
+    ]);
+
+    it('gives no direction when neither a threshold nor a metric is supplied', () => {
+      const result = analyzeTrend(poundsSeries);
+      expect(result.direction).toBeNull();
+      expect(result.flatThresholdPerDay).toBeNull();
+      expect(result.slope).toBeGreaterThan(0);
+      expect(result.rSquared).toBeGreaterThan(0.9);
+    });
+
+    it('gives no direction for a metric the table has no figure for', () => {
+      const result = analyzeTrend(poundsSeries, { metric: 'top_weight' });
+      expect(result.direction).toBeNull();
+      expect(result.flatThresholdPerDay).toBeNull();
+    });
+
+    it('gives no direction for an empty series with no threshold', () => {
+      expect(analyzeTrend([]).direction).toBeNull();
+    });
+
+    it('uses 0.001 per day for velocity_mean', () => {
+      const at = (perDay: number) =>
+        makeSeries(Array.from({ length: 10 }, (_, i) => [i, i * perDay] as [number, number]));
+      expect(analyzeTrend(at(0.0005), VELOCITY).flatThresholdPerDay).toBe(0.001);
+      expect(analyzeTrend(at(0.0005), VELOCITY).direction).toBe('flat');
+      expect(analyzeTrend(at(0.0015), VELOCITY).direction).toBe('up');
+    });
+
+    it('lets an explicit threshold override the metric table', () => {
+      const result = analyzeTrend(poundsSeries, {
+        metric: 'top_weight',
+        flatThresholdPerDay: 0.001,
+      });
+      expect(result.flatThresholdPerDay).toBe(0.001);
+      expect(result.direction).toBe('up');
+    });
+
+    it('honours a threshold of 0 rather than treating it as absent', () => {
+      const result = analyzeTrend(poundsSeries, { flatThresholdPerDay: 0 });
+      expect(result.flatThresholdPerDay).toBe(0);
+      expect(result.direction).toBe('up');
+    });
+
+    it('states a figure for velocity_mean only', () => {
+      expect(FLAT_THRESHOLD_PER_DAY.velocity_mean).toBe(0.001);
+      const stated = Object.entries(FLAT_THRESHOLD_PER_DAY)
+        .filter(([, v]) => v !== null)
+        .map(([k]) => k);
+      expect(stated).toEqual(['velocity_mean']);
     });
   });
 
@@ -150,7 +212,7 @@ describe('analyzeTrend', () => {
 
     it('treats flat series as rSquared=1 and direction=flat', () => {
       const series = flatSeries(6, 50, 1);
-      const result = analyzeTrend(series);
+      const result = analyzeTrend(series, VELOCITY);
       // All y-values identical → ssYY = 0 → rSquared = 1 by convention
       expect(result.rSquared).toBe(1);
       expect(result.direction).toBe('flat'); // slope = 0, below flatThreshold
