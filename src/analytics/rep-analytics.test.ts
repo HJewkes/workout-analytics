@@ -575,3 +575,118 @@ describe('eccentric kinetics with < 2 eccentric samples', () => {
     expect(getRepEccentricWork(createEmptyRep())).toBe(0);
   });
 });
+
+// =============================================================================
+// HOLD/IDLE Path-Length Inflation (KNOWN-ISSUES-2026-07-27 §5)
+//
+// getRepWork previously summed Math.abs(Δposition) across every sample
+// pair, including HOLD/IDLE dwell, so sensor jitter during a pause
+// accumulated as if it were movement. getPhaseMeanVelocity already
+// excludes HOLD/IDLE from its running sum; these fixtures pin the exact
+// before/after numbers for that same exclusion applied to work.
+// =============================================================================
+
+describe('getRepWork() — HOLD/IDLE jitter', () => {
+  /**
+   * 5 IDLE samples oscillating ±1mm around position 0 (simulating sensor
+   * noise while the lifter is stationary before the pull), followed by a
+   * clean 0.6m concentric raise in 4 steps of 0.15m at a constant 50 lbf.
+   * IDLE-to-IDLE jitter path length: 4 × 0.001m = 0.004m. The bridge from
+   * the last IDLE sample (position 0) to the first CONCENTRIC sample
+   * (position 0) is 0 either way, so it doesn't confound the comparison.
+   */
+  function createIdleJitterThenRaiseRep(): Rep {
+    const idlePositions = [0, 0.001, 0, 0.001, 0];
+    const idleSamples: WorkoutSample[] = idlePositions.map((position, i) => ({
+      sequence: i,
+      timestamp: 1000 + i * 100,
+      phase: MovementPhase.IDLE,
+      position,
+      velocity: 0,
+      force: 50,
+    }));
+    const raiseSamples: WorkoutSample[] = [0, 0.15, 0.3, 0.45, 0.6].map((position, i) => ({
+      sequence: idleSamples.length + i,
+      timestamp: 2000 + i * 200,
+      phase: MovementPhase.CONCENTRIC,
+      position,
+      velocity: 0.75,
+      force: 50,
+    }));
+    return buildRep(1, [...idleSamples, ...raiseSamples]);
+  }
+
+  it('BASELINE (unmodified source): IDLE jitter inflates work above the 50 lbs × 0.6m = 30 lbs·m true value', () => {
+    // Path length = 0.004m (IDLE zigzag) + 0.6m (raise) = 0.604m; × 50 lbf = 30.2 lbs·m.
+    // This is the pre-fix, buggy value — pinned here so the fix's effect is provable.
+    const rep = createIdleJitterThenRaiseRep();
+    expect(getRepWork(rep)).toBeCloseTo(30.2, 5);
+  });
+
+  /**
+   * Concentric leg (0 -> 0.6m, seeds the rep) then an eccentric phase that
+   * starts descending, pauses with a ±1mm HOLD zigzag at the top, then
+   * finishes lowering 0.6 -> 0. A HOLD sample only routes into
+   * `eccentric.samples` once the phase has genuinely started (see
+   * `isInEccentricPhase` in `models/rep.ts`), hence the leading real
+   * ECCENTRIC sample before the jitter.
+   *
+   * Path length: |0.601−0.6| + |0.6−0.601| + |0.601−0.6| + |0.6−0.601|
+   * (HOLD zigzag, 0.004m) + |0.3−0.6| + |0−0.3| (lowering, 0.6m) = 0.604m.
+   * × 50 lbf = 30.2 lbs·m.
+   */
+  function createEccentricHoldJitterRep(): Rep {
+    const concentricLeg: WorkoutSample[] = [
+      { sequence: 0, timestamp: 500, phase: MovementPhase.CONCENTRIC, position: 0, velocity: 0.75, force: 50 },
+      { sequence: 1, timestamp: 700, phase: MovementPhase.CONCENTRIC, position: 0.6, velocity: 0.75, force: 50 },
+    ];
+    const eccentricSamples: WorkoutSample[] = [
+      { sequence: 2, timestamp: 1300, phase: MovementPhase.ECCENTRIC, position: 0.6, velocity: 0, force: 50 },
+      { sequence: 3, timestamp: 1400, phase: MovementPhase.HOLD, position: 0.601, velocity: 0, force: 50 },
+      { sequence: 4, timestamp: 1500, phase: MovementPhase.HOLD, position: 0.6, velocity: 0, force: 50 },
+      { sequence: 5, timestamp: 1600, phase: MovementPhase.HOLD, position: 0.601, velocity: 0, force: 50 },
+      { sequence: 6, timestamp: 1700, phase: MovementPhase.HOLD, position: 0.6, velocity: 0, force: 50 },
+      { sequence: 7, timestamp: 1900, phase: MovementPhase.ECCENTRIC, position: 0.3, velocity: 0.75, force: 50 },
+      { sequence: 8, timestamp: 2100, phase: MovementPhase.ECCENTRIC, position: 0, velocity: 0.75, force: 50 },
+    ];
+    return buildRep(1, [...concentricLeg, ...eccentricSamples]);
+  }
+
+  it('BASELINE (unmodified source): HOLD jitter mid-eccentric inflates work the same way via getRepEccentricWork', () => {
+    const rep = createEccentricHoldJitterRep();
+    expect(getRepEccentricWork(rep)).toBeCloseTo(30.2, 5);
+  });
+});
+
+describe('getRepWork() — pure movement-phase jitter is NOT removed by this fix', () => {
+  /**
+   * All 8 samples are labeled CONCENTRIC — no HOLD/IDLE anywhere — with a
+   * ±1-2mm zigzag riding on top of a monotonic 0.6m climb (reproducing
+   * KNOWN-ISSUES-2026-07-27 §5's "1mm of noise per sample on a 0.6m raise").
+   * Because every sample is genuinely phase-labeled CONCENTRIC, the
+   * HOLD/IDLE filter this brief scopes the fix to cannot touch it: the
+   * sourced fix ("skip HOLD/IDLE") does not eliminate path-length
+   * inflation from noise that arrives already labeled as movement. This is
+   * the null-verdict case the brief asks to report rather than paper over
+   * with an invented magnitude threshold.
+   */
+  function createNoisyRaiseRep(): Rep {
+    const positions = [0, 0.151, 0.149, 0.301, 0.299, 0.451, 0.449, 0.6];
+    const samples: WorkoutSample[] = positions.map((position, i) => ({
+      sequence: i,
+      timestamp: 1000 + i * 100,
+      phase: MovementPhase.CONCENTRIC,
+      position,
+      velocity: 0.75,
+      force: 50,
+    }));
+    return buildRep(1, samples);
+  }
+
+  it('reports ~2% inflation over the true 30 lbs·m both BEFORE and AFTER the HOLD/IDLE fix', () => {
+    // Path length: 0.151+0.002+0.152+0.002+0.152+0.002+0.151 = 0.612m; × 50 = 30.6 lbs·m.
+    // Net displacement is 0.6m (30 lbs·m true work) — a 2% inflation this fix cannot remove.
+    const rep = createNoisyRaiseRep();
+    expect(getRepWork(rep)).toBeCloseTo(30.6, 5);
+  });
+});
