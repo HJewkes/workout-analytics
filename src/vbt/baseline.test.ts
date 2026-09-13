@@ -174,6 +174,26 @@ describe('updateBaselineWithPoint', () => {
     expect(updated.dataPoints.some((p) => p.load === 30)).toBe(true);
   });
 
+  it('breaks a tie among fully-timestamped points by lowest leverage, not first index', () => {
+    const original = buildBaseline([
+      { load: 10, velocity: 1.0, timestamp: 1000 },
+      { load: 50, velocity: 0.75, timestamp: 2000 },
+      { load: 90, velocity: 0.4, timestamp: 1000 },
+    ]);
+    const updated = updateBaselineWithPoint(original, 52, 0.6, {
+      maxPoints: 3,
+      timestamp: 3000,
+    });
+
+    // load=10 and load=90 tie as oldest (timestamp 1000). Mean load of the 4
+    // combined points is 50.5, so load=90 (leverage 39.5) sits closer to the
+    // mean than load=10 (leverage 40.5) and is the one evicted. Picking the
+    // first-encountered tied index (load=10, the pre-fix rule) would keep
+    // load=90 instead — pinned here so that regresses loudly.
+    expect(updated.dataPoints.some((p) => p.load === 90)).toBe(false);
+    expect(updated.dataPoints.some((p) => p.load === 10)).toBe(true);
+  });
+
   it('does not drop any point when below the maxPoints cap', () => {
     const original = buildBaseline(HISTORICAL_DATA);
     const updated = updateBaselineWithPoint(original, 60, 0.62, { maxPoints: 10 });

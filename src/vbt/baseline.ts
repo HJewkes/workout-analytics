@@ -165,10 +165,13 @@ function evictionIndex(points: readonly LoadVelocityDataPoint[]): number {
  *
  * When `maxPoints` is set and the cap is exceeded, one point is dropped: the
  * oldest by `timestamp`, with `evictionIndex`'s rule for points that carry no
- * timestamp. Untimestamped points are left untimestamped — the field means a
- * real observation time and is read for recency weighting, so a synthetic one
- * would be a lie on the wire. Their first eviction logs a one-time
- * `console.warn`, because the order changed in this release.
+ * timestamp — including breaking a tie among stamped points by lowest
+ * regression leverage rather than insertion order. Untimestamped points are
+ * left untimestamped — the field means a real observation time and is read
+ * for recency weighting, so a synthetic one would be a lie on the wire. The
+ * first eviction from any untimestamped baseline logs a one-time
+ * `console.warn`, once per process (a module-level flag, not per baseline),
+ * because the order changed in this release.
  *
  * @param baseline - Existing velocity baseline
  * @param loadPctE1RM - Load for the new observation (same units as existing points)
