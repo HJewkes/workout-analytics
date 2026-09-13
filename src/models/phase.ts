@@ -70,13 +70,21 @@ export const EMPTY_PHASE: Phase = Object.freeze({
 });
 
 /**
+ * True for a HOLD or IDLE sample — both treated as pause (contribute to hold
+ * duration, not movement metrics). The one predicate every HOLD/IDLE check in
+ * this package shares (VW-234), so the two never drift apart.
+ */
+export function isHoldOrIdleSample(sample: WorkoutSample): boolean {
+  return sample.phase === MovementPhase.HOLD || sample.phase === MovementPhase.IDLE;
+}
+
+/**
  * Add sample to phase, returns NEW phase (immutable).
  * IDLE and HOLD samples are treated as pause (hold duration).
  */
 export function addSampleToPhase(phase: Phase, sample: WorkoutSample): Phase {
   const isFirst = phase.samples.length === 0;
-  // IDLE and HOLD both treated as pause
-  const isHold = sample.phase === MovementPhase.HOLD || sample.phase === MovementPhase.IDLE;
+  const isHold = isHoldOrIdleSample(sample);
   const timeDelta = isFirst ? 0 : sample.timestamp - phase.endTime;
 
   const sampleLoad = sample.load ?? 0;
@@ -198,9 +206,7 @@ export function getPhaseVelocityDropPct(phase: Phase): number {
  * Anything sub-quarter resolution starts to be noise on BLE telemetry.
  */
 export function getPhaseVelocityEnvelope(phase: Phase): [number, number, number, number] {
-  const movementSamples = phase.samples.filter(
-    (s) => s.phase !== MovementPhase.HOLD && s.phase !== MovementPhase.IDLE
-  );
+  const movementSamples = phase.samples.filter((s) => !isHoldOrIdleSample(s));
   if (movementSamples.length < 2) return [0, 0, 0, 0];
 
   const tStart = movementSamples[0].timestamp;

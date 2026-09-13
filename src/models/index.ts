@@ -23,6 +23,7 @@ export { DEFAULT_LOAD_SETTINGS, calculateFrameLoad, getEffectiveLoad } from './l
 // Phase
 export {
   EMPTY_PHASE,
+  isHoldOrIdleSample,
   addSampleToPhase,
   rebuildPhaseFromSamples,
   getPhaseDuration,

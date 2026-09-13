@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **`isHoldOrIdleSample` (VW-234).** The `sample.phase === HOLD || sample.phase === IDLE` check existed as four separate copies with no shared function — `addSampleToPhase`'s insertion-time exclusion, `addSampleToRep`'s phase-routing, `getPhaseVelocityEnvelope`'s array-filter, and `rep-analytics`'s `excludeHoldAndIdle` — so a future new pause-like phase would need updating in four places to stay consistent. Now exported once from `@voltras/workout-analytics` and called from all four sites. No behavior change — the same samples are excluded as before.
+
 ### Changed
 
 - **BREAKING: `analyzeTrend`'s flat threshold is now per metric, and `TrendAnalysis.direction` can be `null` (KNOWN-ISSUES-2026-07-27 §6).** The threshold defaulted to `0.001` per day — an absolute constant on a `TimeSeries` that carries no units, while `MetricKey` spans velocity in m/s, volume in lbs and weight in lbs. It is now resolved from an explicit `flatThresholdPerDay`, else from `FLAT_THRESHOLD_PER_DAY[opts.metric]`, else not at all. A series with no resolvable threshold comes back with `direction: null` and its raw slope instead of a verdict, the shape `quality.hesitation` and `quality.bounce` already ship in. `TrendAnalysis` gains `flatThresholdPerDay`, the figure the verdict was reached under.
