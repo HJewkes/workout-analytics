@@ -8,8 +8,8 @@ are not lost.
 
 Ordered roughly by severity.
 
-**Status:** items 2, 3, 5, 6 and 7 are FIXED (see the notes on each). Items 1
-and 4 remain open.
+**Status:** items 2, 3, 4, 5, 6 and 7 are FIXED (see the notes on each). Item 1
+remains open.
 
 ---
 
@@ -169,7 +169,7 @@ in 7.5% by +14 to +35 days (3.5% of those flip `isPlateau` to true), and a true
 stall at a single weight never moves, because it already spanned the whole
 window.
 
-## 4. `updateBaselineWithPoint`'s documented timestamp default is not implemented
+## 4. `updateBaselineWithPoint`'s documented timestamp default is not implemented — **FIXED**
 
 `src/vbt/baseline.ts:133` (doc) vs `:142-146` (implementation)
 
@@ -185,6 +185,33 @@ profile is systematically eaten from below, biasing the regression's intercept
 
 Fix either the doc or the default — but note that implementing the documented
 default also silently changes eviction order for existing callers.
+
+**FIXED** — the documented default is now implemented (`opts.timestamp ??
+Date.now()`), and the untimestamped case has an answer of its own rather than a
+fall-through. An absent `timestamp` now ranks **older than any present one**, and
+within a tied cohort the point of lowest regression leverage is evicted — the one
+nearest the mean load, whose removal perturbs the fitted slope and intercept
+least. Lowest load is never privileged.
+
+Legacy points are **not** back-stamped. `LoadVelocityDataPoint.timestamp` means a
+real observation time and is read for recency weighting, so a synthetic
+`Date.now()`-adjacent value would be a lie that survives serialization. They stay
+absent, `serializeBaseline` output for them is byte-identical, and the first
+eviction from such a baseline logs a one-time `console.warn` naming the old
+behaviour — that is the signal to the caller.
+
+Measured on a slightly convex six-point fixture (loads 40-90, capped at 6, three
+working-load observations added): the old policy collapsed the retained range to
+70-90, moving V0 from 1.4733 to 1.3580 m/s (−7.8%) and `estimated1RM` from
+118.485 to 124.197 (+4.8%). The new policy retains 40,50,70,75,80,90, with V0 at
+1.4803 (+0.5%) and `estimated1RM` at 118.142 (−0.3%).
+
+The direction of the V0 shift in the paragraph above ("biasing the intercept
+upward") is **not unconditional** — it depends on the curvature of the true
+load-velocity relationship. Truncating the low end of a convex profile flattens
+the slope and pulls V0 **down** while pushing the 1RM estimate **up**; a concave
+profile moves both the other way. Real profiles over 40-90% are slightly convex,
+so the practical symptom was an estimated 1RM that crept upward on its own.
 
 ## 5. `getRepWork` integrates path length; ROM integrates net displacement — **FIXED**
 
