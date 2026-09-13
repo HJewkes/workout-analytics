@@ -4,7 +4,8 @@
  * Tests for second-order fatigue and consistency assessment functions.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import type { FatigueSchemes } from '@/analytics/fatigue';
 import {
   getSetVelocityChange,
   getSetTempoChange,
@@ -424,30 +425,17 @@ describe('findOutlierReps()', () => {
     }
   });
 
-  it('warns once per process when the deprecated outlier scheme is passed', async () => {
-    vi.resetModules();
-    const { findOutlierReps: freshFindOutlierReps } = await import('@/analytics/fatigue');
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('throws when the removed outlier scheme is passed', () => {
     const scheme = createBreakpointScheme([{ below: 10, value: false }], true);
 
-    freshFindOutlierReps(createSetWithOutlier(), { outlier: scheme });
-    freshFindOutlierReps(createSetWithOutlier(), { outlier: scheme });
-
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain('outlierAlpha');
-    warn.mockRestore();
+    expect(() =>
+      findOutlierReps(createSetWithOutlier(), { outlier: scheme } as unknown as FatigueSchemes)
+    ).toThrow(/outlierAlpha/);
   });
 
-  it('does not warn when no outlier scheme is passed', async () => {
-    vi.resetModules();
-    const { findOutlierReps: freshFindOutlierReps } = await import('@/analytics/fatigue');
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    freshFindOutlierReps(createSetWithOutlier());
-    freshFindOutlierReps(createSetWithOutlier(), { outlierAlpha: 0.01 });
-
-    expect(warn).not.toHaveBeenCalled();
-    warn.mockRestore();
+  it('does not throw when no outlier scheme is passed', () => {
+    expect(() => findOutlierReps(createSetWithOutlier())).not.toThrow();
+    expect(() => findOutlierReps(createSetWithOutlier(), { outlierAlpha: 0.01 })).not.toThrow();
   });
 });
 

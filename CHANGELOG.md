@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-13
+
 ### Added
 
 - **`isHoldOrIdleSample` (VW-234).** The `sample.phase === HOLD || sample.phase === IDLE` check existed as four separate copies with no shared function — `addSampleToPhase`'s insertion-time exclusion, `addSampleToRep`'s phase-routing, `getPhaseVelocityEnvelope`'s array-filter, and `rep-analytics`'s `excludeHoldAndIdle` — so a future new pause-like phase would need updating in four places to stay consistent. Now exported once from `@voltras/workout-analytics` and called from all four sites. No behavior change — the same samples are excluded as before.
@@ -66,6 +68,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   **ACTION FOR THE NEXT MAJOR: make `FatigueSchemes.outlier` THROW and drop the warning.** Throwing today would be correct on the merits but breaks callers without a major bump, so the warning is the interim step — it is not the intended end state. The same note is on the field's `@deprecated` comment in `src/analytics/fatigue.ts`.
 
   `voltras-mcp` does not call `findOutlierReps`, so its behaviour does not move.
+
+### Removed
+
+- **BREAKING: `FatigueSchemes.outlier` is gone — the next-major action noted above is now done.** The field was removed from the `FatigueSchemes` type (it is a type error to pass it), and `findOutlierReps` now throws a clear error naming `outlierAlpha` if it receives one anyway (an untyped caller, or a stale `.d.ts`), instead of the one-time `console.warn` this release shipped as the interim step. `QualitySchemes.outlier` (`src/analytics/quality.ts`), a separate field of the same name read by `getRepQualityFlags`, is unaffected.
 
 ### Added
 
