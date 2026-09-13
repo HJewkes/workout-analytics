@@ -2,7 +2,7 @@
  * Velocity Baseline Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   buildBaseline,
   getExpectedVelocity,
@@ -12,6 +12,7 @@ import {
 } from '@/vbt/baseline';
 import type { SerializedBaseline } from '@/vbt/baseline';
 import type { BaselineKey } from '@/models/baseline-key';
+import { buildProfile } from '@/vbt/profile';
 import type { LoadVelocityDataPoint } from '@/vbt/profile';
 
 // =============================================================================
@@ -158,18 +159,39 @@ describe('updateBaselineWithPoint', () => {
     expect(updated.dataPoints.some((p) => p.load === 90)).toBe(true);
   });
 
-  it('drops first sorted point when at cap and no timestamps present', () => {
+  it('evicts the oldest point even when it carries the highest load', () => {
     const original = buildBaseline([
-      { load: 30, velocity: 1.0 },
-      { load: 50, velocity: 0.75 },
-      { load: 70, velocity: 0.55 },
+      { load: 90, velocity: 0.3, timestamp: 1000 },
+      { load: 30, velocity: 1.0, timestamp: 2000 },
+      { load: 50, velocity: 0.75, timestamp: 3000 },
     ]);
-    const updated = updateBaselineWithPoint(original, 90, 0.3, { maxPoints: 3 });
+    const updated = updateBaselineWithPoint(original, 70, 0.55, {
+      maxPoints: 3,
+      timestamp: 4000,
+    });
 
-    expect(updated.dataPoints).toHaveLength(3);
-    // load=30 (first in sorted order) should be dropped
-    expect(updated.dataPoints.some((p) => p.load === 30)).toBe(false);
-    expect(updated.dataPoints.some((p) => p.load === 90)).toBe(true);
+    expect(updated.dataPoints.some((p) => p.load === 90)).toBe(false);
+    expect(updated.dataPoints.some((p) => p.load === 30)).toBe(true);
+  });
+
+  it('breaks a tie among fully-timestamped points by lowest leverage, not first index', () => {
+    const original = buildBaseline([
+      { load: 10, velocity: 1.0, timestamp: 1000 },
+      { load: 50, velocity: 0.75, timestamp: 2000 },
+      { load: 90, velocity: 0.4, timestamp: 1000 },
+    ]);
+    const updated = updateBaselineWithPoint(original, 52, 0.6, {
+      maxPoints: 3,
+      timestamp: 3000,
+    });
+
+    // load=10 and load=90 tie as oldest (timestamp 1000). Mean load of the 4
+    // combined points is 50.5, so load=90 (leverage 39.5) sits closer to the
+    // mean than load=10 (leverage 40.5) and is the one evicted. Picking the
+    // first-encountered tied index (load=10, the pre-fix rule) would keep
+    // load=90 instead — pinned here so that regresses loudly.
+    expect(updated.dataPoints.some((p) => p.load === 90)).toBe(false);
+    expect(updated.dataPoints.some((p) => p.load === 10)).toBe(true);
   });
 
   it('does not drop any point when below the maxPoints cap', () => {
@@ -193,6 +215,177 @@ describe('updateBaselineWithPoint', () => {
     expect(v70).not.toBeNull();
     expect(v50!).toBeGreaterThan(v60!);
     expect(v60!).toBeGreaterThan(v70!);
+  });
+
+  it('stamps the new point with Date.now() when no timestamp is supplied', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_700_000_000_000);
+
+    const updated = updateBaselineWithPoint(buildBaseline(HISTORICAL_DATA), 60, 0.62);
+
+    expect(updated.dataPoints.find((p) => p.load === 60)?.timestamp).toBe(1_700_000_000_000);
+    vi.useRealTimers();
+  });
+
+  it('uses an explicit timestamp in preference to the clock', () => {
+    const updated = updateBaselineWithPoint(buildBaseline(HISTORICAL_DATA), 60, 0.62, {
+      timestamp: 4000,
+    });
+
+    expect(updated.dataPoints.find((p) => p.load === 60)?.timestamp).toBe(4000);
+  });
+});
+
+// =============================================================================
+// Eviction from an untimestamped (legacy) baseline.
+//
+// KNOWN-ISSUES-2026-07-27 §4: the documented `Date.now()` default was never
+// implemented, so `hasTimestamps` could never hold for a baseline whose points
+// carried none, and eviction fell through to `combined.slice(1)` on a
+// load-sorted array — dropping the LOWEST LOAD every time.
+// =============================================================================
+
+describe('updateBaselineWithPoint on an untimestamped baseline', () => {
+  /** Slightly convex, as a real load-velocity profile is. Perfect line would hide the bias. */
+  const LEGACY_SPREAD: LoadVelocityDataPoint[] = [
+    { load: 40, velocity: 1.05 },
+    { load: 50, velocity: 0.92 },
+    { load: 60, velocity: 0.8 },
+    { load: 70, velocity: 0.69 },
+    { load: 80, velocity: 0.59 },
+    { load: 90, velocity: 0.5 },
+  ];
+
+  /** Three sessions of working-load observations, on the same curve. */
+  const WORKING_OBSERVATIONS: Array<[number, number]> = [
+    [70, 0.69],
+    [75, 0.64],
+    [80, 0.59],
+  ];
+
+  function addAll(points: LoadVelocityDataPoint[], maxPoints: number) {
+    let baseline = buildBaseline(points);
+    for (const [load, velocity] of WORKING_OBSERVATIONS) {
+      baseline = updateBaselineWithPoint(baseline, load, velocity, { maxPoints });
+    }
+    return baseline;
+  }
+
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the lowest-load point rather than evicting it', () => {
+    const updated = updateBaselineWithPoint(buildBaseline(LEGACY_SPREAD), 75, 0.64, {
+      maxPoints: 6,
+    });
+
+    expect(updated.dataPoints).toHaveLength(6);
+    expect(updated.dataPoints.some((p) => p.load === 40)).toBe(true);
+  });
+
+  it('does not eat the load-velocity profile from below over repeated updates', () => {
+    const updated = addAll(LEGACY_SPREAD, 6);
+
+    // Pre-fix this retained 70,70,75,80,80,90 — the whole sub-70 span gone.
+    expect(updated.dataPoints.map((p) => p.load)).toEqual([40, 50, 70, 75, 80, 90]);
+  });
+
+  it('holds V0 and the 1RM estimate within 1% across three capped updates', () => {
+    const before = buildProfile([...LEGACY_SPREAD]);
+    const after = buildProfile([...addAll(LEGACY_SPREAD, 6).dataPoints]);
+
+    // Pre-fix figures for this fixture: V0 1.4733 -> 1.3580 (-7.8%),
+    // estimated1RM 118.485 -> 124.197 (+4.8%).
+    expect(after.intercept).toBeCloseTo(1.4803, 4);
+    expect(after.estimated1RM).toBeCloseTo(118.142, 3);
+    expect(Math.abs(after.intercept / before.intercept - 1)).toBeLessThan(0.01);
+    expect(Math.abs(after.estimated1RM / before.estimated1RM - 1)).toBeLessThan(0.01);
+  });
+
+  it('evicts the point of lowest regression leverage, not an end point', () => {
+    const updated = updateBaselineWithPoint(buildBaseline(LEGACY_SPREAD), 75, 0.64, {
+      maxPoints: 6,
+    });
+
+    // Mean load of the 7 combined points is 66.4, so load=70 is nearest it.
+    expect(updated.dataPoints.map((p) => p.load)).toEqual([40, 50, 60, 75, 80, 90]);
+  });
+
+  it('ranks an untimestamped point as older than any stamped point', () => {
+    const mixed = buildBaseline([
+      { load: 40, velocity: 1.05 },
+      { load: 60, velocity: 0.8, timestamp: 1000 },
+      { load: 90, velocity: 0.5, timestamp: 2000 },
+    ]);
+    const updated = updateBaselineWithPoint(mixed, 70, 0.69, { maxPoints: 3, timestamp: 3000 });
+
+    expect(updated.dataPoints.some((p) => p.load === 40)).toBe(false);
+    expect(updated.dataPoints.map((p) => p.load)).toEqual([60, 70, 90]);
+  });
+
+  it('leaves surviving legacy points untimestamped rather than fabricating an age', () => {
+    const updated = updateBaselineWithPoint(buildBaseline(LEGACY_SPREAD), 75, 0.64, {
+      maxPoints: 6,
+      timestamp: 5000,
+    });
+    const serialized = serializeBaseline(updated);
+
+    for (const point of serialized.dataPoints.filter((p) => p.load !== 75)) {
+      expect('timestamp' in point).toBe(false);
+    }
+    expect(serialized.dataPoints.find((p) => p.load === 75)?.timestamp).toBe(5000);
+  });
+});
+
+describe('untimestamped eviction warning', () => {
+  it('warns once per process when evicting from an untimestamped baseline', async () => {
+    vi.resetModules();
+    const mod = await import('@/vbt/baseline');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const legacy = mod.buildBaseline([
+      { load: 30, velocity: 1.0 },
+      { load: 50, velocity: 0.75 },
+      { load: 70, velocity: 0.55 },
+    ]);
+
+    mod.updateBaselineWithPoint(legacy, 90, 0.3, { maxPoints: 3 });
+    mod.updateBaselineWithPoint(legacy, 80, 0.4, { maxPoints: 3 });
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('LOWEST-LOAD');
+    warn.mockRestore();
+  });
+
+  it('does not warn when every point carries a timestamp', async () => {
+    vi.resetModules();
+    const mod = await import('@/vbt/baseline');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const timed = mod.buildBaseline([
+      { load: 30, velocity: 1.0, timestamp: 1000 },
+      { load: 50, velocity: 0.75, timestamp: 2000 },
+      { load: 70, velocity: 0.55, timestamp: 3000 },
+    ]);
+
+    mod.updateBaselineWithPoint(timed, 90, 0.3, { maxPoints: 3, timestamp: 4000 });
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('does not warn when no cap forces an eviction', async () => {
+    vi.resetModules();
+    const mod = await import('@/vbt/baseline');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    mod.updateBaselineWithPoint(mod.buildBaseline(HISTORICAL_DATA), 60, 0.62);
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 

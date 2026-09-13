@@ -117,14 +117,61 @@ export function getExpectedVelocity(baseline: VelocityBaseline, load: number): n
   return null;
 }
 
+let untimestampedEvictionWarned = false;
+
+/** Warn once per process: eviction on this baseline could not use real ages. */
+function warnUntimestampedEviction(): void {
+  if (untimestampedEvictionWarned) return;
+  untimestampedEvictionWarned = true;
+  console.warn(
+    '[@voltras/workout-analytics] updateBaselineWithPoint evicted from a baseline whose points ' +
+      'carry no timestamp. Until this release that dropped the LOWEST-LOAD point every time, ' +
+      'eating the load-velocity profile from below; it now drops an unknown-age point of lowest ' +
+      'regression leverage, so the fit is no longer biased in a fixed direction. Stamp points ' +
+      'with `timestamp` to get true age-ordered eviction.'
+  );
+}
+
+/**
+ * Index of the point to evict: the oldest by `timestamp`, where an absent
+ * timestamp ranks older than any present one (age unknown, and the baseline
+ * predates the write that is adding a stamped point).
+ *
+ * Within a tied cohort — legacy points that all lack a timestamp, or two writes
+ * landing in the same millisecond — the point of lowest regression leverage
+ * goes. Leverage is `(load - meanLoad)^2 / Σ(load - meanLoad)^2`, so the point
+ * nearest the mean load is the one whose removal perturbs the fitted slope and
+ * intercept least. Index order breaks a remaining tie, for determinism.
+ */
+function evictionIndex(points: readonly LoadVelocityDataPoint[]): number {
+  const age = (p: LoadVelocityDataPoint): number => p.timestamp ?? -Infinity;
+  const oldest = Math.min(...points.map(age));
+  const meanLoad = points.reduce((sum, p) => sum + p.load, 0) / points.length;
+  const leverage = (p: LoadVelocityDataPoint): number => Math.abs(p.load - meanLoad);
+
+  let chosen = -1;
+  for (let i = 0; i < points.length; i++) {
+    if (age(points[i]) !== oldest) continue;
+    if (chosen === -1 || leverage(points[i]) < leverage(points[chosen])) chosen = i;
+  }
+  return chosen;
+}
+
 /**
  * Add a new observation to an existing baseline and return a new baseline.
  * The original baseline is not mutated.
  *
- * When `maxPoints` is set and the cap is reached, the oldest point by
- * insertion order (lowest index before sort) is dropped. "Oldest" means
- * the point with the smallest `timestamp` value; if timestamps are absent,
- * the first element in the pre-update sorted array is dropped.
+ * The new point is stamped with `opts.timestamp`, defaulting to `Date.now()`.
+ *
+ * When `maxPoints` is set and the cap is exceeded, one point is dropped: the
+ * oldest by `timestamp`, with `evictionIndex`'s rule for points that carry no
+ * timestamp — including breaking a tie among stamped points by lowest
+ * regression leverage rather than insertion order. Untimestamped points are
+ * left untimestamped — the field means a real observation time and is read
+ * for recency weighting, so a synthetic one would be a lie on the wire. The
+ * first eviction from any untimestamped baseline logs a one-time
+ * `console.warn`, once per process (a module-level flag, not per baseline),
+ * because the order changed in this release.
  *
  * @param baseline - Existing velocity baseline
  * @param loadPctE1RM - Load for the new observation (same units as existing points)
@@ -142,26 +189,16 @@ export function updateBaselineWithPoint(
   const newPoint: LoadVelocityDataPoint = {
     load: loadPctE1RM,
     velocity: peakVelocity,
-    ...(opts?.timestamp !== undefined ? { timestamp: opts.timestamp } : {}),
+    timestamp: opts?.timestamp ?? Date.now(),
   };
 
   let combined: LoadVelocityDataPoint[] = [...baseline.dataPoints, newPoint];
 
   const { maxPoints } = opts ?? {};
   if (maxPoints !== undefined && combined.length > maxPoints) {
-    // Drop the oldest point: prefer timestamp-based ordering, fall back to
-    // first element in the current (already load-sorted) array.
-    const hasTimestamps = combined.every((p) => p.timestamp !== undefined);
-    if (hasTimestamps) {
-      const oldestIdx = combined.reduce(
-        (minIdx, p, idx) => (p.timestamp! < combined[minIdx].timestamp! ? idx : minIdx),
-        0
-      );
-      combined = combined.filter((_, idx) => idx !== oldestIdx);
-    } else {
-      // Drop the first point in load-sorted order (lowest load)
-      combined = combined.slice(1);
-    }
+    if (combined.some((p) => p.timestamp === undefined)) warnUntimestampedEviction();
+    const evictIdx = evictionIndex(combined);
+    combined = combined.filter((_, idx) => idx !== evictIdx);
   }
 
   return buildBaseline(combined, baseline.key);
