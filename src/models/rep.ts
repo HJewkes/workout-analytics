@@ -8,6 +8,7 @@ import {
   type Phase,
   EMPTY_PHASE,
   addSampleToPhase,
+  isHoldOrIdleSample,
   getPhaseHoldDuration,
   getPhaseMovementDuration,
   getPhaseMeanVelocity,
@@ -53,8 +54,7 @@ export function isInEccentricPhase(rep: Rep): boolean {
 export function addSampleToRep(rep: Rep, sample: WorkoutSample): Rep {
   let { concentric, eccentric } = rep;
 
-  // IDLE and HOLD both treated as pause
-  const isHold = sample.phase === MovementPhase.HOLD || sample.phase === MovementPhase.IDLE;
+  const isHold = isHoldOrIdleSample(sample);
 
   if (sample.phase === MovementPhase.CONCENTRIC || (isHold && !isInEccentricPhase(rep))) {
     concentric = addSampleToPhase(concentric, sample);

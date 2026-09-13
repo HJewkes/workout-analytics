@@ -30,6 +30,7 @@ export {
   // Phase
   type Phase,
   EMPTY_PHASE,
+  isHoldOrIdleSample,
   addSampleToPhase,
   rebuildPhaseFromSamples,
   getPhaseDuration,

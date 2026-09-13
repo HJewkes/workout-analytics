@@ -6,8 +6,12 @@
  */
 
 import type { Rep } from '@/models/rep';
-import { getPhaseMeanVelocity, getPhaseMeanForce, getPhaseMovementDuration } from '@/models/phase';
-import { MovementPhase } from '@/models/types';
+import {
+  getPhaseMeanVelocity,
+  getPhaseMeanForce,
+  getPhaseMovementDuration,
+  isHoldOrIdleSample,
+} from '@/models/phase';
 import type { WorkoutSample } from '@/models/sample';
 
 /**
@@ -17,7 +21,7 @@ import type { WorkoutSample } from '@/models/sample';
  * its samples accumulates sensor jitter as if it were work.
  */
 function excludeHoldAndIdle(samples: readonly WorkoutSample[]): WorkoutSample[] {
-  return samples.filter((s) => s.phase !== MovementPhase.HOLD && s.phase !== MovementPhase.IDLE);
+  return samples.filter((s) => !isHoldOrIdleSample(s));
 }
 
 // =============================================================================
