@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **`resolveSetEffort`, the pure effort resolver (VW-518).** One function answers the live hero chart, the rep strip, the RPE readout and the set's ending cue, so those four surfaces cannot disagree. Exported from the root barrel alongside `EFFORT_POLICY` and the `src/effort/` types.
+
+  A set is judged against a **goal** — a rep range (the common case), a target RPE, or a velocity-loss percent — and its **guards**, re-evaluated after every finalized eligible rep. With a trusted profile a rep-range set carries two live guards, the effort cap and an explicitly typed velocity-loss percent; an intent-derived loss number does not guard there, and every other case carries at most one guard. The first condition to become true fires the cue and **latches**; a tie between the goal and a guard goes to the goal, and a tie between the two guards goes to effort; a condition that becomes true later is recorded in `cue.alsoTrue` and stays silent; reps after the latch read `past`. Nothing here ends a set: the cue is advice, and the word "stop" is not in the contract.
+
+  With a trusted profile (tier b, the caller supplies one only when it trusts it) each rep reads a predicted RIR from the fitted line, an RPE of `10 - rir`, and an absolute-effort band. Without one (tier a) **RPE is withheld entirely** and bands are thirds of the set's reference loss, which means "slowing", not effort.
+
+  **What velocity can answer at all depends on the resistance family**, as policy data in `EFFORT_POLICY.resistanceCapability`, one row per family with its standing marked. `constant` is `profile_capable`, so a trusted profile fitted in that family reads absolute effort. `chains` and `eccentric_overload` are `velocity_loss_only` (OWNER: velocity is "readable within the set"): the load curve repeats on every rep, so loss from the set's own fastest rep tracks fatigue and can colour bars and drive a loss guard, but nothing calibrated at constant load transfers, so RPE stays withheld until a profile fitted in that family exists. `damper` is `velocity_loss_typed_guard_only` (OWNER: "Colours only; a guard only for a typed percent; never RPE"): loss colours and `lossPct` are reported, but a guard needs an **explicitly typed** percent, because resistance follows speed, every rep can be finished slower, and a number borrowed from failure-based studies has no analogue there. A damper-family profile is **refused**, not used, with `degradedReason: 'profile_family_has_no_effort_scale'`. `isokinetic` is `none` (OWNER) — no band, no loss percent, no velocity condition — since the device holds the speed and fatigue shows in force; a force-loss basis is filed as VW-526. An invalid velocity signal (ballistic pulls) is a separate flag and still gives `none`. **The rep-count cue fires in every family, because it reads no velocity.**
+
+  A profile applies only when `profile.resistanceFamily` equals the set's family; there is no default, so every caller states it. A rep with `sameSettingAsSetStart: false` suspends the velocity conditions from that rep on — later reps get no band and no loss, and `degradedReason` reads `setting_changed_mid_set` — while an already latched cue stays latched and the rep count carries on. The suspension is sticky for the rest of the set: the fastest rep does not become a fair baseline again.
+
+  Bar height is `reps[i].velocityMps`, the measured mean concentric velocity passed through untouched — never rounded to a band edge, the fitted line or a marker.
+
+  The function is pure over one serializable context pinned at set start: no store handle, no clock, no I/O, no randomness, so a cloud service can build the context and a browser or React Native shell can run the rule over it unchanged. Resolving a prefix of a set's reps latches on the same rep as resolving the whole set.
+
+  Every threshold lives in the exported `EFFORT_POLICY`, each marked OWNER or ENGINEERING DEFAULT, and the object is an optional third argument, so a caller can pass a newer table without a release of this package. No lifter-facing string crosses the boundary: markers carry `condition`, `targetRpe`, `lossPct` and `repsLow`/`repsHigh` rather than a rendered label, and `degradedReason` is a typed id.
+
+  A marker's `band` is the effort it targets, or null for neutral ink: an effort line always names one, a loss line names one only as a **goal** in tier b (where the set aims at that velocity and a trusted profile can say what effort it predicts), and a rep count never does. The same loss line drawn as a guard is a cap someone typed and stays neutral.
+
+  `resistance.signature` is **opaque**: this library only compares it for equality and never parses it, so callers pass a hash or a label and never a setting value a reader could decode.
+
+  `reps` must arrive in ascending, unique `repNumber` order: the walk is a left fold in array order and does not sort or de-duplicate, so a caller that reorders reps moves the latch. Tests pin that behaviour rather than papering over it.
+
+  Additive only. No existing export changed. `estimateSetRpe` and `estimateSetRIR` are untouched in this change; their deprecation in favour of the resolver is a separate step. **Semver: minor.**
+
 ## [3.0.0] - 2026-09-13
 
 ### Added
