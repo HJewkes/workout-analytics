@@ -21,11 +21,12 @@ try {
     join(scratch, 'consumer.mjs'),
     [
       "import { estimateSetRpe, getSetTempoSeconds, classifyWeeklyVolume } from '@voltras/workout-analytics/view';",
-      "import { getWeeklySummaries, getVolumeByMuscleGroup, buildTimeSeries } from '@voltras/workout-analytics';",
+      "import { getWeeklySummaries, getVolumeByMuscleGroup, buildTimeSeries, resolveSetEffort, EFFORT_POLICY } from '@voltras/workout-analytics';",
       "import { } from '@voltras/workout-analytics/schema';",
-      'for (const [name, fn] of Object.entries({ estimateSetRpe, getSetTempoSeconds, classifyWeeklyVolume, getWeeklySummaries, getVolumeByMuscleGroup, buildTimeSeries })) {',
+      'for (const [name, fn] of Object.entries({ estimateSetRpe, getSetTempoSeconds, classifyWeeklyVolume, getWeeklySummaries, getVolumeByMuscleGroup, buildTimeSeries, resolveSetEffort })) {',
       "  if (typeof fn !== 'function') throw new Error(`${name} is not exported as a function`);",
       '}',
+      "if (typeof EFFORT_POLICY?.defaultEffortCapRpe !== 'number') throw new Error('EFFORT_POLICY is not exported');",
       "console.log('exports ok: ./view and root re-exports resolve from the packed tarball');",
     ].join('\n'),
   );

@@ -382,6 +382,33 @@ export {
   DEFAULT_FALLBACK_PROFILE,
 } from './vbt';
 
+// Effort - the pure set-effort resolver (goal, guard, one latched cue, bands)
+export {
+  EFFORT_POLICY,
+  type EffortPolicy,
+  resolveSetEffort,
+  type CueReason,
+  type CueState,
+  type EffortBand,
+  type EffortBasis,
+  type EffortConfidence,
+  type EffortCue,
+  type EffortDegradedReason,
+  type EffortExerciseClass,
+  type EffortGoal,
+  type EffortGoalSource,
+  type EffortGuardInput,
+  type EffortIntent,
+  type EffortLossSource,
+  type EffortMarker,
+  type EffortMarkerSource,
+  type EffortProfile,
+  type EffortRep,
+  type EffortRepInput,
+  type EffortSetContext,
+  type SetEffort,
+} from './effort';
+
 // Exercises
 export {
   type Exercise,
