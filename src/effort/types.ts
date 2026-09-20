@@ -28,6 +28,29 @@ export type EffortExerciseClass = 'lower_compound' | 'upper_compound' | 'single_
 
 export type EffortIntent = 'strength' | 'hypertrophy' | 'power';
 
+/**
+ * How the resistance behaves across a rep. It decides what velocity can answer:
+ * see `EffortPolicy.resistanceCapability`, which is where the per-family ruling
+ * lives as data.
+ */
+export type EffortResistanceFamily =
+  | 'constant'
+  | 'chains'
+  | 'eccentric_overload'
+  | 'damper'
+  | 'isokinetic';
+
+export interface EffortResistance {
+  family: EffortResistanceFamily;
+  /**
+   * OPAQUE. Equal strings mean the same family and the same settings. This
+   * library only ever compares it for equality and never parses it, so pass a
+   * hash or a label — NEVER a setting value a reader could decode back into a
+   * device configuration.
+   */
+  signature: string;
+}
+
 /** Where a goal came from. The first two are prescriptions, the rest typed watches. */
 export type EffortGoalSource = 'plan' | 'last_time' | 'explicit' | 'set_intent' | 'plan_intent';
 
@@ -86,6 +109,11 @@ export interface EffortProfile {
   rirRange: readonly [number, number];
   /** The load/e1RM span the line was fitted over; outside it the profile is not used. */
   intensityRange: readonly [number, number];
+  /**
+   * The family the line was fitted under. A profile applies ONLY to a set of
+   * the same family; every profile fitted so far is `constant`.
+   */
+  resistanceFamily: EffortResistanceFamily;
   modelVersion: string;
 }
 
@@ -95,6 +123,12 @@ export interface EffortRepInput {
   meanVelocityMps: number;
   /** Caller-decided. An ineligible rep gets no band and drives no condition. */
   eligible: boolean;
+  /**
+   * False from the first rep after a mid-set setting change. The set's fastest
+   * rep stops being a fair baseline, so the velocity conditions suspend from
+   * that rep on while the rep count carries on.
+   */
+  sameSettingAsSetStart: boolean;
 }
 
 export interface EffortSetContext {
@@ -108,8 +142,8 @@ export interface EffortSetContext {
   bandReferenceLossPct: number;
   /** Load over estimated 1RM; `null` when unknown. Checked against the fitted span. */
   relativeIntensity: number | null;
-  /** False for isokinetic, chains, damper or eccentric overload. */
-  constantLoad: boolean;
+  /** What the resistance does across a rep, and an opaque settings signature. */
+  resistance: EffortResistance;
   /** False for ballistic pulls. */
   velocitySignalValid: boolean;
   profile: EffortProfile | null;
@@ -125,9 +159,12 @@ export type EffortConfidence = 'high' | 'low';
 
 /** Why the set is not on a trusted profile. `null` when it is. */
 export type EffortDegradedReason =
-  | 'non_constant_load'
+  | 'resistance_family_not_readable'
+  | 'resistance_family_not_profile_capable'
   | 'velocity_signal_invalid'
+  | 'setting_changed_mid_set'
   | 'no_profile'
+  | 'profile_family_mismatch'
   | 'profile_slope_not_positive'
   | 'intensity_out_of_domain';
 

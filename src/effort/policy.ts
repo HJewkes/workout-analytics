@@ -14,6 +14,21 @@
  * resolver never sees.
  */
 
+import type { EffortResistanceFamily } from '@/effort/types';
+
+/**
+ * What velocity can answer under one resistance family.
+ *
+ * - `profile_capable`: a trusted profile fitted in this family reads absolute
+ *   effort, so a set can reach tier b.
+ * - `velocity_loss_only`: velocity falls with fatigue inside the set, so loss
+ *   colours and a loss guard hold, but no number calibrated elsewhere applies.
+ *   RPE stays withheld until a profile fitted in this family exists.
+ * - `none`: velocity answers nothing. No band and no velocity condition. The
+ *   rep count still cues, because it reads no velocity.
+ */
+export type ResistanceCapability = 'profile_capable' | 'velocity_loss_only' | 'none';
+
 export interface EffortPolicy {
   readonly policyId: string;
   readonly policyVersion: string;
@@ -35,6 +50,8 @@ export interface EffortPolicy {
   readonly intensityDomainTolerance: number;
   /** ENGINEERING DEFAULT. Float slack so an exactly-on-target reading counts as reached. */
   readonly conditionEpsilon: number;
+  /** What velocity can answer per resistance family. See each row for its standing. */
+  readonly resistanceCapability: Readonly<Record<EffortResistanceFamily, ResistanceCapability>>;
 }
 
 export const EFFORT_POLICY: EffortPolicy = {
@@ -49,4 +66,29 @@ export const EFFORT_POLICY: EffortPolicy = {
   approachingLossFraction: 2 / 3,
   intensityDomainTolerance: 0.05,
   conditionEpsilon: 1e-9,
+  resistanceCapability: {
+    /** OWNER. The calibrated case: a trusted profile reads absolute effort. */
+    constant: 'profile_capable',
+    /**
+     * OWNER, "Readable within the set (Recommended)". The load curve repeats on
+     * every rep, so loss from the set's fastest rep tracks fatigue; a threshold
+     * or a line calibrated at constant load does not transfer, so no predicted
+     * RPE until a profile fitted in this family exists.
+     */
+    chains: 'velocity_loss_only',
+    /** OWNER, the same ruling as chains: the concentric load is constant. */
+    eccentric_overload: 'velocity_loss_only',
+    /**
+     * PENDING OWNER. Designer recommends `velocity_loss_only` with a guard only
+     * for an explicitly typed percent, and never RPE or a profile: resistance
+     * follows speed, so there is no rep the lifter cannot finish and reps in
+     * reserve has no meaning. Held at `none` until that is ruled.
+     */
+    damper: 'none',
+    /**
+     * PENDING OWNER. Designer recommends `none`: the device holds the speed, so
+     * fatigue shows in force, not velocity. A force-loss basis is its own task.
+     */
+    isokinetic: 'none',
+  },
 };

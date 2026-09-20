@@ -2,15 +2,23 @@
  * `resolveSetEffort` — one answer for the hero chart, the rep strip, the RPE
  * readout and the ending cue (VW-518, VW-448 amendment s.4-s.5).
  *
- * The rule, in four sentences. A set is judged against a GOAL (a rep range, a
- * target RPE, or a velocity-loss percent) and at most one GUARD, evaluated
- * after every finalized eligible rep. The FIRST condition to become true fires
- * the cue and LATCHES; a tie goes to the goal, and a condition that becomes
- * true later is recorded in `cue.alsoTrue` and stays silent. Bar height is the
- * measured mean velocity, passed through untouched; bar COLOUR is absolute
- * effort, which only a trusted profile can read, so RPE is withheld entirely
- * until one exists. Nothing here ends a set: the cue is advice, and reps after
- * the latch are reported as `past`.
+ * The rule. A set is judged against a GOAL (a rep range, a target RPE, or a
+ * velocity-loss percent) and its GUARDS, after every finalized eligible rep.
+ * The FIRST condition to become true fires the cue and LATCHES; a tie between
+ * the goal and a guard goes to the goal, and a condition that becomes true
+ * later is recorded in `cue.alsoTrue` and stays silent.
+ *
+ * What velocity can answer at all depends on the RESISTANCE FAMILY, as policy
+ * data: constant load can reach absolute effort, chains and eccentric overload
+ * read within-set loss only, and a family velocity cannot speak for gets no
+ * band and no velocity condition while its rep count still cues. A mid-set
+ * setting change suspends the velocity conditions from that rep on; an already
+ * latched cue stays latched.
+ *
+ * Bar height is the measured mean velocity, passed through untouched; bar
+ * COLOUR is absolute effort, which only a trusted profile fitted in the same
+ * family can read, so RPE is withheld entirely until one exists. Nothing here
+ * ends a set: the cue is advice, and reps after the latch are reported `past`.
  *
  * Pure: no store handle, no clock, no I/O, no randomness. The same context and
  * reps always give the same answer, and resolving a prefix of the reps latches
@@ -72,20 +80,40 @@ function intensityInDomain(
 }
 
 /**
- * Which rule answers this set. A non-constant load or an invalid velocity
- * signal means no band and no velocity-derived condition at all; a missing,
- * broken or out-of-domain profile drops the set to the velocity-loss tier.
+ * Which rule answers this set. The resistance family decides what velocity can
+ * answer at all, through the policy table; an invalid velocity signal closes it
+ * off entirely; and a missing, foreign, broken or out-of-domain profile drops
+ * the set to the velocity-loss tier.
  */
 function resolveBasis(
   context: EffortSetContext,
   policy: EffortPolicy
 ): { basis: EffortBasis; degradedReason: EffortDegradedReason | null } {
-  if (!context.constantLoad) return { basis: 'none', degradedReason: 'non_constant_load' };
+  const capability = policy.resistanceCapability[context.resistance.family];
+  if (capability === 'none') {
+    return { basis: 'none', degradedReason: 'resistance_family_not_readable' };
+  }
   if (!context.velocitySignalValid) {
     return { basis: 'none', degradedReason: 'velocity_signal_invalid' };
   }
+  if (capability === 'velocity_loss_only') {
+    return {
+      basis: 'velocity_loss_table',
+      degradedReason: 'resistance_family_not_profile_capable',
+    };
+  }
+  return profileBasis(context, policy);
+}
+
+function profileBasis(
+  context: EffortSetContext,
+  policy: EffortPolicy
+): { basis: EffortBasis; degradedReason: EffortDegradedReason | null } {
   const profile = context.profile;
   if (profile === null) return { basis: 'velocity_loss_table', degradedReason: 'no_profile' };
+  if (profile.resistanceFamily !== context.resistance.family) {
+    return { basis: 'velocity_loss_table', degradedReason: 'profile_family_mismatch' };
+  }
   if (!(profile.slopeMpsPerRir > 0)) {
     return { basis: 'velocity_loss_table', degradedReason: 'profile_slope_not_positive' };
   }
@@ -304,15 +332,14 @@ function conditionApproaching(
 // The walk over the reps
 // =============================================================================
 
-function readRep(
-  rep: EffortRepInput,
-  context: EffortSetContext,
-  basis: EffortBasis,
-  bestVelocityMps: number,
-  policy: EffortPolicy
-): RepReading {
-  const blank: RepReading = {
-    repNumber: rep.repNumber,
+/** The reps condition is the only one that reads no velocity. */
+function readsNoVelocity(spec: ConditionSpec): boolean {
+  return spec.reason === 'reps';
+}
+
+function blankReading(repNumber: number): RepReading {
+  return {
+    repNumber,
     lossPct: null,
     rir: null,
     rirRange: null,
@@ -320,7 +347,18 @@ function readRep(
     band: null,
     confidence: null,
   };
-  if (!rep.eligible || !Number.isFinite(rep.meanVelocityMps)) return blank;
+}
+
+function readRep(
+  rep: EffortRepInput,
+  context: EffortSetContext,
+  basis: EffortBasis,
+  bestVelocityMps: number,
+  policy: EffortPolicy
+): RepReading {
+  const blank = blankReading(rep.repNumber);
+  // Basis `none` means velocity answers nothing here — not even a loss percent.
+  if (basis === 'none' || !Number.isFinite(rep.meanVelocityMps)) return blank;
   const lossPct =
     bestVelocityMps > 0 ? ((bestVelocityMps - rep.meanVelocityMps) / bestVelocityMps) * 100 : null;
   const profile = context.profile;
@@ -348,6 +386,8 @@ function readRep(
 interface Walk {
   reps: EffortRep[];
   bestVelocityMps: number | null;
+  /** True once a rep reported the setting had changed. Sticky for the rest of the set. */
+  settingChanged: boolean;
   lastEligible: RepReading | null;
   reason: CueReason | null;
   reachedAtRep: number | null;
@@ -405,6 +445,7 @@ function walkSet(
   const walk: Walk = {
     reps: [],
     bestVelocityMps: null,
+    settingChanged: false,
     lastEligible: null,
     reason: null,
     reachedAtRep: null,
@@ -413,21 +454,26 @@ function walkSet(
     state: 'working',
   };
   for (const rep of reps) {
-    const latchedAlready = walk.reason !== null;
-    if (latchedAlready) walk.repsPastCue += 1;
-    if (rep.eligible && Number.isFinite(rep.meanVelocityMps)) {
+    if (!rep.sameSettingAsSetStart) walk.settingChanged = true;
+    const readsVelocity = rep.eligible && !walk.settingChanged;
+    if (walk.reason !== null) walk.repsPastCue += 1;
+    if (readsVelocity && Number.isFinite(rep.meanVelocityMps)) {
       walk.bestVelocityMps = Math.max(
         walk.bestVelocityMps ?? rep.meanVelocityMps,
         rep.meanVelocityMps
       );
     }
-    const reading = readRep(rep, context, basis, walk.bestVelocityMps ?? 0, policy);
+    const reading = readsVelocity
+      ? readRep(rep, context, basis, walk.bestVelocityMps ?? 0, policy)
+      : blankReading(rep.repNumber);
+    // A suspended rep still counts: only the velocity conditions stop.
+    const specs = readsVelocity ? conditions.specs : conditions.specs.filter(readsNoVelocity);
     let firedHere = false;
     if (rep.eligible) {
-      firedHere = latchCue(walk, conditions.specs, reading, policy);
-      walk.lastEligible = reading;
+      firedHere = latchCue(walk, specs, reading, policy);
+      if (readsVelocity) walk.lastEligible = reading;
       if (walk.reason === null) {
-        walk.state = stateBeforeLatch(conditions.specs, conditions.goal, reading, policy);
+        walk.state = stateBeforeLatch(specs, conditions.goal, reading, policy);
       }
     }
     if (walk.reason !== null) walk.state = firedHere ? 'reached' : 'past';
@@ -522,7 +568,9 @@ function cueFallback(
  * Resolve one set's effort: a band and a state per rep, at most one cue, and
  * the goal and guard markers a chart draws.
  *
- * @param context - Pinned at set start by the caller; plain JSON, never revised mid-set.
+ * @param context - Pinned at set start by the caller; plain JSON, never revised
+ *   mid-set. `resistance.family` decides what velocity can answer at all,
+ *   through `policy.resistanceCapability`.
  * @param reps - The set's finalized reps, velocity on MEAN concentric velocity.
  *   PRECONDITION: ascending, unique `repNumber`. The walk is a left fold in
  *   array order and does not sort or de-duplicate, so a caller that reorders
@@ -540,6 +588,8 @@ export function resolveSetEffort(
   const specs = goal === null ? guards : [goal, ...guards];
   const walk = walkSet(context, reps, basis, { goal, specs }, policy);
   const last = walk.lastEligible;
+  // A mid-set setting change outranks the tier reason: it is why nothing newer reads.
+  const reason = walk.settingChanged ? 'setting_changed_mid_set' : degradedReason;
   return {
     basis,
     policyId: policy.policyId,
@@ -563,6 +613,6 @@ export function resolveSetEffort(
     },
     set: { rir: last?.rir ?? null, rpe: last?.rpe ?? null, band: last?.band ?? null },
     confidence: last?.confidence ?? null,
-    degradedReason,
+    degradedReason: reason,
   };
 }

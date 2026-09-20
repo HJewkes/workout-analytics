@@ -17,10 +17,12 @@ import { resolveSetEffort } from '@/effort/resolve-set-effort';
 import { EFFORT_POLICY } from '@/effort/policy';
 import type {
   CueReason,
+  EffortBasis,
   EffortGoal,
   EffortGuardInput,
   EffortProfile,
   EffortRepInput,
+  EffortResistanceFamily,
   EffortSetContext,
 } from '@/effort/types';
 
@@ -36,6 +38,7 @@ const PROFILE: EffortProfile = {
   rirErrorReps: 0.5,
   rirRange: [0, 5],
   intensityRange: [0.6, 0.9],
+  resistanceFamily: 'constant',
   modelVersion: 'rir-velocity@1.0.0',
 };
 
@@ -51,7 +54,13 @@ function ramp(count = RAMP.length, eligible = true): EffortRepInput[] {
     repNumber: i + 1,
     meanVelocityMps,
     eligible,
+    sameSettingAsSetStart: true,
   }));
+}
+
+/** The same ramp with the setting reported changed from `fromRep` on. */
+function rampWithSettingChange(fromRep: number): EffortRepInput[] {
+  return ramp().map((rep) => ({ ...rep, sameSettingAsSetStart: rep.repNumber < fromRep }));
 }
 
 function context(overrides: Partial<EffortSetContext> = {}): EffortSetContext {
@@ -62,7 +71,7 @@ function context(overrides: Partial<EffortSetContext> = {}): EffortSetContext {
     guard: NO_GUARD,
     bandReferenceLossPct: 30,
     relativeIntensity: 0.75,
-    constantLoad: true,
+    resistance: { family: 'constant', signature: 'sig-a' },
     velocitySignalValid: true,
     profile: null,
     ...overrides,
@@ -167,11 +176,14 @@ describe('the tier decides what a band means and whether RPE is readable', () =>
     expect(effort.reps.map((rep) => rep.band)).toEqual([0, 0, 1, 2, 3, 3, 3, 3, 3]);
   });
 
-  it('a non-constant load leaves no band and no velocity-derived condition', () => {
-    const ctx = tierB({ goal: VELOCITY_LOSS, constantLoad: false });
+  it('an unreadable family leaves no band and no velocity-derived condition', () => {
+    const ctx = tierB({
+      goal: VELOCITY_LOSS,
+      resistance: { family: 'isokinetic', signature: 'sig-iso' },
+    });
     const effort = resolveSetEffort(ctx, ramp());
     expect(effort.basis).toBe('none');
-    expect(effort.degradedReason).toBe('non_constant_load');
+    expect(effort.degradedReason).toBe('resistance_family_not_readable');
     expect(effort.bandMeaning).toBeNull();
     expect(effort.bandEdgesMps).toEqual([null, null, null]);
     expect(effort.reps.every((rep) => rep.band === null)).toBe(true);
@@ -190,6 +202,13 @@ describe('the tier decides what a band means and whether RPE is readable', () =>
     expect(effort.cue.reachedAtRep).toBe(5);
   });
 
+  it('refuses a profile fitted under a different resistance family', () => {
+    const foreign = { ...PROFILE, resistanceFamily: 'chains' as EffortResistanceFamily };
+    const effort = resolveSetEffort(context({ goal: REP_RANGE, profile: foreign }), ramp(3));
+    expect(effort.basis).toBe('velocity_loss_table');
+    expect(effort.degradedReason).toBe('profile_family_mismatch');
+  });
+
   it('a set outside the profile intensity span drops to tier a', () => {
     const effort = resolveSetEffort(tierB({ goal: REP_RANGE, relativeIntensity: 0.4 }), ramp(3));
     expect(effort.basis).toBe('velocity_loss_table');
@@ -201,6 +220,151 @@ describe('the tier decides what a band means and whether RPE is readable', () =>
     const effort = resolveSetEffort(context({ goal: REP_RANGE, profile: broken }), ramp(3));
     expect(effort.basis).toBe('velocity_loss_table');
     expect(effort.degradedReason).toBe('profile_slope_not_positive');
+  });
+});
+
+// =============================================================================
+// The resistance family
+// =============================================================================
+
+describe('the resistance family decides what velocity can answer', () => {
+  const cases: Array<{ family: EffortResistanceFamily; basis: EffortBasis }> = [
+    { family: 'constant', basis: 'profile' },
+    { family: 'chains', basis: 'velocity_loss_table' },
+    { family: 'eccentric_overload', basis: 'velocity_loss_table' },
+    { family: 'damper', basis: 'none' },
+    { family: 'isokinetic', basis: 'none' },
+  ];
+
+  it.each(cases)(
+    '$family resolves basis $basis even with a trusted profile',
+    ({ family, basis }) => {
+      const ctx = tierB({ goal: REP_RANGE, resistance: { family, signature: `sig-${family}` } });
+      expect(resolveSetEffort(ctx, ramp()).basis).toBe(basis);
+    }
+  );
+
+  it.each(cases)('$family still cues on the rep count', ({ family }) => {
+    const ctx = tierB({ goal: REP_RANGE, resistance: { family, signature: `sig-${family}` } });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.cue.reason).toBe('reps');
+    expect(effort.cue.reachedAtRep).toBe(5);
+  });
+
+  it('reads chains as within-set loss and leaks no RPE, trusted profile or not', () => {
+    const ctx = tierB({
+      goal: REP_RANGE,
+      resistance: { family: 'chains', signature: 'sig-chains' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.basis).toBe('velocity_loss_table');
+    expect(effort.degradedReason).toBe('resistance_family_not_profile_capable');
+    expect(effort.bandMeaning).toBe('velocity_loss');
+    expect(effort.set).toEqual({ rir: null, rpe: null, band: 3 });
+    expect(effort.confidence).toBeNull();
+    expect(effort.reps.every((rep) => rep.rpe === null && rep.rir === null)).toBe(true);
+    expect(effort.reps.every((rep) => rep.rirRange === null)).toBe(true);
+    expect(effort.markers.goal?.targetRpe).toBeNull();
+    expect(effort.markers.guards.every((marker) => marker.targetRpe === null)).toBe(true);
+    // The colours are still real: loss from the set's own fastest rep.
+    expect(effort.reps.map((rep) => rep.band)).toEqual([0, 0, 1, 2, 3, 3, 3, 3, 3]);
+  });
+
+  it('guards a chains set on a typed percent', () => {
+    const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'explicit' };
+    const ctx = tierB({
+      goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
+      guard,
+      resistance: { family: 'chains', signature: 'sig-chains' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual(['velocity_loss']);
+    expect(effort.cue.reason).toBe('velocity_loss');
+    expect(effort.cue.reachedAtRep).toBe(5);
+  });
+
+  it('guards an eccentric-overload set on an intent percent, as tier a does', () => {
+    const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'plan_intent' };
+    const ctx = tierB({
+      goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
+      guard,
+      resistance: { family: 'eccentric_overload', signature: 'sig-ecc' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual(['velocity_loss']);
+    expect(effort.cue.reason).toBe('velocity_loss');
+    expect(effort.cue.reachedAtRep).toBe(5);
+  });
+
+  it('gives a damper set no band and no velocity guard', () => {
+    const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'explicit' };
+    const ctx = context({
+      goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
+      guard,
+      resistance: { family: 'damper', signature: 'sig-damper' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.basis).toBe('none');
+    expect(effort.markers.guards).toEqual([]);
+    expect(effort.reps.every((rep) => rep.band === null && rep.lossPct === null)).toBe(true);
+    expect(effort.cue.reason).toBeNull();
+  });
+});
+
+describe('a setting changed mid-set suspends the velocity conditions', () => {
+  it('suspends them from that rep on and says why', () => {
+    const ctx = context({
+      goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
+      guard: { ...NO_GUARD, lossPct: 30, lossSource: 'explicit' },
+    });
+    // Loss would otherwise cross 30% on rep 5; the setting changes on rep 4.
+    const effort = resolveSetEffort(ctx, rampWithSettingChange(4));
+    expect(effort.degradedReason).toBe('setting_changed_mid_set');
+    expect(effort.cue.reason).toBeNull();
+    expect(effort.reps.slice(0, 3).every((rep) => rep.band !== null)).toBe(true);
+    expect(effort.reps.slice(3).every((rep) => rep.band === null && rep.lossPct === null)).toBe(
+      true
+    );
+  });
+
+  it('keeps the rep count cueing across the change', () => {
+    const ctx = context({ goal: REP_RANGE });
+    const effort = resolveSetEffort(ctx, rampWithSettingChange(2));
+    expect(effort.degradedReason).toBe('setting_changed_mid_set');
+    expect(effort.cue.reason).toBe('reps');
+    expect(effort.cue.reachedAtRep).toBe(5);
+  });
+
+  it('leaves an already latched cue latched', () => {
+    const ctx = context({
+      goal: { kind: 'rep_range', repsLow: 10, repsHigh: 12, source: 'plan' },
+      guard: { ...NO_GUARD, lossPct: 30, lossSource: 'explicit' },
+    });
+    // The loss guard latches on rep 5; the setting changes on rep 6.
+    const effort = resolveSetEffort(ctx, rampWithSettingChange(6));
+    expect(effort.cue.reason).toBe('velocity_loss');
+    expect(effort.cue.reachedAtRep).toBe(5);
+    expect(effort.cue.repsPastCue).toBe(4);
+    expect(effort.reps.at(-1)?.cueState).toBe('past');
+  });
+
+  it('stays suspended even if a later rep reports the setting is back', () => {
+    // Only rep 4 is flagged. The set's fastest rep is no longer a fair baseline
+    // for what follows, so the suspension is sticky for the rest of the set.
+    const reps = ramp().map((rep) => ({
+      ...rep,
+      sameSettingAsSetStart: rep.repNumber !== 4,
+    }));
+    const effort = resolveSetEffort(context({ goal: VELOCITY_LOSS }), reps);
+    expect(effort.degradedReason).toBe('setting_changed_mid_set');
+    expect(effort.cue.reason).toBeNull();
+    expect(effort.reps.slice(3).every((rep) => rep.band === null)).toBe(true);
+  });
+
+  it('holds the last honest reading rather than blanking the set RPE', () => {
+    const effort = resolveSetEffort(tierB({ goal: REP_RANGE }), rampWithSettingChange(4));
+    expect(effort.set.rpe).toBeCloseTo(7, 6);
+    expect(effort.reps.at(-1)?.rpe).toBeNull();
   });
 });
 
@@ -611,6 +775,7 @@ describe('the resolver is pure over its pinned context', () => {
       repNumber,
       meanVelocityMps: RAMP[i],
       eligible: true,
+      sameSettingAsSetStart: true,
     }));
     const ctx = context({ goal: { kind: 'rep_range', repsLow: 1, repsHigh: 4, source: 'plan' } });
     const effort = resolveSetEffort(ctx, reps);
@@ -623,6 +788,7 @@ describe('the resolver is pure over its pinned context', () => {
       repNumber,
       meanVelocityMps: RAMP[i],
       eligible: true,
+      sameSettingAsSetStart: true,
     }));
     const ctx = context({ goal: { kind: 'rep_range', repsLow: 1, repsHigh: 3, source: 'plan' } });
     const effort = resolveSetEffort(ctx, reps);
@@ -635,7 +801,9 @@ describe('the resolver is pure over its pinned context', () => {
     const ctx = tierB({
       goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
       guard: { effortCapRpe: 8, effortCapSource: 'plan', lossPct: 30, lossSource: 'explicit' },
+      resistance: { family: 'constant', signature: 'sig-json' },
     });
+    expect(ctx.profile?.resistanceFamily).toBe('constant');
     expect(resolveSetEffort(ctx, ramp()).markers.guards).toHaveLength(2);
     const roundTripped: EffortSetContext = JSON.parse(JSON.stringify(ctx));
     expect(roundTripped).toEqual(ctx);
