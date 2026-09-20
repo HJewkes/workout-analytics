@@ -25,6 +25,13 @@ import type {
   EffortResistanceFamily,
   EffortSetContext,
 } from '@/effort/types';
+// Type-only, through the PUBLIC door: typecheck fails if the root barrel drops one.
+import type {
+  EffortResistance as PublicEffortResistance,
+  EffortResistanceFamily as PublicEffortResistanceFamily,
+  ResistanceCapability as PublicResistanceCapability,
+  SetEffort as PublicSetEffort,
+} from '@/index';
 
 // =============================================================================
 // Fixture
@@ -694,6 +701,77 @@ describe('the guard', () => {
     expect(effort.cue.reachedAtRep).toBe(7);
   });
 
+  it('caps a tier b velocity_loss goal with the effort guard, which can fire first', () => {
+    const ctx = tierB({
+      goal: { kind: 'velocity_loss', lossPct: 60, source: 'plan' },
+      guard: { ...NO_GUARD, effortCapRpe: 9, effortCapSource: 'plan' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual(['effort']);
+    // RPE 9 is RIR 1: the guard line sits at 0.30 m/s and draws band 2.
+    expect(effort.markers.guards[0]?.targetRpe).toBe(9);
+    expect(effort.markers.guards[0]?.velocityMps).toBeCloseTo(0.3, 6);
+    expect(effort.markers.guards[0]?.band).toBe(2);
+    // Loss does not reach 60% until rep 9, so the cap cues on rep 7.
+    expect(effort.cue.reason).toBe('effort');
+    expect(effort.cue.reachedAtRep).toBe(7);
+    expect(effort.cue.alsoTrue).toEqual([{ reason: 'velocity_loss', atRep: 9 }]);
+    expect(effort.markers.guards[0]?.reached).toBe(true);
+  });
+
+  it('keeps the effort guard on a tier b velocity_loss goal the loss target wins', () => {
+    const ctx = tierB({
+      goal: VELOCITY_LOSS,
+      guard: { ...NO_GUARD, effortCapRpe: 9, effortCapSource: 'plan' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual(['effort']);
+    expect(effort.cue.reason).toBe('velocity_loss');
+    expect(effort.cue.reachedAtRep).toBe(5);
+    expect(effort.cue.alsoTrue).toEqual([{ reason: 'effort', atRep: 7 }]);
+  });
+
+  it('guards a tier b target_rpe goal with a typed percent, which can fire first', () => {
+    const ctx = tierB({
+      goal: TARGET_RPE,
+      guard: { ...NO_GUARD, lossPct: 20, lossSource: 'explicit' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual(['velocity_loss']);
+    expect(effort.markers.guards[0]?.lossPct).toBe(20);
+    // A typed loss cap targets no effort, so the guard line stays neutral ink.
+    expect(effort.markers.guards[0]?.band).toBeNull();
+    // Loss reaches 20% on rep 4; the RPE 8 goal is not reached until rep 5.
+    expect(effort.cue.reason).toBe('velocity_loss');
+    expect(effort.cue.reachedAtRep).toBe(4);
+    expect(effort.cue.alsoTrue).toEqual([{ reason: 'effort', atRep: 5 }]);
+  });
+
+  it('does NOT guard a tier b target_rpe goal on an intent percent', () => {
+    const ctx = tierB({
+      goal: TARGET_RPE,
+      guard: { ...NO_GUARD, lossPct: 20, lossSource: 'plan_intent' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards).toEqual([]);
+    // Loss passes 20% on rep 4 and must not cue; the RPE 8 goal does, on rep 5.
+    expect(effort.cue.reason).toBe('effort');
+    expect(effort.cue.reachedAtRep).toBe(5);
+    expect(effort.cue.alsoTrue).toEqual([]);
+  });
+
+  it('keeps the typed guard on a tier b target_rpe goal the RPE target wins', () => {
+    const ctx = tierB({
+      goal: TARGET_RPE,
+      guard: { ...NO_GUARD, lossPct: 50, lossSource: 'explicit' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual(['velocity_loss']);
+    expect(effort.cue.reason).toBe('effort');
+    expect(effort.cue.reachedAtRep).toBe(5);
+    expect(effort.cue.alsoTrue).toEqual([{ reason: 'velocity_loss', atRep: 7 }]);
+  });
+
   it('is an intent-derived loss percent in tier a, where effort cannot be read', () => {
     const guard: EffortGuardInput = {
       effortCapRpe: null,
@@ -757,6 +835,21 @@ describe('markers carry the numbers a label is built from, never the words', () 
     const effort = resolveSetEffort(context({ goal: VELOCITY_LOSS }), ramp(2));
     expect(effort.markers.goal?.velocityMps).toBeCloseTo(0.42, 6);
     expect(effort.markers.goal?.band).toBeNull();
+  });
+
+  it('colours a tier b loss GOAL by the effort its line predicts, guards stay neutral', () => {
+    const ctx = tierB({
+      goal: VELOCITY_LOSS,
+      guard: { ...NO_GUARD, effortCapRpe: 9, effortCapSource: 'plan' },
+    });
+    const effort = resolveSetEffort(ctx, ramp(2));
+    // 30% below the best rep is 0.42 m/s, which the line reads as RIR 2.2: band 1.
+    expect(effort.markers.goal?.velocityMps).toBeCloseTo(0.42, 6);
+    expect(effort.markers.goal?.band).toBe(1);
+    const typed: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'explicit' };
+    const guarded = resolveSetEffort(tierB({ goal: TARGET_RPE, guard: typed }), ramp(2));
+    expect(guarded.markers.guards[0]?.velocityMps).toBeCloseTo(0.42, 6);
+    expect(guarded.markers.guards[0]?.band).toBeNull();
   });
 
   it('reports band edges as fixed velocities in tier b', () => {
@@ -862,6 +955,15 @@ describe('the resolver is pure over its pinned context', () => {
     expect(effort.cue.reachedAtRep).toBe(3);
     expect(effort.reps.filter((rep) => rep.cueFiredHere)).toHaveLength(1);
     expect(effort.cue.repsPastCue).toBe(2);
+  });
+
+  it('exposes the resistance contract through the root barrel', () => {
+    const family: PublicEffortResistanceFamily = 'damper';
+    const resistance: PublicEffortResistance = { family, signature: 'sig-public' };
+    const capability: PublicResistanceCapability = EFFORT_POLICY.resistanceCapability[family];
+    const effort: PublicSetEffort = resolveSetEffort(context({ resistance }), ramp(1));
+    expect(capability).toBe('velocity_loss_typed_guard_only');
+    expect(effort.basis).toBe('velocity_loss_table');
   });
 
   it('survives a JSON round trip of the context unchanged', () => {

@@ -519,7 +519,15 @@ function walkSet(
 // Markers
 // =============================================================================
 
+/**
+ * A marker's own colour: the effort it targets, or null for neutral ink. An
+ * effort line always names one. A loss line names one only as a GOAL, where the
+ * set is aiming at that velocity and a trusted profile can say what effort it
+ * predicts; the same line drawn as a guard is a cap someone typed and stays
+ * neutral. A rep count targets no effort at all.
+ */
 function markerBand(
+  role: 'goal' | 'guard',
   spec: ConditionSpec,
   context: EffortSetContext,
   basis: EffortBasis,
@@ -530,7 +538,7 @@ function markerBand(
   if (spec.reason === 'effort' && spec.targetRpe !== null) {
     return bandForRir(10 - spec.targetRpe, policy);
   }
-  if (spec.reason === 'velocity_loss' && velocityMps !== null) {
+  if (spec.reason === 'velocity_loss' && role === 'goal' && velocityMps !== null) {
     return bandForRir(rirForVelocity(context.profile, velocityMps), policy);
   }
   return null;
@@ -571,7 +579,7 @@ function buildMarker(
     velocityMps,
     lossPct: spec.lossPct,
     targetRpe: spec.targetRpe,
-    band: markerBand(spec, context, basis, velocityMps, policy),
+    band: markerBand(role, spec, context, basis, velocityMps, policy),
     source: spec.source,
     reached: fired || alsoTrue !== undefined,
     reachedAtRep: fired ? walk.reachedAtRep : (alsoTrue?.atRep ?? null),

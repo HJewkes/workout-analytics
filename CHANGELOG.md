@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
   Every threshold lives in the exported `EFFORT_POLICY`, each marked OWNER or ENGINEERING DEFAULT, and the object is an optional third argument, so a caller can pass a newer table without a release of this package. No lifter-facing string crosses the boundary: markers carry `condition`, `targetRpe`, `lossPct` and `repsLow`/`repsHigh` rather than a rendered label, and `degradedReason` is a typed id.
 
+  A marker's `band` is the effort it targets, or null for neutral ink: an effort line always names one, a loss line names one only as a **goal** in tier b (where the set aims at that velocity and a trusted profile can say what effort it predicts), and a rep count never does. The same loss line drawn as a guard is a cap someone typed and stays neutral.
+
   `resistance.signature` is **opaque**: this library only compares it for equality and never parses it, so callers pass a hash or a label and never a setting value a reader could decode.
 
   `reps` must arrive in ascending, unique `repNumber` order: the walk is a left fold in array order and does not sort or de-duplicate, so a caller that reorders reps moves the latch. Tests pin that behaviour rather than papering over it.
