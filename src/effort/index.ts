@@ -2,7 +2,7 @@
  * Effort module — the pure set-effort resolver and its policy (VW-518).
  */
 
-export { EFFORT_POLICY, type EffortPolicy } from './policy.js';
+export { EFFORT_POLICY, type EffortPolicy, type ResistanceCapability } from './policy.js';
 export { resolveSetEffort } from './resolve-set-effort.js';
 export type {
   CueReason,
@@ -23,6 +23,8 @@ export type {
   EffortProfile,
   EffortRep,
   EffortRepInput,
+  EffortResistance,
+  EffortResistanceFamily,
   EffortSetContext,
   SetEffort,
 } from './types.js';

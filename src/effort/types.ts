@@ -111,7 +111,10 @@ export interface EffortProfile {
   intensityRange: readonly [number, number];
   /**
    * The family the line was fitted under. A profile applies ONLY to a set of
-   * the same family; every profile fitted so far is `constant`.
+   * the same family, and only where that family has an effort scale at all —
+   * a damper-family profile is refused, because reps in reserve is undefined
+   * when every rep can be finished slower. Every profile fitted so far is
+   * `constant`.
    */
   resistanceFamily: EffortResistanceFamily;
   modelVersion: string;
@@ -161,6 +164,7 @@ export type EffortConfidence = 'high' | 'low';
 export type EffortDegradedReason =
   | 'resistance_family_not_readable'
   | 'resistance_family_not_profile_capable'
+  | 'profile_family_has_no_effort_scale'
   | 'velocity_signal_invalid'
   | 'setting_changed_mid_set'
   | 'no_profile'

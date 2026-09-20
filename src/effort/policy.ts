@@ -24,10 +24,19 @@ import type { EffortResistanceFamily } from '@/effort/types';
  * - `velocity_loss_only`: velocity falls with fatigue inside the set, so loss
  *   colours and a loss guard hold, but no number calibrated elsewhere applies.
  *   RPE stays withheld until a profile fitted in this family exists.
- * - `none`: velocity answers nothing. No band and no velocity condition. The
- *   rep count still cues, because it reads no velocity.
+ * - `velocity_loss_typed_guard_only`: loss colours hold, but there is no rep the
+ *   lifter cannot finish, so reps in reserve is undefined and no effort scale
+ *   can ever exist here. A guard needs an EXPLICITLY typed percent; an
+ *   intent-derived number, which comes from studies with a failure point, has
+ *   no analogue. A profile fitted in this family is refused, not used.
+ * - `none`: velocity answers nothing. No band, no loss percent and no velocity
+ *   condition. The rep count still cues, because it reads no velocity.
  */
-export type ResistanceCapability = 'profile_capable' | 'velocity_loss_only' | 'none';
+export type ResistanceCapability =
+  | 'profile_capable'
+  | 'velocity_loss_only'
+  | 'velocity_loss_typed_guard_only'
+  | 'none';
 
 export interface EffortPolicy {
   readonly policyId: string;
@@ -79,15 +88,15 @@ export const EFFORT_POLICY: EffortPolicy = {
     /** OWNER, the same ruling as chains: the concentric load is constant. */
     eccentric_overload: 'velocity_loss_only',
     /**
-     * PENDING OWNER. Designer recommends `velocity_loss_only` with a guard only
-     * for an explicitly typed percent, and never RPE or a profile: resistance
-     * follows speed, so there is no rep the lifter cannot finish and reps in
-     * reserve has no meaning. Held at `none` until that is ruled.
+     * OWNER, "Colours only; a guard only for a typed percent; never RPE
+     * (Recommended)". Resistance follows speed, so every rep can be finished
+     * slower and there is no failure rep to count back from.
      */
-    damper: 'none',
+    damper: 'velocity_loss_typed_guard_only',
     /**
-     * PENDING OWNER. Designer recommends `none`: the device holds the speed, so
-     * fatigue shows in force, not velocity. A force-loss basis is its own task.
+     * OWNER, the designer's recommendation as ruled: the device holds the
+     * speed, so fatigue shows in force, not velocity. Velocity answers nothing
+     * and the rep count cues alone. A force-loss basis is filed as VW-526.
      */
     isokinetic: 'none',
   },

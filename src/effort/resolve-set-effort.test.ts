@@ -232,7 +232,7 @@ describe('the resistance family decides what velocity can answer', () => {
     { family: 'constant', basis: 'profile' },
     { family: 'chains', basis: 'velocity_loss_table' },
     { family: 'eccentric_overload', basis: 'velocity_loss_table' },
-    { family: 'damper', basis: 'none' },
+    { family: 'damper', basis: 'velocity_loss_table' },
     { family: 'isokinetic', basis: 'none' },
   ];
 
@@ -296,12 +296,79 @@ describe('the resistance family decides what velocity can answer', () => {
     expect(effort.cue.reachedAtRep).toBe(5);
   });
 
-  it('gives a damper set no band and no velocity guard', () => {
+  it('colours a damper set by loss and states no RPE', () => {
+    const ctx = context({
+      goal: REP_RANGE,
+      resistance: { family: 'damper', signature: 'sig-damper' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.basis).toBe('velocity_loss_table');
+    expect(effort.bandMeaning).toBe('velocity_loss');
+    expect(effort.reps.map((rep) => rep.band)).toEqual([0, 0, 1, 2, 3, 3, 3, 3, 3]);
+    expect(effort.reps.every((rep) => rep.rpe === null && rep.rir === null)).toBe(true);
+    expect(effort.set.rpe).toBeNull();
+  });
+
+  it('guards a damper set on a typed percent', () => {
     const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'explicit' };
     const ctx = context({
       goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
       guard,
       resistance: { family: 'damper', signature: 'sig-damper' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual(['velocity_loss']);
+    expect(effort.cue.reason).toBe('velocity_loss');
+    expect(effort.cue.reachedAtRep).toBe(5);
+  });
+
+  it('does NOT guard a damper set on an intent percent', () => {
+    const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'plan_intent' };
+    const ctx = context({
+      goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
+      guard,
+      resistance: { family: 'damper', signature: 'sig-damper' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.markers.guards).toEqual([]);
+    expect(effort.cue.reason).toBeNull();
+    // Still coloured: the loss reading is real, only the borrowed number is not.
+    expect(effort.reps.at(-1)?.band).toBe(3);
+  });
+
+  it('refuses a damper-family profile rather than reading an effort scale from it', () => {
+    const damperProfile = { ...PROFILE, resistanceFamily: 'damper' as EffortResistanceFamily };
+    const ctx = context({
+      goal: REP_RANGE,
+      profile: damperProfile,
+      resistance: { family: 'damper', signature: 'sig-damper' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.basis).toBe('velocity_loss_table');
+    expect(effort.degradedReason).toBe('profile_family_has_no_effort_scale');
+    expect(effort.reps.every((rep) => rep.rpe === null && rep.rir === null)).toBe(true);
+    expect(effort.set).toEqual({ rir: null, rpe: null, band: 3 });
+    expect(effort.markers.guards.every((marker) => marker.targetRpe === null)).toBe(true);
+  });
+
+  it('does not let an intent percent cue a damper target_rpe set either', () => {
+    const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'plan_intent' };
+    const ctx = context({
+      goal: TARGET_RPE,
+      guard,
+      resistance: { family: 'damper', signature: 'sig-damper' },
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.cue.fallback).toBe('none');
+    expect(effort.cue.reason).toBeNull();
+  });
+
+  it('leaves an isokinetic set with no velocity reading at all', () => {
+    const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'explicit' };
+    const ctx = context({
+      goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
+      guard,
+      resistance: { family: 'isokinetic', signature: 'sig-iso' },
     });
     const effort = resolveSetEffort(ctx, ramp());
     expect(effort.basis).toBe('none');

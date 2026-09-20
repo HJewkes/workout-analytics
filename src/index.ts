@@ -386,6 +386,7 @@ export {
 export {
   EFFORT_POLICY,
   type EffortPolicy,
+  type ResistanceCapability,
   resolveSetEffort,
   type CueReason,
   type CueState,
@@ -405,6 +406,8 @@ export {
   type EffortProfile,
   type EffortRep,
   type EffortRepInput,
+  type EffortResistance,
+  type EffortResistanceFamily,
   type EffortSetContext,
   type SetEffort,
 } from './effort';

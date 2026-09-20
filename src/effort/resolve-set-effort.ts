@@ -96,10 +96,16 @@ function resolveBasis(
   if (!context.velocitySignalValid) {
     return { basis: 'none', degradedReason: 'velocity_signal_invalid' };
   }
-  if (capability === 'velocity_loss_only') {
+  if (capability !== 'profile_capable') {
+    // A profile offered for a family with no effort scale is refused, not used.
+    const refused =
+      capability === 'velocity_loss_typed_guard_only' &&
+      context.profile?.resistanceFamily === context.resistance.family;
     return {
       basis: 'velocity_loss_table',
-      degradedReason: 'resistance_family_not_profile_capable',
+      degradedReason: refused
+        ? 'profile_family_has_no_effort_scale'
+        : 'resistance_family_not_profile_capable',
     };
   }
   return profileBasis(context, policy);
@@ -199,7 +205,11 @@ function repsSpec(
  * number, then no cue — and keeps `targetRpe` on the marker so a label can say
  * what is really cueing.
  */
-function goalCondition(context: EffortSetContext, basis: EffortBasis): ConditionSpec | null {
+function goalCondition(
+  context: EffortSetContext,
+  basis: EffortBasis,
+  policy: EffortPolicy
+): ConditionSpec | null {
   const goal = context.goal;
   if (goal === null) return null;
   if (goal.kind === 'rep_range') {
@@ -221,10 +231,14 @@ function goalCondition(context: EffortSetContext, basis: EffortBasis): Condition
     const { repsLow, repsHigh, targetRpe, source } = goal;
     return { reason: 'effort', repsLow, repsHigh, targetRpe, lossPct: null, source };
   }
-  return targetRpeFallback(context, basis);
+  return targetRpeFallback(context, basis, policy);
 }
 
-function targetRpeFallback(context: EffortSetContext, basis: EffortBasis): ConditionSpec | null {
+function targetRpeFallback(
+  context: EffortSetContext,
+  basis: EffortBasis,
+  policy: EffortPolicy
+): ConditionSpec | null {
   const goal = context.goal;
   if (goal?.kind !== 'target_rpe') return null;
   const repsHigh = goal.repsHigh ?? goal.repsLow;
@@ -232,7 +246,10 @@ function targetRpeFallback(context: EffortSetContext, basis: EffortBasis): Condi
     return repsSpec(goal.repsLow ?? repsHigh, repsHigh, goal.targetRpe, goal.source);
   }
   const { lossPct, lossSource } = context.guard;
-  if (basis !== 'none' && lossPct !== null && lossSource !== null) {
+  // The damper rule is about the number, not its role: an intent-derived
+  // percent cannot cue there as a fallback goal either.
+  const usable = lossSource === 'explicit' || !typedLossOnly(context, policy);
+  if (basis !== 'none' && lossPct !== null && lossSource !== null && usable) {
     return {
       reason: 'velocity_loss',
       repsLow: null,
@@ -249,6 +266,16 @@ function effortGuard(context: EffortSetContext, policy: EffortPolicy): Condition
   const targetRpe = context.guard.effortCapRpe ?? policy.defaultEffortCapRpe;
   const source = context.guard.effortCapSource ?? 'policy_default';
   return { reason: 'effort', repsLow: null, repsHigh: null, targetRpe, lossPct: null, source };
+}
+
+/**
+ * True for a family where an intent-derived loss number has no analogue, so
+ * only a typed percent may cue (OWNER, the damper ruling).
+ */
+function typedLossOnly(context: EffortSetContext, policy: EffortPolicy): boolean {
+  return (
+    policy.resistanceCapability[context.resistance.family] === 'velocity_loss_typed_guard_only'
+  );
 }
 
 function lossGuard(context: EffortSetContext, explicitOnly: boolean): ConditionSpec | null {
@@ -288,7 +315,8 @@ function guardConditions(
   if (goal === null || basis === 'none') return [];
   if (basis !== 'profile') {
     // A tier a `target_rpe` goal reaches a loss number as its own fallback, not as a guard.
-    return compact([context.goal?.kind === 'rep_range' ? lossGuard(context, false) : null]);
+    const typedOnly = typedLossOnly(context, policy);
+    return compact([context.goal?.kind === 'rep_range' ? lossGuard(context, typedOnly) : null]);
   }
   if (goal.reason === 'effort') return compact([lossGuard(context, true)]);
   if (goal.reason === 'velocity_loss') return [effortGuard(context, policy)];
@@ -583,7 +611,7 @@ export function resolveSetEffort(
   policy: EffortPolicy = EFFORT_POLICY
 ): SetEffort {
   const { basis, degradedReason } = resolveBasis(context, policy);
-  const goal = goalCondition(context, basis);
+  const goal = goalCondition(context, basis, policy);
   const guards = guardConditions(context, basis, goal, policy);
   const specs = goal === null ? guards : [goal, ...guards];
   const walk = walkSet(context, reps, basis, { goal, specs }, policy);
