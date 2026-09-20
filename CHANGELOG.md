@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **`resolveSetEffort`, the pure effort resolver (VW-518).** One function answers the live hero chart, the rep strip, the RPE readout and the set's ending cue, so those four surfaces cannot disagree. Exported from the root barrel alongside `EFFORT_POLICY` and the `src/effort/` types.
 
-  A set is judged against a **goal** — a rep range (the common case), a target RPE, or a velocity-loss percent — and at most one **guard**, re-evaluated after every finalized eligible rep. The first condition to become true fires the cue and **latches**; a tie goes to the goal; a condition that becomes true later is recorded in `cue.alsoTrue` and stays silent; reps after the latch read `past`. Nothing here ends a set: the cue is advice, and the word "stop" is not in the contract.
+  A set is judged against a **goal** — a rep range (the common case), a target RPE, or a velocity-loss percent — and its **guards**, re-evaluated after every finalized eligible rep. With a trusted profile a rep-range set carries two live guards, the effort cap and an explicitly typed velocity-loss percent; an intent-derived loss number does not guard there, and every other case carries at most one guard. The first condition to become true fires the cue and **latches**; a tie between the goal and a guard goes to the goal, and a tie between the two guards goes to effort; a condition that becomes true later is recorded in `cue.alsoTrue` and stays silent; reps after the latch read `past`. Nothing here ends a set: the cue is advice, and the word "stop" is not in the contract.
 
   With a trusted profile (tier b, the caller supplies one only when it trusts it) each rep reads a predicted RIR from the fitted line, an RPE of `10 - rir`, and an absolute-effort band. Without one (tier a) **RPE is withheld entirely** and bands are thirds of the set's reference loss, which means "slowing", not effort. A non-constant load or an invalid velocity signal gives no band and no velocity-derived condition at all, while a rep-count goal still cues.
 
@@ -20,7 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
   Every threshold lives in the exported `EFFORT_POLICY`, each marked OWNER or ENGINEERING DEFAULT, and the object is an optional third argument, so a caller can pass a newer table without a release of this package. No lifter-facing string crosses the boundary: markers carry `condition`, `targetRpe`, `lossPct` and `repsLow`/`repsHigh` rather than a rendered label, and `degradedReason` is a typed id.
 
-  Additive only. No existing export changed. `estimateSetRpe` and `estimateSetRIR` are untouched in this change; their deprecation in favour of the resolver is a separate step.
+  `reps` must arrive in ascending, unique `repNumber` order: the walk is a left fold in array order and does not sort or de-duplicate, so a caller that reorders reps moves the latch. Tests pin that behaviour rather than papering over it.
+
+  Additive only. No existing export changed. `estimateSetRpe` and `estimateSetRIR` are untouched in this change; their deprecation in favour of the resolver is a separate step. **Semver: minor.**
 
 ## [3.0.0] - 2026-09-13
 

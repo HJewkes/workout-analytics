@@ -237,26 +237,34 @@ function lossGuard(context: EffortSetContext, explicitOnly: boolean): ConditionS
   };
 }
 
+function compact(specs: ReadonlyArray<ConditionSpec | null>): ConditionSpec[] {
+  return specs.filter((spec): spec is ConditionSpec => spec !== null);
+}
+
 /**
- * The one extra condition that may cue before the goal. With a trusted profile
- * effort guards, except that a typed loss percent takes the slot (OWNER: effort
- * replaces an INTENT-derived loss guard; a typed one still guards). Without a
- * profile only a resolved loss number can guard, because RPE is withheld.
+ * The conditions that may cue BEFORE the goal, returned in tie-break order:
+ * effort first, then velocity loss, because RPE always takes part (OWNER).
+ *
+ * With a trusted profile a rep-range set carries BOTH the effort cap and an
+ * EXPLICITLY typed loss percent as live guards (OWNER: "Both it and the effort
+ * cap stay live"); an intent-derived loss number still does not guard there.
+ * Every other case carries at most one guard. Without a profile only a resolved
+ * loss number can guard, because RPE is withheld.
  */
-function guardCondition(
+function guardConditions(
   context: EffortSetContext,
   basis: EffortBasis,
   goal: ConditionSpec | null,
   policy: EffortPolicy
-): ConditionSpec | null {
-  if (goal === null || basis === 'none') return null;
+): ConditionSpec[] {
+  if (goal === null || basis === 'none') return [];
   if (basis !== 'profile') {
     // A tier a `target_rpe` goal reaches a loss number as its own fallback, not as a guard.
-    return context.goal?.kind === 'rep_range' ? lossGuard(context, false) : null;
+    return compact([context.goal?.kind === 'rep_range' ? lossGuard(context, false) : null]);
   }
-  if (goal.reason === 'effort') return lossGuard(context, true);
-  if (goal.reason === 'velocity_loss') return effortGuard(context, policy);
-  return lossGuard(context, true) ?? effortGuard(context, policy);
+  if (goal.reason === 'effort') return compact([lossGuard(context, true)]);
+  if (goal.reason === 'velocity_loss') return [effortGuard(context, policy)];
+  return compact([effortGuard(context, policy), lossGuard(context, true)]);
 }
 
 function conditionMet(spec: ConditionSpec, reading: RepReading, policy: EffortPolicy): boolean {
@@ -349,52 +357,49 @@ interface Walk {
 }
 
 function stateBeforeLatch(
+  specs: readonly ConditionSpec[],
   goal: ConditionSpec | null,
-  guard: ConditionSpec | null,
   reading: RepReading,
   policy: EffortPolicy
 ): CueState {
-  const specs = [goal, guard].filter((spec): spec is ConditionSpec => spec !== null);
   if (specs.some((spec) => conditionApproaching(spec, reading, policy))) return 'approaching';
   const inRange =
     goal?.reason === 'reps' && goal.repsLow !== null && reading.repNumber >= goal.repsLow;
   return inRange ? 'in_range' : 'working';
 }
 
-/** Latch the first true condition; a tie goes to the goal, the loser is recorded. */
+/**
+ * Latch the first true condition. `specs` is in priority order — the goal, then
+ * the guards — so a tie between the goal and a guard goes to the goal, and a tie
+ * between the two guards goes to effort. Every other condition true on that rep
+ * or a later one is recorded once, silently.
+ */
 function latchCue(
   walk: Walk,
-  goal: ConditionSpec | null,
-  guard: ConditionSpec | null,
+  specs: readonly ConditionSpec[],
   reading: RepReading,
   policy: EffortPolicy
 ): boolean {
-  const goalMet = goal !== null && conditionMet(goal, reading, policy);
-  const guardMet = guard !== null && conditionMet(guard, reading, policy);
-  if (walk.reason !== null) {
-    for (const spec of [goal, guard]) {
-      if (spec === null || spec.reason === walk.reason) continue;
-      if (!conditionMet(spec, reading, policy)) continue;
-      if (walk.alsoTrue.some((entry) => entry.reason === spec.reason)) continue;
-      walk.alsoTrue.push({ reason: spec.reason, atRep: reading.repNumber });
-    }
-    return false;
+  const met = specs.filter((spec) => conditionMet(spec, reading, policy));
+  if (met.length === 0) return false;
+  const firedHere = walk.reason === null;
+  if (firedHere) {
+    walk.reason = met[0].reason;
+    walk.reachedAtRep = reading.repNumber;
   }
-  const winner = goalMet ? goal : guardMet ? guard : null;
-  if (winner === null) return false;
-  walk.reason = winner.reason;
-  walk.reachedAtRep = reading.repNumber;
-  if (guardMet && guard !== null && guard.reason !== winner.reason) {
-    walk.alsoTrue.push({ reason: guard.reason, atRep: reading.repNumber });
+  for (const spec of met) {
+    if (spec.reason === walk.reason) continue;
+    if (walk.alsoTrue.some((entry) => entry.reason === spec.reason)) continue;
+    walk.alsoTrue.push({ reason: spec.reason, atRep: reading.repNumber });
   }
-  return true;
+  return firedHere;
 }
 
 function walkSet(
   context: EffortSetContext,
   reps: readonly EffortRepInput[],
   basis: EffortBasis,
-  conditions: { goal: ConditionSpec | null; guard: ConditionSpec | null },
+  conditions: { goal: ConditionSpec | null; specs: readonly ConditionSpec[] },
   policy: EffortPolicy
 ): Walk {
   const walk: Walk = {
@@ -419,10 +424,10 @@ function walkSet(
     const reading = readRep(rep, context, basis, walk.bestVelocityMps ?? 0, policy);
     let firedHere = false;
     if (rep.eligible) {
-      firedHere = latchCue(walk, conditions.goal, conditions.guard, reading, policy);
+      firedHere = latchCue(walk, conditions.specs, reading, policy);
       walk.lastEligible = reading;
       if (walk.reason === null) {
-        walk.state = stateBeforeLatch(conditions.goal, conditions.guard, reading, policy);
+        walk.state = stateBeforeLatch(conditions.specs, conditions.goal, reading, policy);
       }
     }
     if (walk.reason !== null) walk.state = firedHere ? 'reached' : 'past';
@@ -459,13 +464,12 @@ function markerBand(
 
 function buildMarker(
   role: 'goal' | 'guard',
-  spec: ConditionSpec | null,
+  spec: ConditionSpec,
   context: EffortSetContext,
   basis: EffortBasis,
   walk: Walk,
   policy: EffortPolicy
-): EffortMarker | null {
-  if (spec === null) return null;
+): EffortMarker {
   const profile = context.profile;
   let velocityMps: number | null = null;
   if (
@@ -519,7 +523,10 @@ function cueFallback(
  * the goal and guard markers a chart draws.
  *
  * @param context - Pinned at set start by the caller; plain JSON, never revised mid-set.
- * @param reps - The set's finalized reps in order, velocity on MEAN concentric velocity.
+ * @param reps - The set's finalized reps, velocity on MEAN concentric velocity.
+ *   PRECONDITION: ascending, unique `repNumber`. The walk is a left fold in
+ *   array order and does not sort or de-duplicate, so a caller that reorders
+ *   reps moves the latch.
  * @param policy - Every threshold, injectable so a newer table needs no release.
  */
 export function resolveSetEffort(
@@ -529,8 +536,9 @@ export function resolveSetEffort(
 ): SetEffort {
   const { basis, degradedReason } = resolveBasis(context, policy);
   const goal = goalCondition(context, basis);
-  const guard = guardCondition(context, basis, goal, policy);
-  const walk = walkSet(context, reps, basis, { goal, guard }, policy);
+  const guards = guardConditions(context, basis, goal, policy);
+  const specs = goal === null ? guards : [goal, ...guards];
+  const walk = walkSet(context, reps, basis, { goal, specs }, policy);
   const last = walk.lastEligible;
   return {
     basis,
@@ -542,8 +550,8 @@ export function resolveSetEffort(
     goal: context.goal,
     reps: walk.reps,
     markers: {
-      goal: buildMarker('goal', goal, context, basis, walk, policy),
-      guard: buildMarker('guard', guard, context, basis, walk, policy),
+      goal: goal === null ? null : buildMarker('goal', goal, context, basis, walk, policy),
+      guards: guards.map((spec) => buildMarker('guard', spec, context, basis, walk, policy)),
     },
     cue: {
       state: walk.state,

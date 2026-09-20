@@ -52,7 +52,11 @@ export type EffortGoal =
     }
   | { kind: 'velocity_loss'; lossPct: number; source: EffortGoalSource };
 
-/** The inputs a guard condition can be built from. A set has at most one guard. */
+/**
+ * The inputs a guard condition is built from. With a trusted profile a rep-range
+ * set carries BOTH guards live (the effort cap and an explicitly typed loss
+ * percent); every other case carries at most one.
+ */
 export interface EffortGuardInput {
   /**
    * The row's stated RPE cap. `null` falls back to `EffortPolicy.defaultEffortCapRpe`,
@@ -190,7 +194,8 @@ export interface SetEffort {
   /** Echoed, so every reader names the same goal. */
   goal: EffortGoal | null;
   reps: readonly EffortRep[];
-  markers: { goal: EffortMarker | null; guard: EffortMarker | null };
+  /** `guards` holds 0 to 2 markers in tie-break order: effort first, then loss. */
+  markers: { goal: EffortMarker | null; guards: readonly EffortMarker[] };
   cue: EffortCue;
   set: { rir: number | null; rpe: number | null; band: EffortBand | null };
   confidence: EffortConfidence | null;

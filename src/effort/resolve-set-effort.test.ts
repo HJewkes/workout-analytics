@@ -239,8 +239,8 @@ describe('exactly one ending cue per set', () => {
     });
     const effort = resolveSetEffort(ctx, ramp());
     expect(effort.cue.alsoTrue).toEqual([{ reason: 'effort', atRep: 7 }]);
-    expect(effort.markers.guard?.reached).toBe(true);
-    expect(effort.markers.guard?.reachedAtRep).toBe(7);
+    expect(effort.markers.guards[0]?.reached).toBe(true);
+    expect(effort.markers.guards[0]?.reachedAtRep).toBe(7);
   });
 
   it('reps after the latch are past, and the set counts them', () => {
@@ -306,7 +306,7 @@ describe('a target_rpe goal before a trusted profile', () => {
     expect(effort.cue.reachedAtRep).toBe(6);
     expect(effort.markers.goal?.axis).toBe('rep');
     expect(effort.markers.goal?.targetRpe).toBe(8);
-    expect(effort.markers.guard).toBeNull();
+    expect(effort.markers.guards).toEqual([]);
   });
 
   it('falls back to a resolved loss number when the row states no range', () => {
@@ -325,7 +325,7 @@ describe('a target_rpe goal before a trusted profile', () => {
     expect(effort.cue.fallback).toBe('none');
     expect(effort.cue.reason).toBeNull();
     expect(effort.markers.goal).toBeNull();
-    expect(effort.markers.guard).toBeNull();
+    expect(effort.markers.guards).toEqual([]);
   });
 
   it('reads no fallback once a profile is trusted', () => {
@@ -352,20 +352,20 @@ describe('the guard', () => {
   it('caps at the policy default when the row states no RPE', () => {
     const ctx = tierB({ goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' } });
     const effort = resolveSetEffort(ctx, ramp());
-    expect(effort.markers.guard?.condition).toBe('effort');
-    expect(effort.markers.guard?.targetRpe).toBe(EFFORT_POLICY.defaultEffortCapRpe);
-    expect(effort.markers.guard?.source).toBe('policy_default');
+    expect(effort.markers.guards[0]?.condition).toBe('effort');
+    expect(effort.markers.guards[0]?.targetRpe).toBe(EFFORT_POLICY.defaultEffortCapRpe);
+    expect(effort.markers.guards[0]?.source).toBe('policy_default');
     expect(effort.cue.reachedAtRep).toBe(7);
   });
 
   it('takes an injected cap rather than a literal', () => {
     const ctx = tierB({ goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' } });
     const effort = resolveSetEffort(ctx, ramp(), { ...EFFORT_POLICY, defaultEffortCapRpe: 8 });
-    expect(effort.markers.guard?.targetRpe).toBe(8);
+    expect(effort.markers.guards[0]?.targetRpe).toBe(8);
     expect(effort.cue.reachedAtRep).toBe(5);
   });
 
-  it('is an explicitly typed loss percent in tier b, not the effort cap', () => {
+  it('keeps an explicitly typed loss percent AND the effort cap live in tier b', () => {
     const guard: EffortGuardInput = {
       effortCapRpe: null,
       effortCapSource: null,
@@ -377,10 +377,73 @@ describe('the guard', () => {
       guard,
     });
     const effort = resolveSetEffort(ctx, ramp());
-    expect(effort.markers.guard?.condition).toBe('velocity_loss');
-    expect(effort.markers.guard?.source).toBe('explicit');
+    // Stable tie-break order: effort first, then loss.
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual([
+      'effort',
+      'velocity_loss',
+    ]);
+    expect(effort.markers.guards[1]?.source).toBe('explicit');
+    // Loss reaches 30% on rep 5; the effort cap of RPE 9 is not reached until rep 7.
     expect(effort.cue.reason).toBe('velocity_loss');
     expect(effort.cue.reachedAtRep).toBe(5);
+    expect(effort.cue.alsoTrue).toEqual([{ reason: 'effort', atRep: 7 }]);
+  });
+
+  it('fires the effort cap first when it comes before the typed percent', () => {
+    const guard: EffortGuardInput = {
+      effortCapRpe: 8,
+      effortCapSource: 'plan',
+      lossPct: 50,
+      lossSource: 'explicit',
+    };
+    const ctx = tierB({
+      goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
+      guard,
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.cue.reason).toBe('effort');
+    expect(effort.cue.reachedAtRep).toBe(5);
+    expect(effort.cue.alsoTrue).toEqual([{ reason: 'velocity_loss', atRep: 7 }]);
+    expect(effort.reps.filter((rep) => rep.cueFiredHere)).toHaveLength(1);
+  });
+
+  it('breaks a tie between the two guards in favour of effort', () => {
+    const guard: EffortGuardInput = {
+      effortCapRpe: 9,
+      effortCapSource: 'plan',
+      lossPct: 50,
+      lossSource: 'explicit',
+    };
+    // Rep 7 reads RIR 1 (RPE 9) and 50% loss at once; the rep range is never reached.
+    const ctx = tierB({
+      goal: { kind: 'rep_range', repsLow: 10, repsHigh: 12, source: 'plan' },
+      guard,
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.cue.reason).toBe('effort');
+    expect(effort.cue.reachedAtRep).toBe(7);
+    expect(effort.cue.alsoTrue).toEqual([{ reason: 'velocity_loss', atRep: 7 }]);
+  });
+
+  it('gives the goal the cue when it and both guards come true on one rep', () => {
+    const guard: EffortGuardInput = {
+      effortCapRpe: 9,
+      effortCapSource: 'plan',
+      lossPct: 50,
+      lossSource: 'explicit',
+    };
+    const ctx = tierB({
+      goal: { kind: 'rep_range', repsLow: 3, repsHigh: 7, source: 'plan' },
+      guard,
+    });
+    const effort = resolveSetEffort(ctx, ramp());
+    expect(effort.cue.reason).toBe('reps');
+    expect(effort.cue.reachedAtRep).toBe(7);
+    expect(effort.cue.alsoTrue).toEqual([
+      { reason: 'effort', atRep: 7 },
+      { reason: 'velocity_loss', atRep: 7 },
+    ]);
+    expect(effort.reps.filter((rep) => rep.cueFiredHere)).toHaveLength(1);
   });
 
   it('is NOT an intent-derived loss percent in tier b: effort replaces it', () => {
@@ -395,7 +458,7 @@ describe('the guard', () => {
       guard,
     });
     const effort = resolveSetEffort(ctx, ramp());
-    expect(effort.markers.guard?.condition).toBe('effort');
+    expect(effort.markers.guards.map((marker) => marker.condition)).toEqual(['effort']);
     expect(effort.cue.reason).toBe('effort');
     expect(effort.cue.reachedAtRep).toBe(7);
   });
@@ -412,7 +475,7 @@ describe('the guard', () => {
       guard,
     });
     const effort = resolveSetEffort(ctx, ramp());
-    expect(effort.markers.guard?.condition).toBe('velocity_loss');
+    expect(effort.markers.guards[0]?.condition).toBe('velocity_loss');
     expect(effort.cue.reason).toBe('velocity_loss');
     expect(effort.cue.reachedAtRep).toBe(5);
   });
@@ -420,7 +483,7 @@ describe('the guard', () => {
   it('is absent in tier a when no loss number resolves: the rep count cues alone', () => {
     const ctx = context({ goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' } });
     const effort = resolveSetEffort(ctx, ramp());
-    expect(effort.markers.guard).toBeNull();
+    expect(effort.markers.guards).toEqual([]);
     expect(effort.cue.reason).toBeNull();
     // Nine reps of an 8-to-12 set: inside the zone, nothing spoken.
     expect(effort.cue.state).toBe('in_range');
@@ -449,8 +512,8 @@ describe('markers carry the numbers a label is built from, never the words', () 
       reached: false,
     });
     // RPE 7 is RIR 3, which is band 0: the guard line draws green.
-    expect(effort.markers.guard?.band).toBe(0);
-    expect(effort.markers.guard?.velocityMps).toBeCloseTo(0.5, 6);
+    expect(effort.markers.guards[0]?.band).toBe(0);
+    expect(effort.markers.guards[0]?.velocityMps).toBeCloseTo(0.5, 6);
   });
 
   it('puts a tier b target_rpe marker on the velocity axis at its own colour', () => {
@@ -541,11 +604,39 @@ describe('the resolver is pure over its pinned context', () => {
     expect({ ctx, reps }).toEqual(snapshot);
   });
 
+  it('folds in array order: an out-of-order repNumber moves the latch', () => {
+    // PRECONDITION is ascending unique repNumber. This pins what a caller that
+    // breaks it gets, rather than silently sorting behind their back.
+    const reps: EffortRepInput[] = [1, 2, 3, 5, 4].map((repNumber, i) => ({
+      repNumber,
+      meanVelocityMps: RAMP[i],
+      eligible: true,
+    }));
+    const ctx = context({ goal: { kind: 'rep_range', repsLow: 1, repsHigh: 4, source: 'plan' } });
+    const effort = resolveSetEffort(ctx, reps);
+    expect(effort.cue.reachedAtRep).toBe(5);
+    expect(effort.cue.repsPastCue).toBe(1);
+  });
+
+  it('folds in array order: a duplicate repNumber latches on its first copy', () => {
+    const reps: EffortRepInput[] = [1, 2, 3, 3, 4].map((repNumber, i) => ({
+      repNumber,
+      meanVelocityMps: RAMP[i],
+      eligible: true,
+    }));
+    const ctx = context({ goal: { kind: 'rep_range', repsLow: 1, repsHigh: 3, source: 'plan' } });
+    const effort = resolveSetEffort(ctx, reps);
+    expect(effort.cue.reachedAtRep).toBe(3);
+    expect(effort.reps.filter((rep) => rep.cueFiredHere)).toHaveLength(1);
+    expect(effort.cue.repsPastCue).toBe(2);
+  });
+
   it('survives a JSON round trip of the context unchanged', () => {
     const ctx = tierB({
       goal: { kind: 'rep_range', repsLow: 8, repsHigh: 12, source: 'plan' },
       guard: { effortCapRpe: 8, effortCapSource: 'plan', lossPct: 30, lossSource: 'explicit' },
     });
+    expect(resolveSetEffort(ctx, ramp()).markers.guards).toHaveLength(2);
     const roundTripped: EffortSetContext = JSON.parse(JSON.stringify(ctx));
     expect(roundTripped).toEqual(ctx);
     expect(resolveSetEffort(roundTripped, ramp())).toEqual(resolveSetEffort(ctx, ramp()));
