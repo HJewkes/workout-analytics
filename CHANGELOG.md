@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-09-21
+
 ### Added
 
 - **`resolveSetEffort`, the pure effort resolver (VW-518).** One function answers the live hero chart, the rep strip, the RPE readout and the set's ending cue, so those four surfaces cannot disagree. Exported from the root barrel alongside `EFFORT_POLICY` and the `src/effort/` types.
