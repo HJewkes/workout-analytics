@@ -158,7 +158,61 @@ export {
   FLAT_THRESHOLD_PER_DAY,
   analyzeTrend,
   detectPlateau,
+  slopeStandardError,
 } from './trend';
+
+// Lift Series (per-day top load at modal reps and best rep-based e1RM)
+export {
+  type LiftSetInput,
+  type LiftSessionPoint,
+  type LiftSeries,
+  MAX_E1RM_REPS,
+  buildLiftSeries,
+  modalRepCount,
+} from './lift-series';
+
+// Week Segments (regular, broken and untrained weeks of a training history)
+export {
+  type SegmentRule,
+  type BreakReason,
+  type WeekLabel,
+  type WeekSegmentFacts,
+  type LabelledWeek,
+  type TrainingRun,
+  type LongGap,
+  type WeekSegmentation,
+  SEGMENT_RULE,
+  BREAK_REASONS,
+  segmentWeeks,
+  sessionsPerWeek,
+  modalWeeklyCount,
+} from './week-segments';
+
+// Progression Rate (in-block and start-to-start rates per class)
+export {
+  type ProgressionPoint,
+  type ProgressionSeriesInput,
+  type ProgressionBlock,
+  type LiftProgressionRate,
+  type SlopeSummary,
+  type ClassProgressionRate,
+  type ProgressionRates,
+  DEFAULT_PROGRESSION_PERIOD,
+  progressionRateByClass,
+} from './progression-rate';
+
+// Training Age (per-lift break length and effective training age)
+export { type DayGap } from './calendar-days';
+export {
+  type LiftBreak,
+  type EffectiveTrainingAgeOptions,
+  type TrainingAgeRun,
+  type EffectiveTrainingAge,
+  BREAK_THRESHOLD_DAYS,
+  EFFECTIVE_TRAINING_AGE_DEFAULTS,
+  breakLength,
+  effectiveTrainingAge,
+} from './training-age';
 
 // Drift Guard (execution-comparability gate for cross-session comparisons)
 export {

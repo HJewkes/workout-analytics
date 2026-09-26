@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **`slopeStandardError(slope, rSquared, pointCount)`**, beside `analyzeTrend`. It gives the standard error of a fitted slope from the three figures `analyzeTrend` already reports, using the identity `|b| * sqrt((1/r^2 - 1) / (n - 2))`, so no second fit can disagree with the first. It returns `null` under three points and for an r-squared of 0 or 1.
+- **`buildLiftSeries(sets)`**, one point per training day for one lift. Each point holds the top load carried for at least the series' modal reps and the best Epley e1RM. Sets over `MAX_E1RM_REPS` (12) reps carry no e1RM. The function reads load, reps and a `'YYYY-MM-DD'` day, never velocity. `modalRepCount` is exported with it, and ties go to the lower rep count.
+- **`segmentWeeks(days, facts?, rule?)`**, which labels every calendar week of a training history `regular`, `broken` or `untrained`. Broken weeks carry reasons in `BREAK_REASONS` precedence order: `tail`, `gap_edge`, `short_run`, `low_frequency`, `sparse_logging`. The result also returns the runs and the long gaps. The rule is a parameter, and `SEGMENT_RULE` holds ENGINEERING DEFAULT values tuned on one logged history. `sparseLogging: false` switches the logging test off for sources that log every set. A caller can keep a run going across a gap with `bridgedGapWeeks`. `sessionsPerWeek` and `modalWeeklyCount` are exported with it.
+- **`progressionRateByClass(series, blocks, classOf)`**. Per lift and period, it gives the in-block rate and the start-to-start rate, in percent per week. Per class and period, it gives their median, IQR, and lift and session counts. The class key is an opaque string from the caller, so the library holds no class vocabulary. Gating on counts is left to the caller.
+- **`breakLength(days, asOf)`** gives the break that ends at `asOf`: complete when `asOf` is a training day, in progress otherwise. A break is over `BREAK_THRESHOLD_DAYS` (14). **`effectiveTrainingAge(days, options?)`** counts only runs with no gap over `maxGapDays` (28). It reports the gaps over `excludeGapDays` (183) separately, so they can be shown to the lifter.
+
 ## [3.1.0] - 2026-09-21
 
 ### Added

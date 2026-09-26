@@ -83,6 +83,7 @@
     "better-sqlite3": "^11.10.0",
     "eslint": "^9.18.0",
     "expo-sqlite": "^15.2.14",
+    "fast-check": "^4.10.2",
     "husky": "^9.1.0",
     "lint-staged": "^15.3.0",
     "prettier": "^3.4.0",
