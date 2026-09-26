@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-09-26
+
 ### Added
 
 - **`slopeStandardError(slope, rSquared, pointCount)`**, beside `analyzeTrend`. It gives the standard error of a fitted slope from the three figures `analyzeTrend` already reports, using the identity `|b| * sqrt((1/r^2 - 1) / (n - 2))`, so no second fit can disagree with the first. It returns `null` under three points and for an r-squared of 0 or 1.
