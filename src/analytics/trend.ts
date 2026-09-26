@@ -238,6 +238,37 @@ export function analyzeTrend(series: TimeSeries, opts?: AnalyzeTrendOptions): Tr
 }
 
 // =============================================================================
+// slopeStandardError
+// =============================================================================
+
+/** Under three points the fit has no residual degrees of freedom. */
+const MIN_POINTS_FOR_STANDARD_ERROR = 3;
+
+/**
+ * The standard error of a fitted slope, from the slope, r-squared and point
+ * count `analyzeTrend` already reports, so no second fit can disagree with the
+ * first.
+ *
+ * For simple linear regression se(b)^2 = (SSE / (n - 2)) / Sxx and
+ * r^2 = b^2 * Sxx / SST, which rearrange to
+ * se(b) = |b| * sqrt((1/r^2 - 1) / (n - 2)). It is an identity, not an
+ * approximation. The result is in the slope's own units.
+ *
+ * `null` when the fit cannot support one: under three points, a zero
+ * r-squared (unbounded), or a perfect fit of 1 (an error of zero the data has
+ * not earned).
+ */
+export function slopeStandardError(
+  slope: number,
+  rSquared: number,
+  pointCount: number
+): number | null {
+  if (pointCount < MIN_POINTS_FOR_STANDARD_ERROR) return null;
+  if (!(rSquared > 0) || rSquared >= 1) return null;
+  return Math.abs(slope) * Math.sqrt((1 / rSquared - 1) / (pointCount - 2));
+}
+
+// =============================================================================
 // detectPlateau
 // =============================================================================
 

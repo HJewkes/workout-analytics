@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeTrend, detectPlateau, FLAT_THRESHOLD_PER_DAY } from './trend';
+import { analyzeTrend, detectPlateau, FLAT_THRESHOLD_PER_DAY, slopeStandardError } from './trend';
 import type { TimeSeries } from './trend';
 
 /** The one metric the threshold table has a figure for (0.001/day). */
@@ -384,5 +384,51 @@ describe('detectPlateau', () => {
       const result = detectPlateau(series, 5, 10);
       expect(result.isPlateau).toBe(true);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// slopeStandardError
+// ---------------------------------------------------------------------------
+
+describe('slopeStandardError', () => {
+  // x = 1..6 against y = [2,4,6,8,10,13]: slope 2.142857, r-squared 0.994109,
+  // and se(b) 0.0824786 by the textbook sqrt((SSE/(n-2))/Sxx).
+  it('matches the standard error of the same regression computed directly', () => {
+    expect(slopeStandardError(2.142857142857143, 0.9941089837997052, 6)).toBeCloseTo(
+      0.08247860988423396,
+      9
+    );
+  });
+
+  it('agrees with the fit analyzeTrend reports for the same series', () => {
+    const series = makeSeries([
+      [1, 2],
+      [2, 4],
+      [3, 6],
+      [4, 8],
+      [5, 10],
+      [6, 13],
+    ]);
+    const trend = analyzeTrend(series);
+    expect(slopeStandardError(trend.slope, trend.rSquared, trend.pointCount)).toBeCloseTo(
+      0.08247860988423396,
+      9
+    );
+  });
+
+  it('widens as the fit worsens at the same slope', () => {
+    const tight = slopeStandardError(2, 0.95, 10) ?? 0;
+    const loose = slopeStandardError(2, 0.5, 10) ?? 0;
+    expect(loose).toBeGreaterThan(tight);
+  });
+
+  it('has no answer with fewer than three points', () => {
+    expect(slopeStandardError(2, 0.9, 2)).toBeNull();
+  });
+
+  it('has no answer for a perfect or a zero fit', () => {
+    expect(slopeStandardError(2, 1, 10)).toBeNull();
+    expect(slopeStandardError(2, 0, 10)).toBeNull();
   });
 });
