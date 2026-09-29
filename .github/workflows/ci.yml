@@ -93,6 +93,8 @@ jobs:
           test -f dist/types/index.d.ts || (echo "Types missing" && exit 1)
           test ! -d dist/cjs || (echo "CJS build should not exist (ESM-only)" && exit 1)
           echo "ESM-only build verification passed"
+      - name: Type-check a NodeNext consumer against the packed tarball
+        run: npm run check:types-nodenext
 
   # Test on multiple Node versions (NF-01)
   node-matrix:

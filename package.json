@@ -58,7 +58,8 @@
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build && npm run test",
     "prepare": "husky",
-    "check:exports": "node scripts/check-exports.mjs"
+    "check:exports": "node scripts/check-exports.mjs",
+    "check:types-nodenext": "node scripts/check-types-nodenext.mjs"
   },
   "dependencies": {
     "zod": "^3.23.0"
