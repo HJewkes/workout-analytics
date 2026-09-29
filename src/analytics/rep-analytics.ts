@@ -5,14 +5,14 @@
  * without requiring external context or aggregation.
  */
 
-import type { Rep } from '@/models/rep';
+import type { Rep } from '../models/rep.js';
 import {
   getPhaseMeanVelocity,
   getPhaseMeanForce,
   getPhaseMovementDuration,
   isHoldOrIdleSample,
-} from '@/models/phase';
-import type { WorkoutSample } from '@/models/sample';
+} from '../models/phase.js';
+import type { WorkoutSample } from '../models/sample.js';
 
 /**
  * Drop HOLD/IDLE samples the way `getPhaseMeanVelocity` already excludes

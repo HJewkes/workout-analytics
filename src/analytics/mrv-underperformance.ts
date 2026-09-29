@@ -30,10 +30,10 @@
  * terminology, no relation, no shared code.
  */
 
-import type { Set } from '@/models/set';
-import { getRepMeanVelocity } from '@/models/rep';
-import { computeChange } from '@/analytics/types';
-import type { DriftGuardVerdict } from '@/analytics/drift-guard';
+import type { Set } from '../models/set.js';
+import { getRepMeanVelocity } from '../models/rep.js';
+import { computeChange } from './types.js';
+import type { DriftGuardVerdict } from './drift-guard.js';
 
 // =============================================================================
 // Types

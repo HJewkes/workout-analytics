@@ -8,7 +8,7 @@
  * - Uncertainty estimates for slope and intercept
  */
 
-import type { LoadVelocityDataPoint } from '@/vbt/profile';
+import type { LoadVelocityDataPoint } from './profile.js';
 
 // =============================================================================
 // Types

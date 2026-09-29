@@ -13,7 +13,7 @@
  * form — no matrix library needed for this 2×2 case.
  */
 
-import type { LoadVelocityDataPoint } from '@/vbt/profile';
+import type { LoadVelocityDataPoint } from './profile.js';
 
 // =============================================================================
 // Types

@@ -26,7 +26,7 @@
  *
  * NDA: velocities and rep counts only; no protocol bytes / frames / command codes.
  */
-import { EFFORT_POLICY, type EffortPolicy } from '@/effort/policy';
+import { EFFORT_POLICY, type EffortPolicy } from './policy.js';
 import type {
   CueReason,
   CueState,
@@ -41,7 +41,7 @@ import type {
   EffortRepInput,
   EffortSetContext,
   SetEffort,
-} from '@/effort/types';
+} from './types.js';
 
 /** One condition the set is judged against, goal or guard, in resolved numbers. */
 interface ConditionSpec {

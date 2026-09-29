@@ -12,8 +12,8 @@
  * Ported from v0/analytics/expected-velocity.ts (git 884f0a2^).
  */
 
-import type { Set } from '@/models/set';
-import { getRepPeakVelocity } from '@/models/rep';
+import type { Set } from '../models/set.js';
+import { getRepPeakVelocity } from '../models/rep.js';
 
 // =============================================================================
 // Shared types

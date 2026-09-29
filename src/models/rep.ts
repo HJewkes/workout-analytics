@@ -14,10 +14,10 @@ import {
   getPhaseMeanVelocity,
   getPhaseMeanLoad,
   getPhaseRangeOfMotion,
-} from '@/models/phase';
-import type { WorkoutSample } from '@/models/sample';
-import { MovementPhase } from '@/models/types';
-import { formatTempo } from '@/models/tempo';
+} from './phase.js';
+import type { WorkoutSample } from './sample.js';
+import { MovementPhase } from './types.js';
+import { formatTempo } from './tempo.js';
 
 /**
  * Immutable Rep interface.

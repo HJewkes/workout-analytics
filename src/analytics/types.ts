@@ -5,14 +5,19 @@
  * and technique baseline definitions.
  */
 
-import type { BaselineKey } from '@/models/baseline-key';
-import { type StreamingDistribution, getMean, getZScore, getStdDev } from '@/stats/distribution';
+import type { BaselineKey } from '../models/baseline-key.js';
+import {
+  type StreamingDistribution,
+  getMean,
+  getZScore,
+  getStdDev,
+} from '../stats/distribution.js';
 import {
   classifyByBreakpoints,
   DEFAULT_OUTLIER_SCHEME,
   DEFAULT_CONFIDENCE_SCHEME,
-} from '@/stats/schemes';
-import type { BreakpointScheme } from '@/stats/schemes';
+} from '../stats/schemes.js';
+import type { BreakpointScheme } from '../stats/schemes.js';
 
 // =============================================================================
 // Expectation Types

@@ -6,7 +6,7 @@
  * generic (ts, value) time series and have no dependency on Set/Rep models.
  */
 
-import type { MetricKey } from './time-series';
+import type { MetricKey } from './time-series.js';
 
 // =============================================================================
 // Types

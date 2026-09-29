@@ -6,7 +6,7 @@
  * serves a logged history with no device data as well as live sessions.
  */
 
-import { estimateE1RMFromReps } from '../vbt/e1rm';
+import { estimateE1RMFromReps } from '../vbt/e1rm.js';
 
 /** Epley overestimates past this many reps (`estimateE1RMFromReps`), so those sets carry no e1RM. */
 export const MAX_E1RM_REPS = 12;

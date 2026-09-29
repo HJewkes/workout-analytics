@@ -6,7 +6,7 @@
  * per-week facts, so a logged history and live sessions segment the same way.
  */
 
-import { dayGaps, isoWeekStart, sortedDistinctDays, weeksSpanning } from './calendar-days';
+import { dayGaps, isoWeekStart, sortedDistinctDays, weeksSpanning } from './calendar-days.js';
 
 export interface SegmentRule {
   /** A gap between training days longer than this ends a run, unless the caller bridges it. */

@@ -11,7 +11,7 @@ export {
   DEFAULT_MVT,
   DEFAULT_VELOCITY_RIR_MAP,
   estimatePercent1RMFromVelocity,
-} from './constants';
+} from './constants.js';
 
 // Velocity Zones
 export {
@@ -23,7 +23,7 @@ export {
   type GetVelocityZonesOptions,
   getVelocityZones,
   categorizeVelocity,
-} from './zones';
+} from './zones.js';
 
 // Profile
 export {
@@ -33,7 +33,7 @@ export {
   predictVelocity,
   estimateLoad,
   addDataPoint,
-} from './profile';
+} from './profile.js';
 
 // Baseline
 export {
@@ -44,7 +44,7 @@ export {
   updateBaselineWithPoint,
   serializeBaseline,
   deserializeBaseline,
-} from './baseline';
+} from './baseline.js';
 
 // e1RM Estimation
 export {
@@ -52,7 +52,7 @@ export {
   estimateE1RMFromProfile,
   estimateE1RMFromReps,
   estimateHybridE1RM,
-} from './e1rm';
+} from './e1rm.js';
 
 // Coverage
 export {
@@ -60,17 +60,17 @@ export {
   type CoverageResult,
   computeCoverage,
   identifyCoverageGaps,
-} from './coverage';
+} from './coverage.js';
 
 // Advanced Profile Fitting
-export { type FittingOptions, type FittingResult, fitLVProfile } from './profile-fitting';
+export { type FittingOptions, type FittingResult, fitLVProfile } from './profile-fitting.js';
 
 // Bayesian LV Profile Fitting
 export {
   type BayesianLVPrior,
   type BayesianLVPosterior,
   fitLVProfileBayesian,
-} from './profile-fitting-bayesian';
+} from './profile-fitting-bayesian.js';
 
 // Intra-Set Expected Velocity
 export {
@@ -81,7 +81,7 @@ export {
   type IntraSetExpectedVelocity,
   type IntraSetExpectedVelocityStrategy,
   type FirstNRepsStrategyOptions,
-} from './expected-velocity-intra-set';
+} from './expected-velocity-intra-set.js';
 
 // Exercise-Specific RIR Estimation
 export {
@@ -93,4 +93,4 @@ export {
   DEFAULT_CABLE_COMPOUND_PROFILE,
   DEFAULT_CABLE_ISOLATION_PROFILE,
   DEFAULT_FALLBACK_PROFILE,
-} from './rir-exercise-specific';
+} from './rir-exercise-specific.js';

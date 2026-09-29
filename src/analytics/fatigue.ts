@@ -5,11 +5,11 @@
  * configurable schemes for classification.
  */
 
-import type { Set } from '@/models/set';
-import { getRepRangeOfMotion } from '@/models/rep';
-import type { ChangeResult } from '@/analytics/types';
-import { computeChange } from '@/analytics/types';
-import { getRepConcentricTime } from '@/analytics/rep-analytics';
+import type { Set } from '../models/set.js';
+import { getRepRangeOfMotion } from '../models/rep.js';
+import type { ChangeResult } from './types.js';
+import { computeChange } from './types.js';
+import { getRepConcentricTime } from './rep-analytics.js';
 import {
   getSetFirstRepVelocity,
   getSetLastRepVelocity,
@@ -19,14 +19,14 @@ import {
   getSetFirstRepEccentricVelocity,
   getSetLastRepEccentricVelocity,
   getSetEccentricVelocityChangePct,
-} from '@/analytics/set-analytics';
+} from './set-analytics.js';
 import {
   type StreamingDistribution,
   buildDistribution,
   getCV,
   getZScore,
-} from '@/stats/distribution';
-import { GRUBBS_DEFAULT_ALPHA, grubbsCriticalValue, isGrubbsOutlier } from '@/stats/grubbs';
+} from '../stats/distribution.js';
+import { GRUBBS_DEFAULT_ALPHA, grubbsCriticalValue, isGrubbsOutlier } from '../stats/grubbs.js';
 import {
   interpolate,
   classifyByBreakpoints,
@@ -34,7 +34,7 @@ import {
   DEFAULT_CONSISTENCY_SCHEME,
   type InterpolationScheme,
   type BreakpointScheme,
-} from '@/stats/schemes';
+} from '../stats/schemes.js';
 
 // =============================================================================
 // Types

@@ -5,8 +5,8 @@
  * comes from which slot it's in on Rep. IDLE and HOLD samples are both treated as pause
  * (contribute to hold duration, not movement metrics).
  */
-import { MovementPhase } from '@/models/types';
-import type { WorkoutSample } from '@/models/sample';
+import { MovementPhase } from './types.js';
+import type { WorkoutSample } from './sample.js';
 
 /**
  * Immutable Phase interface.

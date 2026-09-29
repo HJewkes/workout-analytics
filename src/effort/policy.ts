@@ -14,7 +14,7 @@
  * resolver never sees.
  */
 
-import type { EffortResistanceFamily } from '@/effort/types';
+import type { EffortResistanceFamily } from './types.js';
 
 /**
  * What velocity can answer under one resistance family.

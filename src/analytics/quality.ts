@@ -5,22 +5,22 @@
  * using configurable schemes for classification.
  */
 
-import type { Rep } from '@/models/rep';
-import { getRepRangeOfMotion, getRepMeanVelocity } from '@/models/rep';
+import type { Rep } from '../models/rep.js';
+import { getRepRangeOfMotion, getRepMeanVelocity } from '../models/rep.js';
 import type {
   Expectation,
   ComparisonResult,
   TechniqueBaseline,
   ComparisonSchemes,
-} from '@/analytics/types';
-import { compareToExpectation } from '@/analytics/types';
-import { getRepEccentricTime } from '@/analytics/rep-analytics';
+} from './types.js';
+import { compareToExpectation } from './types.js';
+import { getRepEccentricTime } from './rep-analytics.js';
 import {
   classifyByBreakpoints,
   DEFAULT_OUTLIER_SCHEME,
   DEFAULT_QUALITY_SCHEME,
   type BreakpointScheme,
-} from '@/stats/schemes';
+} from '../stats/schemes.js';
 
 // =============================================================================
 // Types

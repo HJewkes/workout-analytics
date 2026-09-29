@@ -5,9 +5,9 @@
  * without requiring external context or historical data.
  */
 
-import type { Set } from '@/models/set';
-import { getRepMeanVelocity, getRepPeakVelocity, getRepRangeOfMotion } from '@/models/rep';
-import { getRepMeanEccentricVelocity } from '@/analytics/rep-analytics';
+import type { Set } from '../models/set.js';
+import { getRepMeanVelocity, getRepPeakVelocity, getRepRangeOfMotion } from '../models/rep.js';
+import { getRepMeanEccentricVelocity } from './rep-analytics.js';
 
 // =============================================================================
 // Velocity Analytics

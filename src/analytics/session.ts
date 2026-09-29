@@ -5,17 +5,17 @@
  * strength, readiness, fatigue, and volume estimates.
  */
 
-import type { Set } from '@/models/set';
-import { getSetLoad } from '@/models/set';
-import type { LoadVelocityProfile } from '@/vbt/profile';
+import type { Set } from '../models/set.js';
+import { getSetLoad } from '../models/set.js';
+import type { LoadVelocityProfile } from '../vbt/profile.js';
 import {
   type E1RMEstimate,
   estimateE1RMFromReps,
   estimateE1RMFromProfile,
   estimateHybridE1RM,
-} from '@/vbt/e1rm';
-import { estimatePerRepRIR, getRepHardnessWeight } from '@/analytics/intensity';
-import { getSetFirstRepVelocity, getSetVelocityLossPct } from '@/analytics/set-analytics';
+} from '../vbt/e1rm.js';
+import { estimatePerRepRIR, getRepHardnessWeight } from './intensity.js';
+import { getSetFirstRepVelocity, getSetVelocityLossPct } from './set-analytics.js';
 
 // =============================================================================
 // Types

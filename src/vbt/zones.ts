@@ -15,9 +15,9 @@
  * stay in the UI/design system — WA is intentionally color-free.
  */
 
-import type { LoadVelocityProfile } from '@/vbt/profile';
-import { predictVelocity } from '@/vbt/profile';
-import { DEFAULT_MVT } from '@/vbt/constants';
+import type { LoadVelocityProfile } from './profile.js';
+import { predictVelocity } from './profile.js';
+import { DEFAULT_MVT } from './constants.js';
 
 // =============================================================================
 // Types

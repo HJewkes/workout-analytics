@@ -16,17 +16,17 @@ import {
   getRepDuration,
   getRepMeanLoad,
   getRepPeakLoad,
-} from '@/models/rep';
+} from './rep.js';
 import {
   type Phase,
   EMPTY_PHASE,
   rebuildPhaseFromSamples,
   getPhaseMovementDuration,
-} from '@/models/phase';
-import type { WorkoutSample } from '@/models/sample';
-import { MovementPhase } from '@/models/types';
-import type { LoadSettings } from '@/models/load';
-import { getEffectiveLoad } from '@/models/load';
+} from './phase.js';
+import type { WorkoutSample } from './sample.js';
+import { MovementPhase } from './types.js';
+import type { LoadSettings } from './load.js';
+import { getEffectiveLoad } from './load.js';
 
 /**
  * Immutable Set interface.

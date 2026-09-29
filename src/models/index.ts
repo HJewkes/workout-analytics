@@ -3,22 +3,22 @@
  */
 
 // Enums and constants
-export { MovementPhase, PhaseNames } from './types';
+export { MovementPhase, PhaseNames } from './types.js';
 
 // Types
-export type { WorkoutSample } from './sample';
-export type { Phase } from './phase';
-export type { Rep } from './rep';
-export type { Set, AddSampleToSetOptions } from './set';
-export type { TempoParts } from './tempo';
-export type { LoadSettings } from './load';
-export type { BaselineKey, BaselineKeyFilter, BaselineSide } from './baseline-key';
+export type { WorkoutSample } from './sample.js';
+export type { Phase } from './phase.js';
+export type { Rep } from './rep.js';
+export type { Set, AddSampleToSetOptions } from './set.js';
+export type { TempoParts } from './tempo.js';
+export type { LoadSettings } from './load.js';
+export type { BaselineKey, BaselineKeyFilter, BaselineSide } from './baseline-key.js';
 
 // Baseline identity
-export { baselineKeyId, matchesBaselineKey, baselineKeyEquals } from './baseline-key';
+export { baselineKeyId, matchesBaselineKey, baselineKeyEquals } from './baseline-key.js';
 
 // Load
-export { DEFAULT_LOAD_SETTINGS, calculateFrameLoad, getEffectiveLoad } from './load';
+export { DEFAULT_LOAD_SETTINGS, calculateFrameLoad, getEffectiveLoad } from './load.js';
 
 // Phase
 export {
@@ -37,7 +37,7 @@ export {
   getPhaseTimeToPeakVelocityMs,
   getPhaseVelocityDropPct,
   getPhaseVelocityEnvelope,
-} from './phase';
+} from './phase.js';
 
 // Rep
 export {
@@ -55,7 +55,7 @@ export {
   getRepPeakLoad,
   getRepRangeOfMotion,
   getRepSamples,
-} from './rep';
+} from './rep.js';
 
 // Set
 export {
@@ -65,7 +65,7 @@ export {
   getSetLoad,
   getSetMeanLoad,
   getSetPeakLoad,
-} from './set';
+} from './set.js';
 
 // Tempo
-export { formatTempo, parseTempo } from './tempo';
+export { formatTempo, parseTempo } from './tempo.js';

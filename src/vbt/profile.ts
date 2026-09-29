@@ -9,7 +9,7 @@
  * R² > 0.93 for individual profiles (PLoS ONE 2019).
  */
 
-import { DEFAULT_MVT } from '@/vbt/constants';
+import { DEFAULT_MVT } from './constants.js';
 
 // =============================================================================
 // Types
