@@ -9,7 +9,7 @@
  * is pure computation.
  */
 
-import type { LoadVelocityDataPoint } from '@/vbt/profile';
+import type { LoadVelocityDataPoint } from './profile.js';
 
 // =============================================================================
 // Types

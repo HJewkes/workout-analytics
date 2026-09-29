@@ -13,7 +13,7 @@ export type {
   EquipmentCategory,
   EquipmentInfo,
   CableSetup,
-} from './types';
+} from './types.js';
 
 // Catalog functions
 export {
@@ -28,4 +28,4 @@ export {
   searchExercises,
   hasExercise,
   getExerciseCount,
-} from './catalog';
+} from './catalog.js';

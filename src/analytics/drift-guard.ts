@@ -26,10 +26,10 @@
  * handed and persists nothing.
  */
 
-import type { Set } from '@/models/set';
-import { getRepRangeOfMotion } from '@/models/rep';
-import { getRepConcentricTime } from '@/analytics/rep-analytics';
-import { computeChange } from '@/analytics/types';
+import type { Set } from '../models/set.js';
+import { getRepRangeOfMotion } from '../models/rep.js';
+import { getRepConcentricTime } from './rep-analytics.js';
+import { computeChange } from './types.js';
 
 // =============================================================================
 // Types

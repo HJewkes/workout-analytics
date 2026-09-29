@@ -6,8 +6,8 @@
  * Used for readiness assessment (comparing today's velocity to baseline).
  */
 
-import type { BaselineKey } from '@/models/baseline-key';
-import type { LoadVelocityDataPoint } from '@/vbt/profile';
+import type { BaselineKey } from '../models/baseline-key.js';
+import type { LoadVelocityDataPoint } from './profile.js';
 
 // =============================================================================
 // Types

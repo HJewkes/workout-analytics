@@ -5,7 +5,7 @@
  * Adapters convert device-specific data into this format.
  * All values are normalized/standardized.
  */
-import { type MovementPhase } from './types';
+import { type MovementPhase } from './types.js';
 
 export interface WorkoutSample {
   /** Incrementing sequence number from source device (for drop detection) */

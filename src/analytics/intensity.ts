@@ -10,11 +10,11 @@
  * - Stimulus score: Voltra-specific heuristic (see plan Research Basis section)
  */
 
-import type { Set } from '@/models/set';
-import { getSetLoad } from '@/models/set';
-import { getRepMeanVelocity, getRepRangeOfMotion } from '@/models/rep';
-import { getRepConcentricTime, getRepEccentricTime } from '@/analytics/rep-analytics';
-import { estimateSetRIR } from '@/analytics/fatigue';
+import type { Set } from '../models/set.js';
+import { getSetLoad } from '../models/set.js';
+import { getRepMeanVelocity, getRepRangeOfMotion } from '../models/rep.js';
+import { getRepConcentricTime, getRepEccentricTime } from './rep-analytics.js';
+import { estimateSetRIR } from './fatigue.js';
 
 // =============================================================================
 // Constants

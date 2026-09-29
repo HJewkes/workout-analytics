@@ -5,7 +5,7 @@
  * Uses InterpolationScheme for the RIR mapping so it's configurable.
  */
 
-import { type InterpolationScheme, createInterpolationScheme } from '@/stats/schemes';
+import { type InterpolationScheme, createInterpolationScheme } from '../stats/schemes.js';
 
 // =============================================================================
 // Constants

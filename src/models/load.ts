@@ -9,7 +9,7 @@
  * The Voltra device doesn't report load in telemetry -- it reports force (user-generated).
  * Load (resistance) is derived from device settings and movement state.
  */
-import { MovementPhase } from '@/models/types';
+import { MovementPhase } from './types.js';
 
 // =============================================================================
 // Types

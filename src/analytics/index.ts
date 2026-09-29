@@ -18,7 +18,7 @@ export {
   createTechniqueBaseline,
   hasDistribution,
   getExpectationStdDev,
-} from './types';
+} from './types.js';
 
 // Rep Analytics
 export {
@@ -39,7 +39,7 @@ export {
   getRepEccentricWork,
   getRepMeanConcentricPower,
   getRepMeanEccentricPower,
-} from './rep-analytics';
+} from './rep-analytics.js';
 
 // Set Analytics
 export {
@@ -64,7 +64,7 @@ export {
   getSetRepROMAt,
   type SetVelocitySummary,
   getSetVelocitySummary,
-} from './set-analytics';
+} from './set-analytics.js';
 
 // Quality
 export {
@@ -83,7 +83,7 @@ export {
   getRepEccentricTimeRatio,
   getRepVelocityRatio,
   assessRepQuality,
-} from './quality';
+} from './quality.js';
 
 // Fatigue
 export {
@@ -116,7 +116,7 @@ export {
   getSetFatigueSummary,
   computeVBTSetFatigueIndex,
   updateSessionFatigueState,
-} from './fatigue';
+} from './fatigue.js';
 
 // Intensity
 export {
@@ -124,10 +124,15 @@ export {
   getRepHardnessWeight,
   getSetIntensityScore,
   getSetStimulusScore,
-} from './intensity';
+} from './intensity.js';
 
 // Coverage
-export { type SetSummary, type CoverageBin, buildCoverageMap, detectStaleBins } from './coverage';
+export {
+  type SetSummary,
+  type CoverageBin,
+  buildCoverageMap,
+  detectStaleBins,
+} from './coverage.js';
 
 // Session
 export {
@@ -139,14 +144,14 @@ export {
   computeSessionFatigue,
   computeVolume,
   computeEffectiveVolume,
-} from './session';
+} from './session.js';
 
 // Readiness Adjustments
 export {
   type ReadinessAdjustments,
   type ReadinessAdjustmentInputs,
   computeReadinessAdjustments,
-} from './readiness-adjustments';
+} from './readiness-adjustments.js';
 
 // Trend
 export {
@@ -159,7 +164,7 @@ export {
   analyzeTrend,
   detectPlateau,
   slopeStandardError,
-} from './trend';
+} from './trend.js';
 
 // Lift Series (per-day top load at modal reps and best rep-based e1RM)
 export {
@@ -169,7 +174,7 @@ export {
   MAX_E1RM_REPS,
   buildLiftSeries,
   modalRepCount,
-} from './lift-series';
+} from './lift-series.js';
 
 // Week Segments (regular, broken and untrained weeks of a training history)
 export {
@@ -186,7 +191,7 @@ export {
   segmentWeeks,
   sessionsPerWeek,
   modalWeeklyCount,
-} from './week-segments';
+} from './week-segments.js';
 
 // Progression Rate (in-block and start-to-start rates per class)
 export {
@@ -199,10 +204,10 @@ export {
   type ProgressionRates,
   DEFAULT_PROGRESSION_PERIOD,
   progressionRateByClass,
-} from './progression-rate';
+} from './progression-rate.js';
 
 // Training Age (per-lift break length and effective training age)
-export { type DayGap } from './calendar-days';
+export { type DayGap } from './calendar-days.js';
 export {
   type LiftBreak,
   type EffectiveTrainingAgeOptions,
@@ -212,7 +217,7 @@ export {
   EFFECTIVE_TRAINING_AGE_DEFAULTS,
   breakLength,
   effectiveTrainingAge,
-} from './training-age';
+} from './training-age.js';
 
 // Drift Guard (execution-comparability gate for cross-session comparisons)
 export {
@@ -222,7 +227,7 @@ export {
   DRIFT_GUARD_THRESHOLDS,
   summarizeSetsForDrift,
   evaluateDriftGuard,
-} from './drift-guard';
+} from './drift-guard.js';
 
 // MRV Underperformance (two-session underperformance detector, drift-gated)
 export {
@@ -234,7 +239,7 @@ export {
   summarizeSetsForPerformance,
   evaluateMrvUnderperformance,
   evaluateMrvGuard,
-} from './mrv-underperformance';
+} from './mrv-underperformance.js';
 
 // State-Space Strength Model
 export {
@@ -245,7 +250,7 @@ export {
   DEFAULT_PROCESS_NOISE_TREND,
   DEFAULT_OBSERVATION_NOISE,
   DEFAULT_DIFFUSE_VARIANCE,
-} from './state-space-strength';
+} from './state-space-strength.js';
 
 // Time Series (cross-session aggregation)
 export {
@@ -260,7 +265,7 @@ export {
   buildTimeSeries,
   getWeeklySummaries,
   getVolumeByMuscleGroup,
-} from './time-series';
+} from './time-series.js';
 
 // Fatigue Verdict (always-on live set verdict + per-dimension lights)
 export {
@@ -276,7 +281,7 @@ export {
   romBreakdownTone,
   tempoBreakdownTone,
   getSetFatigueVerdict,
-} from './fatigue-verdict';
+} from './fatigue-verdict.js';
 
 // View-Model Derivations (exact, unrounded metrics for rendering workout views)
 export {
@@ -293,4 +298,4 @@ export {
   isNewE1RM,
   weightDeviationRatio,
   classifyWeeklyVolume,
-} from './view-model';
+} from './view-model.js';

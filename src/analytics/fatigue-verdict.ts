@@ -23,16 +23,16 @@
  *
  * Spec: `voltras-workspace/sources/design/fatigue-verdict-spec.md`.
  */
-import type { Set } from '@/models/set';
-import { getPhaseMovementDuration } from '@/models/phase';
+import type { Set } from '../models/set.js';
+import { getPhaseMovementDuration } from '../models/phase.js';
 import {
   getSetVelocityLossPct,
   getSetLastRepROM,
   getSetRepROMs,
   getSetEccentricVelocityChangePct,
-} from '@/analytics/set-analytics';
-import { velocityLossVerdict } from '@/analytics/view-model';
-import { type BreakpointScheme, classifyByBreakpoints } from '@/stats/schemes';
+} from './set-analytics.js';
+import { velocityLossVerdict } from './view-model.js';
+import { type BreakpointScheme, classifyByBreakpoints } from '../stats/schemes.js';
 
 // =============================================================================
 // Types

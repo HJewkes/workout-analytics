@@ -6,7 +6,7 @@
  * clock, so the caller states which day "now" is.
  */
 
-import { dayGaps, daysBetween, sortedDistinctDays, type DayGap } from './calendar-days';
+import { dayGaps, daysBetween, sortedDistinctDays, type DayGap } from './calendar-days.js';
 
 /** A break of this many days or fewer is ordinary scheduling, not a layoff. */
 export const BREAK_THRESHOLD_DAYS = 14;

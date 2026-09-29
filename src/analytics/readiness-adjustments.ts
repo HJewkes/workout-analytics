@@ -7,7 +7,7 @@
  * initial src/ port of computeReadiness.
  */
 
-import type { ReadinessEstimate } from '@/analytics/session';
+import type { ReadinessEstimate } from './session.js';
 
 // =============================================================================
 // Types

@@ -12,12 +12,12 @@
  *
  * NDA: reads WA models only; no protocol bytes / frames / command codes.
  */
-import { getRepMeanVelocity, getRepPeakVelocity } from '@/models/rep';
-import { getPhaseHoldDuration, getPhaseMovementDuration } from '@/models/phase';
-import type { Set } from '@/models/set';
-import { getSetVelocityLossPct } from '@/analytics/set-analytics';
-import { estimateSetRIR } from '@/analytics/fatigue';
-import { estimateE1RMFromReps } from '@/vbt/e1rm';
+import { getRepMeanVelocity, getRepPeakVelocity } from '../models/rep.js';
+import { getPhaseHoldDuration, getPhaseMovementDuration } from '../models/phase.js';
+import type { Set } from '../models/set.js';
+import { getSetVelocityLossPct } from './set-analytics.js';
+import { estimateSetRIR } from './fatigue.js';
+import { estimateE1RMFromReps } from '../vbt/e1rm.js';
 
 // =============================================================================
 // RPE

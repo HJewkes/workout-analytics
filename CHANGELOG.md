@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Declarations resolve under `moduleResolution: NodeNext` (VW-564).** The emitted `.d.ts` files used extensionless relative imports such as `from './analytics'`. A NodeNext consumer could not resolve them, so every import from this package typed as `any` and no call was checked. Library source now compiles under NodeNext and writes each relative import with its `.js` extension, which tsc copies into the declarations. Affected releases: 3.1.0 and 3.2.0 at least. CI now type-checks a NodeNext consumer against the packed tarball (`npm run check:types-nodenext`), including one call that must fail to compile.
+
 ## [3.2.0] - 2026-09-26
 
 ### Added

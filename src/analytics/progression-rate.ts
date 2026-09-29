@@ -10,7 +10,7 @@
  * module holds no class vocabulary of its own.
  */
 
-import { analyzeTrend } from './trend';
+import { analyzeTrend } from './trend.js';
 
 /** The period a block belongs to when it names none. */
 export const DEFAULT_PROGRESSION_PERIOD = 'all';

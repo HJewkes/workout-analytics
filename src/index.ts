@@ -76,7 +76,7 @@ export {
   type TempoParts,
   formatTempo,
   parseTempo,
-} from './models';
+} from './models/index.js';
 
 // Stats - Distribution
 export {
@@ -93,7 +93,7 @@ export {
   isOutlier,
   isWithinRange,
   buildDistribution,
-} from './stats';
+} from './stats/index.js';
 
 // Stats - Schemes
 export {
@@ -108,7 +108,7 @@ export {
   DEFAULT_OUTLIER_SCHEME,
   DEFAULT_QUALITY_SCHEME,
   DEFAULT_CONFIDENCE_SCHEME,
-} from './stats';
+} from './stats/index.js';
 
 // Stats - Grubbs' test for a single outlier
 export {
@@ -117,7 +117,7 @@ export {
   isGrubbsOutlier,
   maxAbsZScore,
   studentTTwoSidedTail,
-} from './stats';
+} from './stats/index.js';
 
 // Analytics - Types
 export {
@@ -135,7 +135,7 @@ export {
   createTechniqueBaseline,
   hasDistribution,
   getExpectationStdDev,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Rep
 export {
@@ -156,7 +156,7 @@ export {
   getRepEccentricWork,
   getRepMeanConcentricPower,
   getRepMeanEccentricPower,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Set
 export {
@@ -181,7 +181,7 @@ export {
   getSetRepROMAt,
   type SetVelocitySummary,
   getSetVelocitySummary,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Quality
 export {
@@ -200,7 +200,7 @@ export {
   getRepEccentricTimeRatio,
   getRepVelocityRatio,
   assessRepQuality,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Fatigue
 export {
@@ -233,7 +233,7 @@ export {
   getSetFatigueSummary,
   computeVBTSetFatigueIndex,
   updateSessionFatigueState,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Intensity
 export {
@@ -241,7 +241,7 @@ export {
   getRepHardnessWeight,
   getSetIntensityScore,
   getSetStimulusScore,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Session
 export {
@@ -253,14 +253,14 @@ export {
   computeSessionFatigue,
   computeVolume,
   computeEffectiveVolume,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Readiness Adjustments
 export {
   type ReadinessAdjustments,
   type ReadinessAdjustmentInputs,
   computeReadinessAdjustments,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Trend
 export {
@@ -273,7 +273,7 @@ export {
   analyzeTrend,
   detectPlateau,
   slopeStandardError,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Lift Series (per-day top load at modal reps and best rep-based e1RM)
 export {
@@ -283,7 +283,7 @@ export {
   MAX_E1RM_REPS,
   buildLiftSeries,
   modalRepCount,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Week Segments (regular, broken and untrained weeks of a training history)
 export {
@@ -300,7 +300,7 @@ export {
   segmentWeeks,
   sessionsPerWeek,
   modalWeeklyCount,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Progression Rate (in-block and start-to-start rates per class)
 export {
@@ -313,7 +313,7 @@ export {
   type ProgressionRates,
   DEFAULT_PROGRESSION_PERIOD,
   progressionRateByClass,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Training Age (per-lift break length and effective training age)
 export {
@@ -326,7 +326,7 @@ export {
   EFFECTIVE_TRAINING_AGE_DEFAULTS,
   breakLength,
   effectiveTrainingAge,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Drift Guard
 export {
@@ -336,7 +336,7 @@ export {
   DRIFT_GUARD_THRESHOLDS,
   summarizeSetsForDrift,
   evaluateDriftGuard,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - MRV Underperformance
 export {
@@ -348,7 +348,7 @@ export {
   summarizeSetsForPerformance,
   evaluateMrvUnderperformance,
   evaluateMrvGuard,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - State-Space Strength Model
 export {
@@ -359,7 +359,7 @@ export {
   DEFAULT_PROCESS_NOISE_TREND,
   DEFAULT_OBSERVATION_NOISE,
   DEFAULT_DIFFUSE_VARIANCE,
-} from './analytics';
+} from './analytics/index.js';
 
 // VBT - Constants
 export {
@@ -367,7 +367,7 @@ export {
   DEFAULT_MVT,
   DEFAULT_VELOCITY_RIR_MAP,
   estimatePercent1RMFromVelocity,
-} from './vbt';
+} from './vbt/index.js';
 
 // VBT - Velocity Zones
 export {
@@ -379,7 +379,7 @@ export {
   type GetVelocityZonesOptions,
   getVelocityZones,
   categorizeVelocity,
-} from './vbt';
+} from './vbt/index.js';
 
 // VBT - Profile
 export {
@@ -389,7 +389,7 @@ export {
   predictVelocity,
   estimateLoad,
   addDataPoint,
-} from './vbt';
+} from './vbt/index.js';
 
 // VBT - Baseline
 export {
@@ -400,7 +400,7 @@ export {
   updateBaselineWithPoint,
   serializeBaseline,
   deserializeBaseline,
-} from './vbt';
+} from './vbt/index.js';
 
 // VBT - e1RM
 export {
@@ -408,7 +408,7 @@ export {
   estimateE1RMFromProfile,
   estimateE1RMFromReps,
   estimateHybridE1RM,
-} from './vbt';
+} from './vbt/index.js';
 
 // VBT - Coverage
 export {
@@ -416,13 +416,17 @@ export {
   type CoverageResult,
   computeCoverage,
   identifyCoverageGaps,
-} from './vbt';
+} from './vbt/index.js';
 
 // VBT - Advanced Fitting
-export { type FittingOptions, type FittingResult, fitLVProfile } from './vbt';
+export { type FittingOptions, type FittingResult, fitLVProfile } from './vbt/index.js';
 
 // VBT - Bayesian LV Profile Fitting
-export { type BayesianLVPrior, type BayesianLVPosterior, fitLVProfileBayesian } from './vbt';
+export {
+  type BayesianLVPrior,
+  type BayesianLVPosterior,
+  fitLVProfileBayesian,
+} from './vbt/index.js';
 
 // VBT - Exercise-Specific RIR Estimation
 export {
@@ -434,7 +438,7 @@ export {
   DEFAULT_CABLE_COMPOUND_PROFILE,
   DEFAULT_CABLE_ISOLATION_PROFILE,
   DEFAULT_FALLBACK_PROFILE,
-} from './vbt';
+} from './vbt/index.js';
 
 // Effort - the pure set-effort resolver (goal, guard, one latched cue, bands)
 export {
@@ -464,7 +468,7 @@ export {
   type EffortResistanceFamily,
   type EffortSetContext,
   type SetEffort,
-} from './effort';
+} from './effort/index.js';
 
 // Exercises
 export {
@@ -485,7 +489,7 @@ export {
   searchExercises,
   hasExercise,
   getExerciseCount,
-} from './exercises';
+} from './exercises/index.js';
 
 // Analytics - Coverage (autoregulation explorer, §9.1-§9.2)
 export {
@@ -493,7 +497,7 @@ export {
   type CoverageBin as AnalyticsCoverageBin,
   buildCoverageMap,
   detectStaleBins,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Time Series (cross-session aggregation, T25)
 export {
@@ -507,7 +511,7 @@ export {
   buildTimeSeries,
   getWeeklySummaries,
   getVolumeByMuscleGroup,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - Fatigue Verdict (always-on live set verdict + per-dimension lights)
 export {
@@ -523,7 +527,7 @@ export {
   romBreakdownTone,
   tempoBreakdownTone,
   getSetFatigueVerdict,
-} from './analytics';
+} from './analytics/index.js';
 
 // Analytics - View-Model Derivations (exact, unrounded metrics for workout views)
 // @deprecated Import from `@voltras/workout-analytics/view` instead (VW-64).
@@ -543,4 +547,4 @@ export {
   isNewE1RM,
   weightDeviationRatio,
   classifyWeeklyVolume,
-} from './analytics';
+} from './analytics/index.js';

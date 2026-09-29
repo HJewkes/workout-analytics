@@ -16,7 +16,7 @@ import {
   type BaselineKey,
   type BaselineKeyFilter,
   matchesBaselineKey,
-} from '@/models/baseline-key';
+} from '../models/baseline-key.js';
 
 // =============================================================================
 // MetricTimeSeries Types

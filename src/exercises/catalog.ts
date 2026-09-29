@@ -9,7 +9,7 @@
  *   npm run exercises:pipeline
  */
 
-import type { Exercise, MuscleGroupId, MovementPatternId, EquipmentCategory } from './types';
+import type { Exercise, MuscleGroupId, MovementPatternId, EquipmentCategory } from './types.js';
 
 // =============================================================================
 // Catalog Data

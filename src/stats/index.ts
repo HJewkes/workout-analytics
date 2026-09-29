@@ -17,7 +17,7 @@ export {
   isOutlier,
   isWithinRange,
   buildDistribution,
-} from './distribution';
+} from './distribution.js';
 
 // Grubbs' test for a single outlier
 export {
@@ -26,7 +26,7 @@ export {
   isGrubbsOutlier,
   maxAbsZScore,
   studentTTwoSidedTail,
-} from './grubbs';
+} from './grubbs.js';
 
 // Schemes
 export {
@@ -41,4 +41,4 @@ export {
   DEFAULT_OUTLIER_SCHEME,
   DEFAULT_QUALITY_SCHEME,
   DEFAULT_CONFIDENCE_SCHEME,
-} from './schemes';
+} from './schemes.js';
