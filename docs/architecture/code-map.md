@@ -77,7 +77,7 @@ Stateless analytics over `Rep` / `Set`.
 | `src/analytics/readiness-adjustments.ts` | `ReadinessAdjustments` / `ReadinessAdjustmentInputs`; `computeReadinessAdjustments` at `:117` (readiness → load/volume/rest modifiers). |
 | `src/analytics/state-space-strength.ts` | `StateSpaceStrengthModel` (Kalman-style latent "strength today") at `:100`; noise/diffuse defaults at `:75-81`; `StrengthState` at `:37`. |
 | `src/analytics/time-series.ts` | Metric time-series builders: `MetricTimeSeries` / `MetricKey`; weekly summaries + per-muscle volume aggregation over processed sessions/sets. |
-| `src/analytics/trend.ts` | `analyzeTrend` at `:192` (slope/direction) and `detectPlateau` at `:261` over a `TimeSeries`. The flat threshold is per-metric (`FLAT_THRESHOLD_PER_DAY` at `:132`), and a metric with no stated figure gets `direction: null`. |
+| `src/analytics/trend.ts` | `analyzeTrend` at `:226` (slope/direction) and `detectPlateau` at `:353` over a `TimeSeries`. The flat threshold is per-metric (`FLAT_THRESHOLD_PER_DAY` at `:166`), and a metric with no stated figure gets `direction: null`. `detectPlateau` has a positional window form and a rate mode (`:378`, `PlateauRateOptions`) that keeps a run only when its weekly slope is under `FLATLINE_FRACTION_OF_RATE` of the expected rate. |
 | `src/analytics/index.ts` | Barrel. |
 
 ## `src/vbt/`

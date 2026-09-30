@@ -21,12 +21,13 @@ try {
     join(scratch, 'consumer.mjs'),
     [
       "import { estimateSetRpe, getSetTempoSeconds, classifyWeeklyVolume } from '@voltras/workout-analytics/view';",
-      "import { getWeeklySummaries, getVolumeByMuscleGroup, buildTimeSeries, resolveSetEffort, EFFORT_POLICY } from '@voltras/workout-analytics';",
+      "import { getWeeklySummaries, getVolumeByMuscleGroup, buildTimeSeries, resolveSetEffort, EFFORT_POLICY, detectPlateau, PLATEAU_SMOOTHING, FLATLINE_FRACTION_OF_RATE } from '@voltras/workout-analytics';",
       "import { } from '@voltras/workout-analytics/schema';",
-      'for (const [name, fn] of Object.entries({ estimateSetRpe, getSetTempoSeconds, classifyWeeklyVolume, getWeeklySummaries, getVolumeByMuscleGroup, buildTimeSeries, resolveSetEffort })) {',
+      'for (const [name, fn] of Object.entries({ estimateSetRpe, getSetTempoSeconds, classifyWeeklyVolume, getWeeklySummaries, getVolumeByMuscleGroup, buildTimeSeries, resolveSetEffort, detectPlateau })) {',
       "  if (typeof fn !== 'function') throw new Error(`${name} is not exported as a function`);",
       '}',
       "if (typeof EFFORT_POLICY?.defaultEffortCapRpe !== 'number') throw new Error('EFFORT_POLICY is not exported');",
+      "if (typeof FLATLINE_FRACTION_OF_RATE !== 'number' || typeof PLATEAU_SMOOTHING?.rollingTopDays !== 'number') throw new Error('plateau rate-mode constants are not exported');",
       "console.log('exports ok: ./view and root re-exports resolve from the packed tarball');",
     ].join('\n'),
   );
