@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeTrend, detectPlateau, FLAT_THRESHOLD_PER_DAY, slopeStandardError } from './trend';
+import {
+  analyzeTrend,
+  detectPlateau,
+  FLAT_THRESHOLD_PER_DAY,
+  PLATEAU_SMOOTHING,
+  slopeStandardError,
+} from './trend';
 import type { TimeSeries } from './trend';
 
 /** The one metric the threshold table has a figure for (0.001/day). */
@@ -383,6 +389,141 @@ describe('detectPlateau', () => {
       const series = makeSeries(Array.from({ length: 15 }, (_, i) => [i, 100] as [number, number]));
       const result = detectPlateau(series, 5, 10);
       expect(result.isPlateau).toBe(true);
+    });
+  });
+});
+
+/** One point a week, starting on day 0. */
+function weekly(values: number[]): TimeSeries {
+  return makeSeries(values.map((value, week) => [week * 7, value] as [number, number]));
+}
+
+describe('detectPlateau rate mode', () => {
+  const ON_RAMP = weekly([100, 102.5, 105, 107.5, 110, 112.5]);
+
+  it('reads an on-ramp lifter as a plateau in the positional form', () => {
+    expect(detectPlateau(ON_RAMP).isPlateau).toBe(true);
+  });
+
+  it('does not flag an on-ramp lifter climbing at the expected rate', () => {
+    const result = detectPlateau(ON_RAMP, { expectedRatePerWeek: 2.5 });
+
+    expect(result.isPlateau).toBe(false);
+    expect(result.plateauDays).toBe(0);
+    expect(result.points).toBe(0);
+    expect(result.slopePerWeek).toBeNull();
+    expect(result.flatBelowPerWeek).toBe(0.63);
+  });
+
+  it('flags the same climb when flatFraction puts the flat rate above it', () => {
+    const result = detectPlateau(ON_RAMP, { expectedRatePerWeek: 2.5, flatFraction: 1.5 });
+    expect(result.isPlateau).toBe(true);
+    expect(result.slopePerWeek).toBe(2.5);
+  });
+
+  it('flags a lifter flat at one value for three weeks', () => {
+    const result = detectPlateau(weekly([100, 100, 100, 100]), { expectedRatePerWeek: 2.5 });
+
+    expect(result).toEqual({
+      isPlateau: true,
+      plateauDays: 21,
+      varianceThresholdPct: 5,
+      points: 4,
+      slopePerWeek: 0,
+      flatBelowPerWeek: 0.63,
+      reasoning:
+        'Moved 0 per week over 21 days (4 points), under the flatline threshold of 0.63 per week',
+    });
+  });
+
+  it('flags a noisy run around one value', () => {
+    const result = detectPlateau(weekly([100, 101, 99, 100, 101, 99]), {
+      expectedRatePerWeek: 2.5,
+    });
+    expect(result.isPlateau).toBe(true);
+    expect(result.plateauDays).toBe(35);
+  });
+
+  it('flags a gentle fall', () => {
+    const result = detectPlateau(weekly([100, 99.5, 99, 98.5, 98, 97.5]), {
+      expectedRatePerWeek: 2.5,
+    });
+    expect(result.isPlateau).toBe(true);
+  });
+
+  it('does not flag a steep fall', () => {
+    const result = detectPlateau(weekly([100, 95, 90, 85, 80]), { expectedRatePerWeek: 2.5 });
+    expect(result.isPlateau).toBe(false);
+  });
+
+  it('reads the flat tail of a climb that then stops', () => {
+    const result = detectPlateau(weekly([90, 95, 100, 100, 100, 100]), {
+      expectedRatePerWeek: 2.5,
+    });
+    expect(result.isPlateau).toBe(true);
+    expect(result.plateauDays).toBe(21);
+  });
+
+  describe('the 14-day floor', () => {
+    it('does not flag a flat run shorter than 14 days', () => {
+      const series = makeSeries([
+        [0, 100],
+        [13, 100],
+      ]);
+      const result = detectPlateau(series, { expectedRatePerWeek: 2.5, smoothing: null });
+      expect(result.isPlateau).toBe(false);
+    });
+
+    it('flags a lifter repeating one value at exactly 14 days', () => {
+      const result = detectPlateau(weekly([100, 100, 100]), { expectedRatePerWeek: 2.5 });
+      expect(result.isPlateau).toBe(true);
+      expect(result.plateauDays).toBe(14);
+    });
+  });
+
+  describe('smoothing', () => {
+    const WOBBLE_14_DAYS = weekly([100, 101, 100]);
+
+    it('makes a wobbling run wait for unsettledMinDays by default', () => {
+      const result = detectPlateau(WOBBLE_14_DAYS, { expectedRatePerWeek: 2.5 });
+      expect(result.isPlateau).toBe(false);
+    });
+
+    it('judges raw points on minDays alone when smoothing is null', () => {
+      const result = detectPlateau(WOBBLE_14_DAYS, { expectedRatePerWeek: 2.5, smoothing: null });
+      expect(result.isPlateau).toBe(true);
+      expect(result.slopePerWeek).toBe(0);
+    });
+
+    it('reads the slope over the rolling top, which smoothing: null does not', () => {
+      const dip = weekly([100, 100, 100, 96, 100]);
+      const smoothed = detectPlateau(dip, { expectedRatePerWeek: 2.5 });
+      const raw = detectPlateau(dip, { expectedRatePerWeek: 2.5, smoothing: null });
+      expect(smoothed.slopePerWeek).toBe(0);
+      expect(raw.slopePerWeek).not.toBe(0);
+    });
+
+    describe('a light-step unsettledMinDays: 35 override', () => {
+      const LIGHT = {
+        expectedRatePerWeek: 1.5,
+        smoothing: { ...PLATEAU_SMOOTHING, unsettledMinDays: 35 },
+      };
+
+      it('reads a wobbling flat run as flat at 21 days under the default', () => {
+        const result = detectPlateau(weekly([100, 101, 100, 101]), { expectedRatePerWeek: 1.5 });
+        expect(result.isPlateau).toBe(true);
+      });
+
+      it('leaves the same run not flat at 21 days', () => {
+        const result = detectPlateau(weekly([100, 101, 100, 101]), LIGHT);
+        expect(result.isPlateau).toBe(false);
+      });
+
+      it('reads the run flat once it spans 35 days', () => {
+        const result = detectPlateau(weekly([100, 101, 100, 101, 100, 101]), LIGHT);
+        expect(result.isPlateau).toBe(true);
+        expect(result.plateauDays).toBe(35);
+      });
     });
   });
 });

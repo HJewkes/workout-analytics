@@ -57,6 +57,40 @@ export interface PlateauDetection {
   reasoning: string;
 }
 
+/** How rate mode steadies the series before a run is judged. */
+export interface PlateauSmoothing {
+  /** The slope reads each point as the top value of the trailing window this many days long. */
+  rollingTopDays: number;
+  /** The shortest run that can be flat while the run is still wobbling, in days. */
+  unsettledMinDays: number;
+  /** A run is settled when its whole range fits inside this many weeks of flat-rate movement. */
+  settledRangeWeeks: number;
+}
+
+/** Options that switch `detectPlateau` into rate mode. */
+export interface PlateauRateOptions {
+  /** The rate the series is expected to climb at, in its own units per week. */
+  expectedRatePerWeek: number;
+  /** Share of the expected rate under which a run is flat. Default `FLATLINE_FRACTION_OF_RATE`. */
+  flatFraction?: number;
+  /** The whole-run window gate, as in the positional form. Default 5. */
+  thresholdPct?: number;
+  /** Shortest run, in days. Default 14. */
+  minDays?: number;
+  /** Default `PLATEAU_SMOOTHING`; `null` judges the raw points on `minDays` alone. */
+  smoothing?: PlateauSmoothing | null;
+}
+
+/** A rate-mode verdict, with the evidence behind it. */
+export interface RatePlateauDetection extends PlateauDetection {
+  /** Points in the flat run; 0 when no run qualified. */
+  points: number;
+  /** The flat run's fitted slope per week; `null` when no run qualified. */
+  slopePerWeek: number | null;
+  /** The weekly slope under which a run is flat. */
+  flatBelowPerWeek: number;
+}
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -272,6 +306,33 @@ export function slopeStandardError(
 // detectPlateau
 // =============================================================================
 
+const DAY_MS = 86_400_000;
+const WEEK_MS = 7 * DAY_MS;
+
+/**
+ * Share of the expected weekly rate below which a run's slope is flat.
+ *
+ * ENGINEERING DEFAULT. The RP corpus's own example puts a flatline at about
+ * 10% of the expected rate (+5 lb after +50 lb) and a healthy slowdown at
+ * about 60% (+30 lb after +50 lb)
+ * (rp:rp-s7-plateau-flatline-vs-slowdown-distinction), but states no
+ * threshold. A quarter sits between the two and is half a committed low-edge
+ * rate, so a lifter on that pace is twice the threshold away from reading flat.
+ */
+export const FLATLINE_FRACTION_OF_RATE = 0.25;
+
+/**
+ * ENGINEERING DEFAULT, picked with the voltras-mcp flatline simulation
+ * (`scripts/flatline-sim.mjs`). A wobbling run waits one more week (21 days)
+ * before it can read flat; a lifter repeating one value still reads flat at
+ * the 14-day floor.
+ */
+export const PLATEAU_SMOOTHING: Readonly<PlateauSmoothing> = Object.freeze({
+  rollingTopDays: 14,
+  unsettledMinDays: 21,
+  settledRangeWeeks: 1,
+});
+
 /**
  * Detect a plateau: the longest contiguous run of points (scanning from the
  * most recent backward) where every value stays within `thresholdPct` of the
@@ -290,6 +351,45 @@ export function slopeStandardError(
  * week, which keeps n in the hundreds for a multi-year history.
  */
 export function detectPlateau(
+  series: TimeSeries,
+  thresholdPct?: number,
+  minDays?: number
+): PlateauDetection;
+/**
+ * Rate mode: a plateau is a flatline, not a slowdown. The window form above
+ * reads any lifter climbing under about 10% in two weeks as a plateau; rate
+ * mode keeps a run only when its fitted slope is also under
+ * `flatFraction x expectedRatePerWeek`.
+ *
+ * The result is the longest trailing run that (1) the window form calls a
+ * plateau as a whole, (2) spans `minDays`, and while smoothing is on, spans
+ * `unsettledMinDays` unless its range fits in `settledRangeWeeks` of flat-rate
+ * movement, and (3) whose least-squares slope per week, read over each point's
+ * rolling top, is under the flat rate. Rate mode is a strict subset of the
+ * window finding: it can only withdraw a plateau, never add one.
+ *
+ * Volume load is out of scope. Programmed volume rises through accumulation
+ * and drops at the deload, so it has no constant expected rate; keep the
+ * window form for it.
+ *
+ * `TimeSeries` carries no units, so there is no default rate. Each trailing
+ * run re-runs the window scan, so the cost is O(n³ log n) in the point count.
+ */
+export function detectPlateau(
+  series: TimeSeries,
+  options: PlateauRateOptions
+): RatePlateauDetection;
+export function detectPlateau(
+  series: TimeSeries,
+  thresholdOrOptions?: number | PlateauRateOptions,
+  minDays?: number
+): PlateauDetection | RatePlateauDetection {
+  if (thresholdOrOptions !== null && typeof thresholdOrOptions === 'object')
+    return detectRatePlateau(series, thresholdOrOptions);
+  return detectWindowPlateau(series, thresholdOrOptions, minDays);
+}
+
+function detectWindowPlateau(
   series: TimeSeries,
   thresholdPct: number = 5,
   minDays: number = 14
@@ -365,4 +465,120 @@ export function detectPlateau(
     varianceThresholdPct: thresholdPct,
     reasoning,
   };
+}
+
+interface RateRule {
+  flatBelow: number;
+  thresholdPct: number;
+  minDays: number;
+  smoothing: PlateauSmoothing | null;
+}
+
+function resolveRateRule(options: PlateauRateOptions): RateRule {
+  return {
+    flatBelow: options.expectedRatePerWeek * (options.flatFraction ?? FLATLINE_FRACTION_OF_RATE),
+    thresholdPct: options.thresholdPct ?? 5,
+    minDays: options.minDays ?? 14,
+    smoothing: options.smoothing === undefined ? PLATEAU_SMOOTHING : options.smoothing,
+  };
+}
+
+/** Trailing runs are tried longest first, so a climb that then goes flat still reads flat on its tail. */
+function detectRatePlateau(series: TimeSeries, options: PlateauRateOptions): RatePlateauDetection {
+  const rule = resolveRateRule(options);
+  const sorted = [...series].sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+  const steadied =
+    rule.smoothing === null ? sorted : rollingTop(sorted, rule.smoothing.rollingTopDays);
+  for (let start = 0; start < sorted.length - 1; start++) {
+    const run = sorted.slice(start);
+    const days = spanDays(run);
+    if (days < rule.minDays) break;
+    if (!isWholePlateau(run, days, rule)) continue;
+    if (rule.smoothing !== null && !isLongEnough(run, days, rule.flatBelow, rule.smoothing)) {
+      continue;
+    }
+    const slope = slopePerWeek(steadied.slice(start));
+    if (slope < rule.flatBelow) return flatRun(run, days, slope, rule);
+  }
+  return noFlatRun(rule);
+}
+
+/** Each point carries the top value seen in the `windowDays` up to and including it. */
+function rollingTop(sorted: TimeSeries, windowDays: number): TimeSeries {
+  return sorted.map((point, index) => {
+    const from = Date.parse(point.ts) - windowDays * DAY_MS;
+    let top = point.value;
+    for (let j = index - 1; j >= 0 && Date.parse(sorted[j].ts) > from; j--) {
+      top = Math.max(top, sorted[j].value);
+    }
+    return { ts: point.ts, value: top };
+  });
+}
+
+/** The window form calls the whole of `run` a plateau, not just a shorter tail of it. */
+function isWholePlateau(run: TimeSeries, days: number, rule: RateRule): boolean {
+  const detected = detectWindowPlateau(run, rule.thresholdPct, rule.minDays);
+  return detected.isPlateau && detected.plateauDays >= days;
+}
+
+/** A wobbling run needs `unsettledMinDays`; a settled one is judged as soon as `minDays` allows. */
+function isLongEnough(
+  run: TimeSeries,
+  days: number,
+  flatBelow: number,
+  smoothing: PlateauSmoothing
+): boolean {
+  if (days >= smoothing.unsettledMinDays) return true;
+  const values = run.map((point) => point.value);
+  return Math.max(...values) - Math.min(...values) <= flatBelow * smoothing.settledRangeWeeks;
+}
+
+function spanDays(run: TimeSeries): number {
+  return (Date.parse(run[run.length - 1].ts) - Date.parse(run[0].ts)) / DAY_MS;
+}
+
+function slopePerWeek(run: TimeSeries): number {
+  const origin = Date.parse(run[0].ts);
+  const weeks = run.map((point) => (Date.parse(point.ts) - origin) / WEEK_MS);
+  return ols(
+    weeks,
+    run.map((point) => point.value)
+  ).slope;
+}
+
+function flatRun(
+  run: TimeSeries,
+  days: number,
+  slope: number,
+  rule: RateRule
+): RatePlateauDetection {
+  return {
+    isPlateau: true,
+    plateauDays: days,
+    varianceThresholdPct: rule.thresholdPct,
+    points: run.length,
+    slopePerWeek: round2(slope),
+    flatBelowPerWeek: round2(rule.flatBelow),
+    reasoning:
+      `Moved ${round2(slope)} per week over ${days.toFixed(0)} days (${run.length} points), ` +
+      `under the flatline threshold of ${round2(rule.flatBelow)} per week`,
+  };
+}
+
+function noFlatRun(rule: RateRule): RatePlateauDetection {
+  return {
+    isPlateau: false,
+    plateauDays: 0,
+    varianceThresholdPct: rule.thresholdPct,
+    points: 0,
+    slopePerWeek: null,
+    flatBelowPerWeek: round2(rule.flatBelow),
+    reasoning:
+      `No trailing run of ${rule.minDays}+ days moved under the flatline threshold of ` +
+      `${round2(rule.flatBelow)} per week`,
+  };
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
 }

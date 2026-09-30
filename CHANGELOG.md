@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Rate mode for `detectPlateau` (VW-675).** `detectPlateau(series, { expectedRatePerWeek })` returns a `RatePlateauDetection`. It keeps a trailing run only when the window form calls the whole run a plateau, the run is long enough, and its least-squares slope per week, read over a 14-day rolling top, is under `flatFraction` (default `FLATLINE_FRACTION_OF_RATE`, 0.25) of the expected rate. So a lifter climbing on the expected ramp no longer reads as a plateau. A wobbling run must span `unsettledMinDays` (21) unless its range fits in one week of flat-rate movement; `PLATEAU_SMOOTHING` holds these defaults and `smoothing: null` judges raw points on `minDays` alone. The result adds `points`, `slopePerWeek` and `flatBelowPerWeek`. Volume load is out of scope because it has no constant expected rate. The positional form `detectPlateau(series, thresholdPct?, minDays?)` is unchanged.
+
 ### Fixed
 
 - **Declarations resolve under `moduleResolution: NodeNext` (VW-564).** The emitted `.d.ts` files used extensionless relative imports such as `from './analytics'`. A NodeNext consumer could not resolve them, so every import from this package typed as `any` and no call was checked. Library source now compiles under NodeNext and writes each relative import with its `.js` extension, which tsc copies into the declarations. Affected releases: 3.1.0 and 3.2.0 at least. CI now type-checks a NodeNext consumer against the packed tarball (`npm run check:types-nodenext`), including one call that must fail to compile.
