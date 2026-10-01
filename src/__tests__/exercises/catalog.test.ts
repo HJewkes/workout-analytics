@@ -19,6 +19,7 @@ import {
   hasExercise,
   getExerciseCount,
 } from '@/index';
+import { loadCatalogWith } from '@/exercises/catalog';
 
 // =============================================================================
 // Fixtures
@@ -171,5 +172,44 @@ describe('catalog lookup helpers', () => {
     it('returns the number of exercises in the catalog', () => {
       expect(getExerciseCount()).toBe(fixtures.length);
     });
+  });
+});
+
+// =============================================================================
+// loadCatalogWith() error handling
+// =============================================================================
+
+describe('loadCatalogWith()', () => {
+  const failing = (error: Error) => () => Promise.reject(error);
+
+  beforeEach(() => {
+    setCatalog([benchPress]);
+  });
+
+  it('returns an empty catalog when the module is missing', async () => {
+    const error = Object.assign(new Error('missing'), { code: 'ERR_MODULE_NOT_FOUND' });
+    expect(await loadCatalogWith(failing(error))).toBe(0);
+    expect(getExerciseCount()).toBe(0);
+  });
+
+  it('returns an empty catalog when the file is missing', async () => {
+    const error = Object.assign(new Error('missing'), { code: 'ENOENT' });
+    expect(await loadCatalogWith(failing(error))).toBe(0);
+    expect(getExerciseCount()).toBe(0);
+  });
+
+  it('rethrows a generic error', async () => {
+    await expect(loadCatalogWith(failing(new Error('boom')))).rejects.toThrow('boom');
+  });
+
+  it('rethrows malformed JSON errors', async () => {
+    await expect(
+      loadCatalogWith(() => Promise.resolve(JSON.parse('{not json') as Exercise[]))
+    ).rejects.toThrow(SyntaxError);
+  });
+
+  it('loads exercises from a successful loader', async () => {
+    expect(await loadCatalogWith(() => Promise.resolve({ default: [bicepCurl] }))).toBe(1);
+    expect(hasExercise('bicep-curl')).toBe(true);
   });
 });

@@ -73,22 +73,41 @@ export function setCatalog(exercises: Exercise[]): void {
   buildIndexes();
 }
 
+const MISSING_CATALOG_CODES = new Set(['ERR_MODULE_NOT_FOUND', 'ENOENT']);
+
+function isMissingCatalog(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && MISSING_CATALOG_CODES.has(code);
+}
+
 /**
- * Load the exercise catalog from the generated data file.
- * Returns the number of exercises loaded.
+ * Load the catalog through an injectable loader.
+ * A missing catalog file yields an empty catalog; any other error propagates.
+ * @internal Not exported from the package entry point.
  */
-export async function loadCatalog(): Promise<number> {
+export async function loadCatalogWith(
+  loader: () => Promise<{ default?: Exercise[] } | Exercise[]>
+): Promise<number> {
   try {
-    // Node ESM rejects a JSON import without the type attribute, which the catch below would hide
-    const data = await import('./data/catalog.json', { with: { type: 'json' } });
-    const exercises = (data.default ?? data) as Exercise[];
+    const data = await loader();
+    const exercises = (Array.isArray(data) ? data : (data.default ?? [])) as Exercise[];
     setCatalog(exercises);
     return exercises.length;
-  } catch {
+  } catch (error) {
+    if (!isMissingCatalog(error)) throw error;
     // Catalog not yet generated — empty catalog
     setCatalog([]);
     return 0;
   }
+}
+
+/**
+ * Load the exercise catalog from the generated data file.
+ * Returns the number of exercises loaded.
+ */
+export function loadCatalog(): Promise<number> {
+  // Node ESM rejects a JSON import without the type attribute
+  return loadCatalogWith(() => import('./data/catalog.json', { with: { type: 'json' } }));
 }
 
 // =============================================================================

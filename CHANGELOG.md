@@ -6,8 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **`engines.node` is now `>=20.10.0` (VW-739).** Import attributes (`with { type: 'json' }`), which the catalog loader needs, require Node 20.10 or later.
+
 ### Fixed
 
+- **`loadCatalog()` no longer swallows load errors (VW-739).** Only a missing catalog file (`ERR_MODULE_NOT_FOUND` or `ENOENT`) yields an empty catalog; any other error, such as malformed JSON, now propagates.
 - **`loadCatalog()` now loads the shipped catalog from the packed package (VW-573).** The JSON import lacked the `type: 'json'` attribute, so Node ESM rejected it and the catch returned an empty catalog. A new test packs the tarball, installs it in a scratch project and loads the catalog from there.
 
 ### Added
