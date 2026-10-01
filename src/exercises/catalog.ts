@@ -79,8 +79,8 @@ export function setCatalog(exercises: Exercise[]): void {
  */
 export async function loadCatalog(): Promise<number> {
   try {
-    // Dynamic import — compiled to require() in CJS, import() in ESM
-    const data = await import('./data/catalog.json');
+    // Node ESM rejects a JSON import without the type attribute, which the catch below would hide
+    const data = await import('./data/catalog.json', { with: { type: 'json' } });
     const exercises = (data.default ?? data) as Exercise[];
     setCatalog(exercises);
     return exercises.length;
