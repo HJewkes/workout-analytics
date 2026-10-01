@@ -547,6 +547,24 @@ describe('a target_rpe goal before a trusted profile', () => {
     expect(effort.markers.guards).toEqual([]);
   });
 
+  it('carries a default loss source onto the velocity marker', () => {
+    const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'default' };
+    const effort = resolveSetEffort(context({ goal: TARGET_RPE, guard }), ramp());
+    expect(effort.cue.reason).toBe('velocity_loss');
+    expect(effort.markers.goal?.source).toBe('default');
+  });
+
+  it('does not let a default loss guard a damper set, which takes a typed percent only', () => {
+    const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'default' };
+    const ctx = context({
+      goal: REP_RANGE,
+      guard,
+      resistance: { family: 'damper', signature: 'sig-damper' },
+    });
+    const conditions = resolveSetEffort(ctx, ramp()).markers.guards.map((m) => m.condition);
+    expect(conditions).not.toContain('velocity_loss');
+  });
+
   it('falls back to a resolved loss number when the row states no range', () => {
     const guard: EffortGuardInput = { ...NO_GUARD, lossPct: 30, lossSource: 'plan_intent' };
     const effort = resolveSetEffort(context({ goal: TARGET_RPE, guard }), ramp());

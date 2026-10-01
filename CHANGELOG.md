@@ -4,6 +4,12 @@ All notable changes to `@voltras/workout-analytics` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`'default'` member of `EffortLossSource` (VW-734).** A caller can now report that the velocity-loss watch came from an assumed default rather than a typed value or an intent. The library never applies a default watch itself: `resolveSetEffort` passes `guard.lossSource` through to the marker `source`, so `EffortMarkerSource` accepts it too. A `'default'` percent is not a typed one, so it stays excluded where only a typed percent may cue. The three existing sources behave as before.
+
 ## [3.3.0] - 2026-09-30
 
 ### Added

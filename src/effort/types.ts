@@ -54,11 +54,14 @@ export interface EffortResistance {
 /** Where a goal came from. The first two are prescriptions, the rest typed watches. */
 export type EffortGoalSource = 'plan' | 'last_time' | 'explicit' | 'set_intent' | 'plan_intent';
 
-/** Where a resolved velocity-loss number came from (VW-266 precedence). */
-export type EffortLossSource = 'explicit' | 'set_intent' | 'plan_intent';
+/**
+ * Where a resolved velocity-loss number came from (VW-266 precedence). `default`
+ * is an assumed watch the caller applied; this library never applies one itself.
+ */
+export type EffortLossSource = 'explicit' | 'set_intent' | 'plan_intent' | 'default';
 
-/** Where a marker's number came from; a goal source, or the policy's default cap. */
-export type EffortMarkerSource = EffortGoalSource | 'policy_default';
+/** Where a marker's number came from; a goal or loss source, or the policy's default cap. */
+export type EffortMarkerSource = EffortGoalSource | EffortLossSource | 'policy_default';
 
 /**
  * What the prescription asks the set to reach. Rep ranges are the common case;
