@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **`loadCatalog()` now loads the shipped catalog from the packed package (VW-573).** The JSON import lacked the `type: 'json'` attribute, so Node ESM rejected it and the catch returned an empty catalog. A new test packs the tarball, installs it in a scratch project and loads the catalog from there.
+
 ### Added
 
 - **`'default'` member of `EffortLossSource` (VW-734).** A caller can now report that the velocity-loss watch came from an assumed default rather than a typed value or an intent. The library never applies a default watch itself: `resolveSetEffort` passes `guard.lossSource` through to the marker `source`, so `EffortMarkerSource` accepts it too. A `'default'` percent is not a typed one, so it stays excluded where only a typed percent may cue. The three existing sources behave as before.
