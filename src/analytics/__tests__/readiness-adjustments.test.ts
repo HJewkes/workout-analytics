@@ -11,7 +11,7 @@ import {
   computeReadinessAdjustments,
   type ReadinessAdjustmentInputs,
 } from '@/analytics/readiness-adjustments';
-import type { ReadinessEstimate } from '@/analytics/session';
+import { computeReadiness, type ReadinessEstimate } from '@/analytics/session';
 
 // =============================================================================
 // Test helpers
@@ -145,9 +145,14 @@ describe('computeReadinessAdjustments — boundary consistency', () => {
     expect(result.recommendation).toBe('maintain');
   });
 
-  it('velocityRatio exactly 0.8 is push (not maintain) when fatigue is low', () => {
-    const result = computeReadinessAdjustments(makeInputs(0.8, { recentFatigue: 0.0 }));
+  it('velocityRatio exactly 0.85 is push (not maintain) when fatigue is low', () => {
+    const result = computeReadinessAdjustments(makeInputs(0.85, { recentFatigue: 0.0 }));
     expect(result.recommendation).toBe('push');
+  });
+
+  it('a ratio of 0.82 (red) does not recommend push', () => {
+    const result = computeReadinessAdjustments(makeInputs(0.82, { recentFatigue: 0.0 }));
+    expect(result.recommendation).toBe('maintain');
   });
 
   it('velocityRatio just below 0.2 is rest_day', () => {
@@ -263,5 +268,40 @@ describe('computeReadinessAdjustments — reasoning field', () => {
   it('rest_day from daysSinceLastTrained mentions the day count', () => {
     const result = computeReadinessAdjustments(makeInputs(0.9, { daysSinceLastTrained: 28 }));
     expect(result.reasoning).toContain('28');
+  });
+});
+
+// =============================================================================
+// No-baseline and non-finite inputs
+// =============================================================================
+
+describe('computeReadinessAdjustments — composed with computeReadiness', () => {
+  const plan = { plannedWeightLbs: 225, plannedSets: 4 };
+
+  it('computeReadinessAdjustments(computeReadiness(0, 0.5)) recommends maintain, not rest_day', () => {
+    const result = computeReadinessAdjustments({ readiness: computeReadiness(0, 0.5), ...plan });
+    expect(result.recommendation).toBe('maintain');
+    expect(result.weightAdjustmentLbs).toBe(0);
+    expect(result.volumeAdjustmentSets).toBe(0);
+    expect(result.reasoning).toMatch(/baseline/i);
+  });
+
+  it.each([
+    ['NaN actual', NaN, 0.5],
+    ['NaN baseline', 0.5, NaN],
+    ['Infinity actual', Infinity, 0.5],
+    ['Infinity baseline', 0.5, Infinity],
+  ])('a NaN or Infinity velocity ratio never yields push (%s)', (_label, actual, baseline) => {
+    const result = computeReadinessAdjustments({
+      readiness: computeReadiness(actual, baseline),
+      ...plan,
+    });
+    expect(result.recommendation).toBe('maintain');
+    expect(result.weightAdjustmentLbs).toBe(0);
+  });
+
+  it('a hand-built estimate with a NaN ratio never yields push', () => {
+    const result = computeReadinessAdjustments({ readiness: makeEstimate(NaN), ...plan });
+    expect(result.recommendation).toBe('maintain');
   });
 });

@@ -68,14 +68,10 @@ export interface ReadinessAdjustmentInputs {
 /**
  * Velocity-ratio thresholds for adjustment banding.
  *
- * NOTE: these deliberately do NOT match computeReadiness's zone cutoffs
- * (green >= 0.95, yellow >= 0.85, red < 0.85). This surface is a coarser,
- * action-oriented banding that only starts pulling load/volume well below
- * baseline and treats ratio >= 0.8 as a 'push' candidate. The overlap band
- * 0.80–0.85 is intentional but worth knowing: computeReadiness labels it
- * 'red' while this function will still recommend 'push' when fatigue is low.
- * The banding is locked by tests — change thresholds and behaviour, not just
- * the numbers here.
+ * The push edge matches computeReadiness's red cutoff (< 0.85), so a red day
+ * never gets 'push'. Below that, the bands are coarser and action-oriented:
+ * they only start pulling load/volume well below baseline. The banding is
+ * locked by tests, so change thresholds and behaviour together.
  */
 const RATIO = {
   /** Below this: rest_day override. */
@@ -85,8 +81,8 @@ const RATIO = {
   /** Below this: reduce_load band. */
   reduceLoad: 0.6,
   /** Below this: maintain band. */
-  maintain: 0.8,
-  // >= 0.8 → push candidate
+  maintain: 0.85,
+  // >= 0.85 → push candidate
 } as const;
 
 /** Recent-fatigue ceiling above which we suppress the push recommendation. */
@@ -107,9 +103,9 @@ const MAX_DAYS_SINCE_TRAINED = 21;
  *  2. velocityRatio < 0.2        → rest_day (severely under-recovered)
  *  3. velocityRatio < 0.4        → reduce_volume (skip top set, weight unchanged)
  *  4. velocityRatio < 0.6        → reduce_load (cut 5–10 lb, no volume change)
- *  5. velocityRatio < 0.8        → maintain (proceed as planned)
- *  6. velocityRatio >= 0.8 AND recentFatigue < 0.3 → push (+5 lb or +1 set)
- *  7. velocityRatio >= 0.8 AND recentFatigue >= 0.3 → maintain (green but fatigued)
+ *  5. velocityRatio < 0.85       → maintain (proceed as planned)
+ *  6. velocityRatio >= 0.85 AND recentFatigue < 0.3 → push (+5 lb or +1 set)
+ *  7. velocityRatio >= 0.85 AND recentFatigue >= 0.3 → maintain (green but fatigued)
  *
  * @param inputs - Readiness estimate + session planning context
  * @returns Concrete weight, volume, and categorical adjustments
@@ -137,6 +133,17 @@ export function computeReadinessAdjustments(
       recommendation: 'rest_day',
       confidence: 'medium',
       reasoning: `${daysSinceLastTrained} days since last session — ease back in with reduced load and volume`,
+    };
+  }
+
+  // No baseline or a non-finite ratio carries no signal; do not read it as a ratio
+  if (readiness.baselineAvailable === false || !Number.isFinite(velocityRatio)) {
+    return {
+      weightAdjustmentLbs: 0,
+      volumeAdjustmentSets: 0,
+      recommendation: 'maintain',
+      confidence: 'low',
+      reasoning: 'No usable velocity baseline — proceed as planned',
     };
   }
 

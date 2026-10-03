@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **`computeReadinessAdjustments` recommends `push` only from a velocity ratio of 0.85 (VW-820).** The edge was 0.8, so a day `computeReadiness` calls red (0.80 to 0.85) could still get `push`. The band edge now matches the red cutoff. A ratio from 0.6 up to 0.85 recommends `maintain`.
+- **No baseline is no longer a rest day, and a non-finite ratio is no longer a push (VW-820).** `computeReadiness` now sets a new optional `baselineAvailable` field (`false` for a missing, zero, negative or non-finite velocity, `true` otherwise). `computeReadinessAdjustments` returns `maintain` with no load or set change for `baselineAvailable: false` or any non-finite ratio. Before, a ratio of 0 gave `rest_day` and NaN gave `push`. No existing field changes meaning for valid inputs.
 - **`engines.node` is now `>=20.10.0` (VW-739).** Import attributes (`with { type: 'json' }`), which the catalog loader needs, require Node 20.10 or later.
 
 ### Fixed
