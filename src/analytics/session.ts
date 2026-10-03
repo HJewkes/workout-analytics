@@ -43,6 +43,12 @@ export interface ReadinessEstimate {
   readonly velocityRatio: number;
   /** Confidence based on data quality */
   readonly confidence: number;
+  /**
+   * False when the estimate is the "cannot tell" sentinel (a missing, zero,
+   * negative or non-finite velocity). Absent on hand-built estimates, which
+   * count as having a baseline.
+   */
+  readonly baselineAvailable?: boolean;
 }
 
 /**
@@ -144,8 +150,9 @@ export function computeReadiness(
   actualVelocity: number,
   baselineVelocity: number
 ): ReadinessEstimate {
-  if (baselineVelocity <= 0 || actualVelocity <= 0) {
-    return { zone: 'yellow', velocityRatio: 0, confidence: 0 };
+  const usable = (v: number) => Number.isFinite(v) && v > 0;
+  if (!usable(baselineVelocity) || !usable(actualVelocity)) {
+    return { zone: 'yellow', velocityRatio: 0, confidence: 0, baselineAvailable: false };
   }
 
   const velocityRatio = actualVelocity / baselineVelocity;
@@ -164,7 +171,7 @@ export function computeReadiness(
   const distFromNearest = Math.min(Math.abs(velocityRatio - 0.95), Math.abs(velocityRatio - 0.85));
   const confidence = Math.min(1, 0.6 + distFromNearest * 4);
 
-  return { zone, velocityRatio, confidence };
+  return { zone, velocityRatio, confidence, baselineAvailable: true };
 }
 
 // =============================================================================
