@@ -29,6 +29,7 @@ import {
   VBT_DEFAULT_FATIGUE_WEIGHTS,
   VBT_DEFAULT_FATIGUE_LAMBDA,
 } from '@/analytics/fatigue';
+import { getSetFatigueVerdict } from '@/analytics/fatigue-verdict';
 import { createInterpolationScheme, createBreakpointScheme } from '@/stats/schemes';
 import { getZScore } from '@/stats/distribution';
 import { isGrubbsOutlier } from '@/stats/grubbs';
@@ -149,6 +150,22 @@ function buildRomCollapseSet(): Set {
     ...createRepSamples(12, 10000, 0.5, 0.6, 1000),
     ...createRepSamples(16, 13000, 0.5, 0.2, 1000),
   ]);
+}
+
+/**
+ * Append a rep opened by an external boundary on IDLE samples, with no movement.
+ */
+function withIdleOnlyRep(set: Set, startSeq: number, startTime: number): Set {
+  const idle = (offset: number): WorkoutSample => ({
+    sequence: startSeq + offset,
+    timestamp: startTime + offset * 500,
+    phase: MovementPhase.IDLE,
+    position: 0,
+    velocity: 0,
+    force: 0,
+  });
+  const opened = addSampleToSet(set, idle(0), { repBoundary: true });
+  return addSampleToSet(opened, idle(1), { repBoundary: false });
 }
 
 function createEmptySet(): Set {
@@ -535,6 +552,19 @@ describe('estimateSetRIR()', () => {
 
     const estimate = estimateSetRIR(set, { rir: strictScheme });
     expect(estimate.rir).toBe(0);
+  });
+
+  it('ignores a final rep framed on IDLE samples only', () => {
+    const set = createConsistentSet();
+    const withIdleRep = withIdleOnlyRep(set, 16, 13000);
+
+    const estimate = estimateSetRIR(withIdleRep);
+    const verdict = getSetFatigueVerdict(withIdleRep);
+
+    expect(withIdleRep.reps).toHaveLength(5);
+    expect(estimate).toEqual(estimateSetRIR(set));
+    expect(verdict).toEqual(getSetFatigueVerdict(set));
+    expect(isSetFatigued(withIdleRep)).toBe(false);
   });
 
   it('clamps RIR to valid range', () => {

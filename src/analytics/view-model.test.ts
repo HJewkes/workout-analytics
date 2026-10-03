@@ -84,6 +84,26 @@ describe('estimateSetRpe', () => {
     expect(estimateSetRpe(oneRep)).toBeNull();
   });
 
+  it('returns null for a two-rep set with no movement samples', () => {
+    const idle = (sequence: number): WorkoutSample => ({
+      sequence,
+      timestamp: 1000 + sequence * 500,
+      phase: MovementPhase.IDLE,
+      position: 0,
+      velocity: 0,
+      force: 0,
+    });
+    let set = createSet();
+    [true, false, true, false].forEach((boundary, i) => {
+      set = addSampleToSet(set, idle(i), { repBoundary: boundary });
+    });
+
+    const rpe = estimateSetRpe(set);
+
+    expect(set.reps).toHaveLength(2);
+    expect(rpe).toBeNull();
+  });
+
   it('returns the exact WA RIR-derived RPE (unrounded) when there is signal', () => {
     const set = decliningSet();
     const rpe = estimateSetRpe(set);

@@ -225,6 +225,25 @@ describe('getSetVelocityLossPct()', () => {
     expect(getSetVelocityLossPct(set)).toBeCloseTo((0.1 / 0.7) * 100, 3);
   });
 
+  it('runs to the last rep that moved when an external boundary opens a HOLD-only rep', () => {
+    const declining = createDecliningSet();
+    const hold = (sequence: number, timestamp: number): WorkoutSample => ({
+      sequence,
+      timestamp,
+      phase: MovementPhase.HOLD,
+      position: 0.9,
+      velocity: 0,
+      force: 100,
+    });
+    const opened = addSampleToSet(declining, hold(12, 7000), { repBoundary: true });
+    const withHoldRep = addSampleToSet(opened, hold(13, 7500), { repBoundary: false });
+
+    const lossPct = getSetVelocityLossPct(withHoldRep);
+
+    expect(withHoldRep.reps).toHaveLength(4);
+    expect(lossPct).toBeCloseTo(getSetVelocityLossPct(declining), 10);
+  });
+
   it('reports deeper loss than first-anchored on a submaximal opening rep', () => {
     // Engagement-artifact shape: slow rep 1, faster rep 2, then fatigue.
     // best = 0.8 (rep 2), last = 0.5 → 37.5%. First-anchored = (0.6-0.5)/0.6 = 16.7%.
