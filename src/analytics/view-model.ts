@@ -15,7 +15,7 @@
 import { getRepMeanVelocity, getRepPeakVelocity } from '../models/rep.js';
 import { getPhaseHoldDuration, getPhaseMovementDuration } from '../models/phase.js';
 import type { Set } from '../models/set.js';
-import { getSetVelocityLossPct } from './set-analytics.js';
+import { getSetMovedReps, getSetVelocityLossPct } from './set-analytics.js';
 import { estimateSetRIR } from './fatigue.js';
 import { estimateE1RMFromReps } from '../vbt/e1rm.js';
 
@@ -25,14 +25,14 @@ import { estimateE1RMFromReps } from '../vbt/e1rm.js';
 
 /**
  * Estimated set RPE (10 − RIR) from velocity loss — EXACT, unrounded. Returns
- * `null` when there is not enough signal to estimate: fewer than two reps, or
- * velocity loss is not derivable (no concentric movement samples), or WA cannot
+ * `null` when there is not enough signal to estimate: fewer than two reps with
+ * concentric movement samples (velocity loss is not derivable), or WA cannot
  * produce a finite RIR. Without that gate `estimateSetRIR` returns a misleading
  * floor rather than signalling "unknown". Callers round/band for display (RPE's
  * conventional 0.5 granularity and its color bands are presentation concerns).
  */
 export function estimateSetRpe(set: Set): number | null {
-  if (set.reps.length < 2) return null;
+  if (getSetMovedReps(set).length < 2) return null;
   if (!Number.isFinite(getSetVelocityLossPct(set))) return null;
   const { rpe } = estimateSetRIR(set);
   return Number.isFinite(rpe) ? rpe : null;

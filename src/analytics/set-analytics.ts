@@ -6,7 +6,12 @@
  */
 
 import type { Set } from '../models/set.js';
-import { getRepMeanVelocity, getRepPeakVelocity, getRepRangeOfMotion } from '../models/rep.js';
+import {
+  type Rep,
+  getRepMeanVelocity,
+  getRepPeakVelocity,
+  getRepRangeOfMotion,
+} from '../models/rep.js';
 import { getRepMeanEccentricVelocity } from './rep-analytics.js';
 
 // =============================================================================
@@ -56,13 +61,28 @@ export function getSetBestRepVelocity(set: Set): number {
  * never slows below its best rep returns 0 (there is no "sped up past the last
  * rep" negative branch — the best rep is the reference, so no rep can exceed it).
  *
- * Returns 0 if VBest is 0 or the set has no reps.
+ * Only reps whose concentric phase has movement samples count, so the loss runs
+ * up to the last rep that moved. A rep framed on HOLD/IDLE samples alone (an
+ * external rep boundary, or a phase trimmed empty by `completeSet`) has a mean
+ * velocity of 0 and would otherwise read as a 100% loss.
+ *
+ * Returns 0 if VBest is 0 or no rep moved.
  */
 export function getSetVelocityLossPct(set: Set): number {
-  const vBest = getSetBestRepVelocity(set);
-  const vLast = getSetLastRepVelocity(set);
+  const moved = getSetMovedReps(set);
+  if (moved.length === 0) return 0;
+  const vBest = Math.max(...moved.map(getRepMeanVelocity));
+  const vLast = getRepMeanVelocity(moved[moved.length - 1]);
   if (vBest === 0) return 0;
   return ((vBest - vLast) / vBest) * 100;
+}
+
+/**
+ * Reps whose concentric phase carries at least one movement (non-HOLD/IDLE)
+ * sample, in set order. The reps velocity loss is derived from.
+ */
+export function getSetMovedReps(set: Set): readonly Rep[] {
+  return set.reps.filter((rep) => rep.concentric._movementSampleCount > 0);
 }
 
 /**

@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **A rep with no movement samples no longer reads as a 100% velocity loss (VW-821).** `getSetVelocityLossPct` now counts only reps whose concentric phase has movement samples, so the loss runs to the last rep that moved. Before, a rep opened by an external rep boundary on HOLD or IDLE samples, or trimmed empty by `completeSet`, had a mean velocity of 0. That drove `estimateSetRIR` to RIR 0, the velocity-loss verdict to stop, `getSetFatigueVerdict` to grinding and `isSetFatigued` to true. `estimateSetRpe` now returns `null` when fewer than two reps moved; it used to report RPE 4 for a two-rep set with no movement samples. Return types are unchanged.
 - **`loadCatalog()` no longer swallows load errors (VW-739).** Only a missing catalog file (`ERR_MODULE_NOT_FOUND` or `ENOENT`) yields an empty catalog; any other error, such as malformed JSON, now propagates.
 - **`loadCatalog()` now loads the shipped catalog from the packed package (VW-573).** The JSON import lacked the `type: 'json'` attribute, so Node ESM rejected it and the catch returned an empty catalog. A new test packs the tarball, installs it in a scratch project and loads the catalog from there.
 
