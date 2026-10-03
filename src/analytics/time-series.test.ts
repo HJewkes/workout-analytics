@@ -667,3 +667,86 @@ describe('exercise identity precedence', () => {
     expect(result.byMuscleGroup).toEqual({ chest: 500 });
   });
 });
+
+// =============================================================================
+// Local-date rule (VW-822)
+// =============================================================================
+
+describe('local-date rule for buckets and bounds', () => {
+  // Sunday 2026-10-04 at 20:00 MDT is Monday 2026-10-05 at 02:00 UTC.
+  const sundayEveningMdt = '2026-10-04T20:00:00-06:00';
+
+  it('puts a Sunday-evening -06:00 session in its local week for day and week buckets', () => {
+    const sessions = [makeSession({ id: 'sun', startedAt: sundayEveningMdt })];
+
+    const byDay = buildTimeSeries(sessions, { metric: 'volume', bucketBy: 'day' });
+    const byWeek = buildTimeSeries(sessions, { metric: 'volume', bucketBy: 'week' });
+
+    expect(byDay.points[0].timestamp).toBe('2026-10-04T00:00:00.000Z');
+    expect(byWeek.points[0].timestamp).toBe('2026-09-28T00:00:00.000Z');
+  });
+
+  it('counts a Sunday-evening -06:00 session in its local week summary', () => {
+    const sessions = [
+      makeSession({ id: 'mon', startedAt: '2026-09-28T07:00:00-06:00' }),
+      makeSession({ id: 'sun', startedAt: sundayEveningMdt }),
+    ];
+
+    const summaries = getWeeklySummaries(sessions);
+
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0]).toMatchObject({ weekStart: '2026-09-28', sessionCount: 2 });
+  });
+
+  it('keeps every session on the day named by a date-only toTs', () => {
+    const sessions = [
+      makeSession({ id: 'morning', startedAt: '2026-10-31T06:00:00-06:00' }),
+      makeSession({ id: 'evening', startedAt: '2026-10-31T21:30:00-06:00' }),
+      makeSession({ id: 'next', startedAt: '2026-11-01T06:00:00-06:00' }),
+    ];
+
+    const series = buildTimeSeries(sessions, { metric: 'volume', toTs: '2026-10-31' });
+
+    expect(series.points.map((p) => p.metadata?.sessionIds)).toEqual([['morning'], ['evening']]);
+  });
+
+  it('keeps every session on the day named by a date-only fromTs', () => {
+    const sessions = [
+      makeSession({ id: 'before', startedAt: '2026-09-30T23:30:00-06:00' }),
+      makeSession({ id: 'early', startedAt: '2026-10-01T00:15:00-06:00' }),
+    ];
+
+    const series = buildTimeSeries(sessions, { metric: 'volume', fromTs: '2026-10-01' });
+
+    expect(series.points.map((p) => p.metadata?.sessionIds)).toEqual([['early']]);
+  });
+
+  it('filters Z and -06:00 sessions on the same local day alike under date-only bounds', () => {
+    const sessions = [
+      makeSession({ id: 'utc', startedAt: '2026-10-10T23:00:00.000Z' }),
+      makeSession({ id: 'mdt', startedAt: '2026-10-10T19:00:00-06:00' }),
+    ];
+
+    const result = getVolumeByMuscleGroup(sessions, () => undefined, {
+      from: '2026-10-10',
+      to: '2026-10-10',
+    });
+
+    expect(result.totalVolumeLbs).toBe(2000);
+  });
+
+  it('compares instants when a bound is a full timestamp', () => {
+    // 19:00 -06:00 is 01:00Z the next day, so it falls after the bound.
+    const sessions = [
+      makeSession({ id: 'utc', startedAt: '2026-10-10T23:00:00.000Z' }),
+      makeSession({ id: 'mdt', startedAt: '2026-10-10T19:00:00-06:00' }),
+    ];
+
+    const series = buildTimeSeries(sessions, {
+      metric: 'volume',
+      toTs: '2026-10-10T23:59:59.000Z',
+    });
+
+    expect(series.points.map((p) => p.metadata?.sessionIds)).toEqual([['utc']]);
+  });
+});

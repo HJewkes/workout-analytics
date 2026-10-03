@@ -17,6 +17,9 @@ import {
   type BaselineKeyFilter,
   matchesBaselineKey,
 } from '../models/baseline-key.js';
+import { isoWeekStart } from './calendar-days.js';
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 // =============================================================================
 // MetricTimeSeries Types
@@ -95,9 +98,16 @@ export interface BuildTimeSeriesConfig {
    * Independent of `exerciseId` above: when both are set, both must match.
    */
   key?: BaselineKeyFilter;
-  /** ISO lower bound (inclusive). Default no lower bound. */
+  /**
+   * Inclusive lower bound. A date-only 'YYYY-MM-DD' compares against each
+   * session's local date (see `ProcessedSession.startedAt`); a full ISO
+   * timestamp compares instants. Default no lower bound.
+   */
   fromTs?: string;
-  /** ISO upper bound (inclusive). Default no upper bound. */
+  /**
+   * Inclusive upper bound, read like `fromTs`: a date-only value keeps every
+   * session on that local date. Default no upper bound.
+   */
   toTs?: string;
 }
 
@@ -105,7 +115,7 @@ export interface BuildTimeSeriesConfig {
  * Per-week summary returned by `getWeeklySummaries`.
  */
 export interface WeeklySummary {
-  /** ISO date (YYYY-MM-DD) of the Monday anchoring the ISO week. */
+  /** ISO date (YYYY-MM-DD) of the Monday anchoring the ISO week of the sessions' local dates. */
   weekStart: string;
   sessionCount: number;
   totalVolumeLbs: number;
@@ -145,7 +155,11 @@ export interface VolumeByMuscleGroup {
  */
 export interface ProcessedSession {
   id: string;
-  /** ISO timestamp the session started. */
+  /**
+   * ISO timestamp the session started, written in the lifter's local offset.
+   * Its first ten characters are the session's local date, which day and week
+   * buckets and date-only bounds use; it is never converted to UTC for that.
+   */
   startedAt: string;
   /**
    * Optional exercise id. Superseded by `key.exerciseId` when a `key` is
@@ -220,10 +234,10 @@ function filterSessions(
       if (s.key === undefined) return false;
       if (!matchesBaselineKey(s.key, keyFilter)) return false;
     }
-    if (filter.fromTs !== undefined && s.startedAt < filter.fromTs) {
+    if (filter.fromTs !== undefined && !isOnOrAfter(s.startedAt, filter.fromTs)) {
       return false;
     }
-    if (filter.toTs !== undefined && s.startedAt > filter.toTs) {
+    if (filter.toTs !== undefined && !isOnOrBefore(s.startedAt, filter.toTs)) {
       return false;
     }
     return true;
@@ -283,24 +297,31 @@ function combineBucket(metric: MetricKey, values: ReadonlyArray<number>): number
 }
 
 /**
- * ISO date string (YYYY-MM-DD) for the Monday of the ISO week containing `iso`.
- */
-function isoWeekStart(iso: string): string {
-  const d = new Date(iso);
-  // getUTCDay: Sun=0, Mon=1, ..., Sat=6. We want Monday-anchored.
-  const dayOfWeek = d.getUTCDay();
-  const offsetToMonday = (dayOfWeek + 6) % 7; // Mon->0, Tue->1, ..., Sun->6
-  const monday = new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - offsetToMonday)
-  );
-  return monday.toISOString().slice(0, 10);
-}
-
-/**
- * ISO date string (YYYY-MM-DD) for the day containing `iso`.
+ * The lifter's local date (YYYY-MM-DD) of a session: the wall date written in
+ * its own ISO string, whatever the offset. Never converted to UTC.
  */
 function isoDay(iso: string): string {
   return iso.slice(0, 10);
+}
+
+/** The Monday of the ISO week holding the session's local date. */
+function localWeekStart(iso: string): string {
+  return isoWeekStart(isoDay(iso));
+}
+
+function isDateOnly(bound: string): boolean {
+  return DATE_ONLY.test(bound);
+}
+
+/** A date-only bound compares local dates; a full timestamp compares instants. */
+function isOnOrAfter(startedAt: string, bound: string): boolean {
+  if (isDateOnly(bound)) return isoDay(startedAt) >= bound;
+  return Date.parse(startedAt) >= Date.parse(bound);
+}
+
+function isOnOrBefore(startedAt: string, bound: string): boolean {
+  if (isDateOnly(bound)) return isoDay(startedAt) <= bound;
+  return Date.parse(startedAt) <= Date.parse(bound);
 }
 
 function bucketKey(iso: string, bucketBy: 'session' | 'day' | 'week', sessionId: string): string {
@@ -310,7 +331,7 @@ function bucketKey(iso: string, bucketBy: 'session' | 'day' | 'week', sessionId:
     case 'day':
       return isoDay(iso);
     case 'week':
-      return isoWeekStart(iso);
+      return localWeekStart(iso);
   }
 }
 
@@ -321,7 +342,7 @@ function bucketTimestamp(iso: string, bucketBy: 'session' | 'day' | 'week'): str
     case 'day':
       return `${isoDay(iso)}T00:00:00.000Z`;
     case 'week':
-      return `${isoWeekStart(iso)}T00:00:00.000Z`;
+      return `${localWeekStart(iso)}T00:00:00.000Z`;
   }
 }
 
@@ -333,7 +354,8 @@ function bucketTimestamp(iso: string, bucketBy: 'session' | 'day' | 'week'): str
  * Build a TimeSeries over a metric, optionally bucketed by day/week.
  *
  * Sessions are filtered by `exerciseId` (if set), the `key` identity filter
- * (if set) and the ISO window `[fromTs, toTs]`. Within each bucket, values are combined per metric:
+ * (if set) and the ISO window `[fromTs, toTs]`. Day and week buckets use each
+ * session's local date. Within each bucket, values are combined per metric:
  * `velocity_*` average, `volume` sums, `estimated_1rm` and `top_weight`
  * take the max. Sessions with no contributing data are dropped.
  *
@@ -395,7 +417,8 @@ export function buildTimeSeries(
 // =============================================================================
 
 /**
- * Group sessions by ISO week (Monday-anchored). Returns the N most recent
+ * Group sessions by the ISO week (Monday-anchored) of each session's local
+ * date, so a Sunday-evening session stays in its own week. Returns the N most recent
  * weeks containing at least one session, sorted descending by `weekStart`.
  */
 export function getWeeklySummaries(
@@ -413,7 +436,7 @@ export function getWeeklySummaries(
   >();
 
   for (const session of sessions) {
-    const weekStart = isoWeekStart(session.startedAt);
+    const weekStart = localWeekStart(session.startedAt);
     const bucket = byWeek.get(weekStart) ?? {
       sessionCount: 0,
       totalVolumeLbs: 0,
@@ -459,7 +482,8 @@ export function getWeeklySummaries(
  * multiple muscle groups, the volume is split evenly across them. Sessions
  * whose `exerciseId` is unknown to the lookup are skipped for attribution
  * but still count toward `totalVolumeLbs`, so callers can detect coverage
- * gaps.
+ * gaps. `period.from` and `period.to` are inclusive and read like
+ * `BuildTimeSeriesConfig.fromTs` / `toTs`.
  *
  * Decision record (B47, voltras-mcp#263): set-counting toward MEV/MRV
  * landmarks by muscle group credits the PRIMARY muscle group only.
