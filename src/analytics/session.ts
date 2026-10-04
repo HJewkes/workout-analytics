@@ -142,8 +142,12 @@ export function computeStrengthEstimate(
  * Yellow: 85-95% of baseline (normal day, moderate effort)
  * Red: < 85% of baseline (under-recovered, back off)
  *
- * @param actualVelocity - Observed first-rep velocity at the reference load
- * @param baselineVelocity - Expected velocity at that load from history
+ * Both velocities must be first-rep mean concentric velocity: pass
+ * `getSetFirstRepVelocity` for today's set and `getExpectedVelocity` on a
+ * baseline built from the same quantity (`updateBaselineWithPoint`).
+ *
+ * @param actualVelocity - Observed first-rep mean concentric velocity at the reference load
+ * @param baselineVelocity - Expected first-rep mean concentric velocity at that load from history
  * @returns Readiness assessment
  */
 export function computeReadiness(

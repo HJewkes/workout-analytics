@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **`updateBaselineWithPoint` now documents its velocity as first-rep mean concentric velocity (VW-871).** Its parameters were named `loadPctE1RM` and `peakVelocity` and the JSDoc said peak velocity, but `computeReadiness` compares the baseline against `getSetFirstRepVelocity`, which is a mean. A caller who followed the old doc stored peak velocity and read red every day. The parameters are renamed `load` and `meanVelocity`; types and runtime behaviour are unchanged. `docs/architecture/vbt.md` now lists `updateBaselineWithPoint`.
 - **Time-series day and week buckets now share one local-date rule (VW-822).** A session's day is the wall date written in its own `startedAt` string, and its week is the ISO week of that day. `buildTimeSeries` with `bucketBy: 'week'` and `getWeeklySummaries` used the UTC date for the week, so a session after 18:00 on a Sunday at `-06:00` landed in the next week while its day bucket stayed on Sunday. Signatures are unchanged. Each behaviour change:
   - `getWeeklySummaries` and `bucketBy: 'week'` put a session in the ISO week of its local date. Sessions written with a non-UTC offset near midnight on a Sunday or Monday can change `weekStart`.
   - A date-only `fromTs`/`toTs` (and `getVolumeByMuscleGroup` `period.from`/`period.to`) compares against each session's local date, so `toTs: '2026-10-31'` now keeps every session on Oct 31. Before, any session later than midnight was dropped.

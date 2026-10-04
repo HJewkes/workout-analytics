@@ -11,6 +11,9 @@ import {
   computeEffectiveVolume,
 } from '@/analytics/session';
 import { buildProfile } from '@/vbt/profile';
+import { buildBaseline, getExpectedVelocity, updateBaselineWithPoint } from '@/vbt/baseline';
+import { getSetFirstRepVelocity } from '@/analytics/set-analytics';
+import { getRepPeakVelocity } from '@/models/rep';
 import { createSet, addSampleToSet } from '@/models/set';
 import { MovementPhase } from '@/models/types';
 import type { WorkoutSample } from '@/models/sample';
@@ -78,6 +81,23 @@ function buildTestSet(numReps: number, v0: number = 0.8): Set {
     samples.push(...createRepSamples(i * 10, i * 3000, velocity));
   }
   return buildSetFromSamples(samples);
+}
+
+/** First rep's concentric velocity rises and falls, so its peak sits well above its mean. */
+function buildSetWithUnevenFirstRep(): Set {
+  const concentric = [0.3, 1.0, 0.5].map(
+    (velocity, i): WorkoutSample => ({
+      sequence: i,
+      timestamp: i * 200,
+      phase: MovementPhase.CONCENTRIC,
+      position: i * 100,
+      velocity,
+      force: 100,
+    })
+  );
+  const eccentric = createRepSamples(0, 0, 0.6).slice(2);
+  const tail = eccentric.map((s, i) => ({ ...s, sequence: 3 + i, timestamp: 600 + i * 500 }));
+  return buildSetFromSamples([...concentric, ...tail, ...createRepSamples(10, 3000, 0.6)]);
 }
 
 // =============================================================================
@@ -150,6 +170,25 @@ describe('computeReadiness', () => {
   it('velocity ratio is computed correctly', () => {
     const result = computeReadiness(0.72, 0.8);
     expect(result.velocityRatio).toBeCloseTo(0.9, 2);
+  });
+
+  it('the documented baseline-to-readiness path uses one velocity kind end to end', () => {
+    const load = 60;
+    const set = buildSetWithUnevenFirstRep();
+    const firstRepMean = getSetFirstRepVelocity(set);
+    // A baseline fed peak velocity would put this same rep below the red cutoff.
+    expect(firstRepMean / getRepPeakVelocity(set.reps[0])).toBeLessThan(0.85);
+
+    const baseline = updateBaselineWithPoint(buildBaseline([]), load, firstRepMean, {
+      timestamp: 0,
+    });
+    const readiness = computeReadiness(
+      getSetFirstRepVelocity(set),
+      getExpectedVelocity(baseline, load)!
+    );
+
+    expect(readiness.velocityRatio).toBeCloseTo(1, 10);
+    expect(readiness.zone).toBe('green');
   });
 });
 
