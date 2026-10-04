@@ -92,6 +92,8 @@ OLS internals at `src/vbt/profile.ts:61-111` (`olsRegression`, including degener
 
 Source: `src/vbt/baseline.ts`. Used for readiness assessment — comparing today's first-rep velocity against historical observations at the same load.
 
+The velocity throughout is first-rep mean concentric velocity, the value `getSetFirstRepVelocity` returns. Build the baseline from that value and pass the same value for today's set to `computeReadiness`. A baseline fed peak velocity sits about 1.4× above the mean, so every day would read red.
+
 ### Type
 
 ```ts
@@ -104,8 +106,9 @@ interface VelocityBaseline {
 
 | Function | Source line | Notes |
 | --- | --- | --- |
-| `buildBaseline(dataPoints)` | `:37-40` | Sorts by load ascending. Preserves duplicates at same load. |
-| `getExpectedVelocity(baseline, load)` | `:53-88` | Linear interpolation between bracketing points. Returns `null` when load is outside the observed range or baseline is empty. With one point, returns its velocity only on exact match. |
+| `buildBaseline(dataPoints, key?)` | `:65-71` | Sorts by load ascending. Preserves duplicates at same load. |
+| `getExpectedVelocity(baseline, load)` | `:84-119` | Linear interpolation between bracketing points. Returns `null` when load is outside the observed range or baseline is empty. With one point, returns its velocity only on exact match. |
+| `updateBaselineWithPoint(baseline, load, meanVelocity, opts?)` | `:189-211` | Returns a new baseline with one point added. `meanVelocity` is first-rep mean concentric velocity (`getSetFirstRepVelocity`). `opts.timestamp` stamps the point (defaults to `Date.now()`); `opts.maxPoints` evicts the oldest point when exceeded. |
 
 ## e1RM estimation
 

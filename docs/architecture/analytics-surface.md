@@ -211,7 +211,7 @@ Source: `src/analytics/session.ts`. Session-level estimates from arrays of `Set`
 | Type | Source line | Fields |
 | --- | --- | --- |
 | `StrengthEstimate` | `:27-34` | `estimated1RM`, `confidence`, `source: 'profile' \| 'reps' \| 'hybrid'`. |
-| `ReadinessEstimate` | `:39-46` | `zone: 'green' \| 'yellow' \| 'red'`, `velocityRatio`, `confidence`. |
+| `ReadinessEstimate` | `:39-52` | `zone: 'green' \| 'yellow' \| 'red'`, `velocityRatio`, `confidence`, optional `baselineAvailable` (`false` when either velocity is missing, zero, negative or non-finite). |
 | `SessionFatigueEstimate` | `:51-60` | `level` (0-1), `velocityRecoveryPct`, `repDropPct`, `isJunkVolume`. |
 
 ### Functions
@@ -219,7 +219,7 @@ Source: `src/analytics/session.ts`. Session-level estimates from arrays of `Set`
 | Function | Source line | Notes |
 | --- | --- | --- |
 | `computeStrengthEstimate(sets, weights?, profile?)` | `:78-126` | Best of: rep-based Epley (per set) and profile-based MVT-solve. Hybrid when both available. |
-| `computeReadiness(actualVelocity, baselineVelocity)` | `:143-168` | Green ≥ 95%, yellow ≥ 85%, red below. |
+| `computeReadiness(actualVelocity, baselineVelocity)` | `:153-179` | Green ≥ 95%, yellow ≥ 85%, red below. Both inputs are first-rep mean concentric velocity. An unusable input returns yellow with `confidence: 0` and `baselineAvailable: false`. |
 | `computeSessionFatigue(sets, weights?)` | `:187-237` | Composite: velocity recovery (40%) + rep drop (30%) + average within-set vel loss (30%). `isJunkVolume` when velocity recovery < 75% AND avg loss > 40%. |
 | `computeVolume(sets, weights?)` | `:250-257` | `Σ load × reps`. |
 | `computeEffectiveVolume(sets, weights?, options?)` | `:273-291` | `Σ Σ hardness[i] × load`. |

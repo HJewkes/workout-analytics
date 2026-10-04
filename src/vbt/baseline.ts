@@ -1,8 +1,9 @@
 /**
  * Velocity Baseline - Expected velocity at a given load from historical data.
  *
- * Builds a baseline from first-rep velocity observations at various loads,
- * then provides expected velocity via linear interpolation.
+ * Builds a baseline from first-rep mean concentric velocity observations
+ * (`getSetFirstRepVelocity`) at various loads, then provides expected velocity
+ * via linear interpolation.
  * Used for readiness assessment (comparing today's velocity to baseline).
  */
 
@@ -173,22 +174,27 @@ function evictionIndex(points: readonly LoadVelocityDataPoint[]): number {
  * `console.warn`, once per process (a module-level flag, not per baseline),
  * because the order changed in this release.
  *
+ * The velocity is first-rep mean concentric velocity, as returned by
+ * `getSetFirstRepVelocity`. `computeReadiness` compares today's value of that
+ * same quantity against `getExpectedVelocity`, so feeding peak velocity (or a
+ * set-wide mean) here skews every readiness ratio.
+ *
  * @param baseline - Existing velocity baseline
- * @param loadPctE1RM - Load for the new observation (same units as existing points)
- * @param peakVelocity - Peak concentric velocity in m/s
+ * @param load - Load for the new observation (same units as existing points)
+ * @param meanVelocity - First-rep mean concentric velocity in m/s
  * @param opts.maxPoints - Maximum number of data points to retain
  * @param opts.timestamp - Timestamp for the new point (defaults to Date.now())
  * @returns New immutable VelocityBaseline with the observation added
  */
 export function updateBaselineWithPoint(
   baseline: VelocityBaseline,
-  loadPctE1RM: number,
-  peakVelocity: number,
+  load: number,
+  meanVelocity: number,
   opts?: { maxPoints?: number; timestamp?: number }
 ): VelocityBaseline {
   const newPoint: LoadVelocityDataPoint = {
-    load: loadPctE1RM,
-    velocity: peakVelocity,
+    load,
+    velocity: meanVelocity,
     timestamp: opts?.timestamp ?? Date.now(),
   };
 
