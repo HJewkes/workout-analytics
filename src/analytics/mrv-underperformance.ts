@@ -76,7 +76,7 @@ export interface MrvUnderperformanceVerdict {
   underperformed: boolean;
   /** Signed: (current − baseline) / baseline × 100. Negative = less work. */
   volumeLoadDeltaPct: number;
-  /** Signed: (current − baseline) / baseline × 100. Negative = slower. */
+  /** Signed: (current − baseline) / baseline × 100. Negative = slower. 0 when either side's velocity is unmeasured. */
   velocityDeltaPct: number;
   /** Human-readable explanation; always populated. */
   reasoning: string;
@@ -142,10 +142,12 @@ function median(values: number[]): number {
 /**
  * Reduce a group of sets (one exercise, one session) to what they achieved.
  *
- * A set qualifies only when it recorded a `weightLbs` AND at least one rep.
- * A set with no recorded load cannot contribute to volume load at all, and
- * treating its absent weight as 0 would silently deflate the total — the same
- * failure mode the store's v6 migration removed the `0` sentinel to avoid.
+ * A set qualifies only when it recorded a positive, finite `weightLbs` AND at
+ * least one rep. A set with no recorded load cannot contribute to volume load
+ * at all, and treating its absent weight as 0 would silently deflate the total
+ * — the same failure mode the store's v6 migration removed the `0` sentinel to
+ * avoid. A 0 lb set is the same non-reading, so it is skipped too: it would
+ * otherwise count as a working set and drag the median load down.
  *
  * A rep contributes to the velocity median only when its mean concentric
  * velocity is positive; 0 is `getRepMeanVelocity`'s "no measurement here", and
@@ -168,7 +170,8 @@ export function summarizeSetsForPerformance(
 
   for (const set of sets) {
     const weightLbs = set.weightLbs;
-    if (weightLbs === undefined || set.reps.length === 0) continue;
+    if (weightLbs === undefined || !Number.isFinite(weightLbs) || weightLbs <= 0) continue;
+    if (set.reps.length === 0) continue;
 
     weights.push(weightLbs);
     totalVolumeLoadLbs += weightLbs * set.reps.length;
@@ -198,6 +201,20 @@ export function summarizeSetsForPerformance(
 /** `"volume load fell 12.4% (limit 10%)"` — shared phrasing for both metrics. */
 function describeDecline(label: string, pct: number, limit: number): string {
   return `${label} fell ${Math.abs(pct).toFixed(1)}% (limit ${Number(limit.toFixed(2))}%)`;
+}
+
+/**
+ * Velocity is comparable only when both sides measured it. 0 means "unmeasured",
+ * so comparing against it would read a missing sensor as a −100 % decline; the
+ * pair is then judged on volume load alone.
+ */
+function velocityMeasured(baseline: PerformanceSummary, current: PerformanceSummary): boolean {
+  return (
+    Number.isFinite(baseline.medianConcentricVelocityMps) &&
+    Number.isFinite(current.medianConcentricVelocityMps) &&
+    baseline.medianConcentricVelocityMps > 0 &&
+    current.medianConcentricVelocityMps > 0
+  );
 }
 
 /**
@@ -255,10 +272,10 @@ export function evaluateMrvUnderperformance(
     baseline.totalVolumeLoadLbs,
     current.totalVolumeLoadLbs
   ).percentChange;
-  const velocityDeltaPct = computeChange(
-    baseline.medianConcentricVelocityMps,
-    current.medianConcentricVelocityMps
-  ).percentChange;
+  const velocityDeltaPct = velocityMeasured(baseline, current)
+    ? computeChange(baseline.medianConcentricVelocityMps, current.medianConcentricVelocityMps)
+        .percentChange
+    : 0;
 
   const declines: string[] = [];
   if (volumeLoadDeltaPct <= -volumeLimit) {

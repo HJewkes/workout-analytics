@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **The MRV detector no longer reads unmeasured velocity as a −100% decline (VW-824).** `evaluateMrvUnderperformance` skips the velocity delta (`velocityDeltaPct` is 0) when either summary's `medianConcentricVelocityMps` is 0 or non-finite, so a session with no measured velocity is judged on volume load alone. Before, a measured baseline against an unmeasured current session flagged underperformance with "concentric velocity fell 100.0%". `summarizeSetsForPerformance` now also ignores 0 lb (and non-finite-load) sets, as its docs already said; before, they counted as working sets and pulled the median load down.
 - **NaN and ±Infinity no longer become confident answers (VW-825).** Signatures and return types are unchanged. Each behaviour change:
   - `estimatePercent1RMFromVelocity`, `categorizeVelocity` and `interpolate` throw a `RangeError` for a non-finite input. Before, NaN gave 50 %1RM, the `'speed'` zone and the scheme's last output; ±Infinity was clamped to an edge.
   - `estimateSetRIR` reads a non-finite velocity loss like a set with no derivable loss (RIR 6, RPE 4, confidence `'low'`). Before, a NaN loss gave RIR 0 / RPE 10, and an infinite loss gave the same with confidence `'high'`.
