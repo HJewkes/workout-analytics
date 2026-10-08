@@ -49,7 +49,8 @@ export interface RIREstimateInputs {
   repIndex: number;
   /**
    * Total reps targeted for the set.
-   * Defaults to 8 when null / undefined (neutral mid-range assumption).
+   * Defaults to 8 when null / undefined, or not a positive finite number
+   * (neutral mid-range assumption).
    */
   repsInSet?: number | null;
 }
@@ -130,6 +131,10 @@ function roundHalf(value: number): number {
   return Math.round(value * 2) / 2;
 }
 
+function resolveRepsInSet(repsInSet: number | null | undefined): number {
+  return repsInSet != null && Number.isFinite(repsInSet) && repsInSet > 0 ? repsInSet : 8;
+}
+
 function computeConfidence(vRatio: number, velLossPct: number): 'high' | 'medium' | 'low' {
   if (velLossPct >= 10 && velLossPct <= 50 && vRatio >= 0.4 && vRatio <= 1.0) {
     return 'high';
@@ -163,7 +168,7 @@ export function estimateRIRWithProfile(
   const stderr = profile.stderr ?? 0.8;
 
   const { peakVelocity, baselineMaxVelocity, velLossPct, repIndex } = inputs;
-  const repsInSet = inputs.repsInSet ?? 8;
+  const repsInSet = resolveRepsInSet(inputs.repsInSet);
 
   // Clamp denominator to avoid divide-by-zero
   const safeBaseline = Math.max(baselineMaxVelocity, 0.001);

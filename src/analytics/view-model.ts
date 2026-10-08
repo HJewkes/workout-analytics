@@ -84,7 +84,8 @@ export type VelocityLossVerdict = 'productive' | 'threshold' | 'stop';
  * stop-consideration band); at/above VL30 the verdict is `stop`.
  *
  * `null` loss — fewer than two reps, so no loss is derivable yet — bands as
- * `productive`: a set that has not yet shown decline is not curtailed. (This
+ * `productive`: a set that has not yet shown decline is not curtailed. A
+ * non-finite loss (NaN or ±Infinity) is no measurement, so it bands like `null`. (This
  * matches the dashboard's `verdictFromLoss`, whose semantics this function is
  * the canonical replacement for.)
  *
@@ -103,7 +104,7 @@ export type VelocityLossVerdict = 'productive' | 'threshold' | 'stop';
  * epic.
  */
 export function velocityLossVerdict(lossPct: number | null): VelocityLossVerdict {
-  if (lossPct === null) return 'productive';
+  if (lossPct === null || !Number.isFinite(lossPct)) return 'productive';
   if (lossPct >= 30) return 'stop';
   if (lossPct >= 20) return 'threshold';
   return 'productive';

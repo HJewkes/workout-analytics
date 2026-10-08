@@ -262,11 +262,16 @@ export function getVelocityZones(opts?: GetVelocityZonesOptions): VelocityZones 
  * Back-compatible single-argument call: `zones` defaults to the global-default
  * compound bands, so existing `categorizeVelocity(v)` callers keep working
  * (the returned id set is the widened 5-zone taxonomy).
+ *
+ * @throws RangeError if `velocity` is NaN or ±Infinity
  */
 export function categorizeVelocity(
   velocity: number,
   zones: VelocityZones = getVelocityZones()
 ): VelocityZoneId {
+  if (!Number.isFinite(velocity)) {
+    throw new RangeError('velocity must be a finite number');
+  }
   const { bands } = zones;
   for (const band of bands) {
     if (band.max === null || velocity < band.max) return band.id;

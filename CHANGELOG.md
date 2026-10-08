@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **NaN and ±Infinity no longer become confident answers (VW-825).** Signatures and return types are unchanged. Each behaviour change:
+  - `estimatePercent1RMFromVelocity`, `categorizeVelocity` and `interpolate` throw a `RangeError` for a non-finite input. Before, NaN gave 50 %1RM, the `'speed'` zone and the scheme's last output; ±Infinity was clamped to an edge.
+  - `estimateSetRIR` reads a non-finite velocity loss like a set with no derivable loss (RIR 6, RPE 4, confidence `'low'`). Before, a NaN loss gave RIR 0 / RPE 10, and an infinite loss gave the same with confidence `'high'`.
+  - `velocityLossVerdict` bands any non-finite loss like `null` (`'productive'`). Before, +Infinity gave `'stop'`.
+  - `updateSessionFatigueState` returns the previous state unchanged when `fiSet` or `intensityRatio` is non-finite (such as `0 / 0` from an e1RM of 0), and throws a `RangeError` when `prevF` or `lambda` is non-finite. Before, NaN passed through the clamps and stayed in the EWMA state for the rest of the session.
+  - `estimateRIRWithProfile` treats a `repsInSet` of 0, a negative number or a non-finite number like `null` (default 8). Before, 0 divided by zero, drove the RIR to 0 and could still report confidence `'high'`.
 - **`updateBaselineWithPoint` now documents its velocity as first-rep mean concentric velocity (VW-871).** Its parameters were named `loadPctE1RM` and `peakVelocity` and the JSDoc said peak velocity, but `computeReadiness` compares the baseline against `getSetFirstRepVelocity`, which is a mean. A caller who followed the old doc stored peak velocity and read red every day. The parameters are renamed `load` and `meanVelocity`; types and runtime behaviour are unchanged. `docs/architecture/vbt.md` now lists `updateBaselineWithPoint`.
 - **Time-series day and week buckets now share one local-date rule (VW-822).** A session's day is the wall date written in its own `startedAt` string, and its week is the ISO week of that day. `buildTimeSeries` with `bucketBy: 'week'` and `getWeeklySummaries` used the UTC date for the week, so a session after 18:00 on a Sunday at `-06:00` landed in the next week while its day bucket stayed on Sunday. Signatures are unchanged. Each behaviour change:
   - `getWeeklySummaries` and `bucketBy: 'week'` put a session in the ISO week of its local date. Sessions written with a non-UTC offset near midnight on a Sunday or Monday can change `weekStart`.
