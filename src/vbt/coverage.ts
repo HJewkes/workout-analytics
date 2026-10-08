@@ -44,6 +44,46 @@ export interface CoverageResult {
 // =============================================================================
 
 /**
+ * Relative slack when counting bins. A width like 0.1 is not exact in binary,
+ * so a span that holds a whole number of widths can divide to a few ULPs above
+ * that number (0.3 / 0.1 = 3.0000000000000004). Ceil alone would then add a
+ * sliver top bin. 1e-12 is far above that rounding error and far below any
+ * partial bin a caller could mean.
+ */
+const BIN_COUNT_TOLERANCE = 1e-12;
+
+/**
+ * Number of bins needed to cover the range. Besides the relative slack, it
+ * forgives the error from subtracting two close bounds far from zero (up to
+ * one ULP of each), measured in widths: [139.95, 139.96] at 0.01 is 1 bin.
+ */
+function countBins(rangeMin: number, rangeMax: number, binWidth: number): number {
+  const widths = (rangeMax - rangeMin) / binWidth;
+  if (!Number.isFinite(widths)) {
+    throw new RangeError('binRange holds too many bins of binWidth');
+  }
+  const boundError =
+    (4 * Number.EPSILON * Math.max(Math.abs(rangeMin), Math.abs(rangeMax))) / binWidth;
+  return Math.max(1, Math.ceil(widths - widths * BIN_COUNT_TOLERANCE - boundError));
+}
+
+/**
+ * Build empty bins by index so edges never accumulate rounding error.
+ * The last bin may be narrower than `binWidth` and always ends at `rangeMax`.
+ */
+function createBins(rangeMin: number, rangeMax: number, binWidth: number): CoverageBin[] {
+  if (!Number.isFinite(rangeMin) || !Number.isFinite(rangeMax) || rangeMax <= rangeMin) {
+    throw new RangeError('binRange must be two finite numbers with max above min');
+  }
+  const binCount = countBins(rangeMin, rangeMax, binWidth);
+  return Array.from({ length: binCount }, (_, i) => {
+    const low = rangeMin + i * binWidth;
+    const high = i === binCount - 1 ? rangeMax : rangeMin + (i + 1) * binWidth;
+    return { range: [low, high] as const, count: 0, lastObservedAt: null };
+  });
+}
+
+/**
  * Compute coverage of the load-velocity spectrum from observed data points.
  *
  * Bins data points by their load as a percentage of estimated 1RM. A point
@@ -54,7 +94,8 @@ export interface CoverageResult {
  * @param e1RM - Current estimated 1RM (used to compute %e1RM for each point)
  * @param options - Bin width, range, and staleness configuration
  * @returns Coverage analysis with bins, gaps, and overall score
- * @throws RangeError if `binWidth` is not a finite positive number
+ * @throws RangeError if `binWidth` is not a finite positive number, or if
+ *   `binRange` has a non-finite bound or a max at or below its min
  */
 export function computeCoverage(
   dataPoints: readonly LoadVelocityDataPoint[],
@@ -73,12 +114,7 @@ export function computeCoverage(
   const stalenessMs = options?.stalenessMs;
   const now = Date.now();
 
-  // Create bins
-  const bins: CoverageBin[] = [];
-  for (let low = rangeMin; low < rangeMax; low += binWidth) {
-    const high = Math.min(low + binWidth, rangeMax);
-    bins.push({ range: [low, high], count: 0, lastObservedAt: null });
-  }
+  const bins = createBins(rangeMin, rangeMax, binWidth);
 
   if (e1RM <= 0) {
     return {

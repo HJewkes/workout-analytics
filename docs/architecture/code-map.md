@@ -94,7 +94,7 @@ Velocity-based training surface.
 | `src/vbt/rir-exercise-specific.ts` | Exercise-type-specific RIR: `ExerciseVBTProfile`; cable-compound / cable-isolation / fallback default profiles at `:94-122`; `estimateRIRWithProfile` at `:157`. |
 | `src/vbt/baseline.ts` | `VelocityBaseline` at `:19-21`; `buildBaseline` (sorted by load) at `:37-40`; `getExpectedVelocity` (linear interpolation, returns null out-of-range) at `:53-88`. |
 | `src/vbt/e1rm.ts` | `E1RMEstimate` at `:20-27`; `estimateE1RMFromProfile` (solves for MVT) at `:47-67`; `estimateE1RMFromReps` (Epley) at `:90-119`; `estimateHybridE1RM` (confidence-weighted blend) at `:138-168`. |
-| `src/vbt/coverage.ts` | `CoverageBin` at `:21-28`; `CoverageResult` at `:33-40`; `computeCoverage` (bins by %e1RM with optional staleness) at `:59-127`; `identifyCoverageGaps` at `:139-144`. |
+| `src/vbt/coverage.ts` | `CoverageBin`; `CoverageResult`; private `countBins` (bin count with rounding slack) and `createBins` (validates `binRange`, builds bins by index); `computeCoverage` (bins by %e1RM with optional staleness); `identifyCoverageGaps`. Listed by name, not line, so the row does not go stale. |
 | `src/vbt/profile-fitting.ts` | `FittingOptions` at `:20-35`; `FittingResult` at `:40-46`; weighted least squares at `:56-89`; weighted R² at `:94-121`; uncertainty at `:126-164`; Huber weight at `:170-174`; `fitLVProfile` (recency + quality + Huber IRLS + age filter) at `:194-314`. |
 | `src/vbt/index.ts` | Barrel. |
 
