@@ -199,7 +199,10 @@ describe('addDataPoint', () => {
 
 describe('buildProfile — unusable slope (VW-826)', () => {
   it.each([
-    ['positive slope', [20, 40, 60, 80, 100].map((load) => ({ load, velocity: 0.2 + load * 0.008 }))],
+    [
+      'positive slope',
+      [20, 40, 60, 80, 100].map((load) => ({ load, velocity: 0.2 + load * 0.008 })),
+    ],
     ['zero slope', [20, 40, 60, 80, 100].map((load) => ({ load, velocity: 0.7 }))],
     ['NaN slope', [20, 40, 60, 80, 100].map((load) => ({ load, velocity: load === 60 ? NaN : 1 }))],
   ])('rates a %s profile low confidence with no e1RM', (_name, points) => {
