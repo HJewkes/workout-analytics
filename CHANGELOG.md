@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **A near-zero negative load-velocity slope is no longer a confident profile (VW-914).** `buildProfile` rates a profile whose extrapolated e1RM exceeds 5 times its heaviest load as `'low'` confidence with `estimated1RM` 0, `estimateE1RMFromProfile` returns `e1RM` 0 and confidence 0 for it, and `getVelocityZones` ignores it. Before, a slope of -1e-9 gave an e1RM of about 5.3e8 rated `'high'`. The 5x cap is unit-free and sits above the 30% 1RM anchor of the velocity table (3.3x); ordinary profiles are unchanged.
 - **`computeCoverage` no longer adds a sliver bin for a fractional `binWidth`, and rejects a bad `binRange` (VW-913).** The signature is unchanged. Each behaviour change:
   - Bins are built by index (`low = rangeMin + i * binWidth`) from a bin count computed once, so rounding no longer piles up. A `binWidth` of 0.1 over `[0.6, 1]` gives 4 bins; before, it gave 5, the last one `[0.9999999999999999, 1]`, which almost no point could land in and which pulled `coverageScore` down. Results for widths and bounds that are exact in binary (such as the default 10 over `[40, 100]`) are unchanged.
   - A `binRange` with a NaN or ±Infinity bound, a max at or below its min, or a span too large to count in bins of `binWidth` throws a `RangeError`. Before, an infinite bound never finished the bin loop and ran out of memory, and NaN or an empty range returned no bins with a `coverageScore` of 0.

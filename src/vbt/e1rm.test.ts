@@ -9,7 +9,11 @@ import {
   estimateHybridE1RM,
   type E1RMEstimate,
 } from '@/vbt/e1rm';
-import { buildProfile, type LoadVelocityDataPoint } from '@/vbt/profile';
+import {
+  buildProfile,
+  MAX_E1RM_TO_MAX_LOAD_RATIO,
+  type LoadVelocityDataPoint,
+} from '@/vbt/profile';
 
 // =============================================================================
 // Test Data
@@ -96,6 +100,31 @@ describe('estimateE1RMFromProfile — unusable slope (VW-826)', () => {
 
     expect(good.slope).toBeLessThan(0);
     expect(result.e1RM).toBeCloseTo(133, 0);
+  });
+});
+
+describe('estimateE1RMFromProfile — near-zero negative slope (VW-914)', () => {
+  const good = buildProfile(LINEAR_DATA);
+
+  it('returns e1RM 0 and confidence 0 for a -1e-9 slope', () => {
+    const profile = { ...good, slope: -1e-9, intercept: 0.5 };
+
+    expect(estimateE1RMFromProfile(profile)).toEqual({ e1RM: 0, confidence: 0, method: 'profile' });
+  });
+
+  it('keeps an e1RM at exactly the cap', () => {
+    const maxLoad = Math.max(...good.dataPoints.map((dp) => dp.load));
+    const slope = -0.01;
+    const profile = {
+      ...good,
+      slope,
+      intercept: 0.17 + slope * -(maxLoad * MAX_E1RM_TO_MAX_LOAD_RATIO),
+    };
+
+    expect(estimateE1RMFromProfile(profile).e1RM).toBeCloseTo(
+      maxLoad * MAX_E1RM_TO_MAX_LOAD_RATIO,
+      6
+    );
   });
 });
 

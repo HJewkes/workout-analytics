@@ -7,7 +7,7 @@
  * - Hybrid: Weighted combination of both methods
  */
 
-import type { LoadVelocityProfile } from './profile.js';
+import { isPlausibleE1RM, type LoadVelocityProfile } from './profile.js';
 import { DEFAULT_MVT } from './constants.js';
 
 // =============================================================================
@@ -40,6 +40,11 @@ export interface E1RMEstimate {
  *
  * Confidence is derived from the profile's R² and data point count.
  *
+ * Returns e1RM 0 and confidence 0 when the slope is not negative (zero,
+ * positive or NaN), and when the extrapolated e1RM exceeds
+ * MAX_E1RM_TO_MAX_LOAD_RATIO (5x) times the heaviest load in the profile,
+ * which is what a near-zero negative slope produces.
+ *
  * @param profile - The load-velocity profile
  * @param mvt - Minimum velocity threshold (default 0.17 m/s)
  * @returns e1RM estimate with confidence
@@ -53,6 +58,9 @@ export function estimateE1RMFromProfile(
   }
 
   const e1RM = (mvt - profile.intercept) / profile.slope;
+  if (!isPlausibleE1RM(e1RM, profile.dataPoints)) {
+    return { e1RM: 0, confidence: 0, method: 'profile' };
+  }
 
   // Confidence from R² and data count
   const rSquaredFactor = Math.max(0, profile.rSquared);

@@ -197,6 +197,29 @@ describe('addDataPoint', () => {
   });
 });
 
+describe('buildProfile — near-zero negative slope (VW-914)', () => {
+  const points = (slope: number) =>
+    [20, 40, 60, 80, 100].map((load) => ({ load, velocity: 0.7 + slope * load }));
+
+  it('rates a -1e-9 slope low confidence with no e1RM', () => {
+    const profile = buildProfile(points(-1e-9));
+
+    expect(profile.slope).toBeLessThan(0);
+    expect(profile.confidence).toBe('low');
+    expect(profile.estimated1RM).toBe(0);
+  });
+
+  it.each([
+    ['heavy compound', [60, 100, 140, 180, 220], 1.45, -0.0066],
+    ['light isolation', [5, 8, 11, 14, 17], 1.2, -0.045],
+  ])('keeps a %s profile high confidence with its e1RM', (_name, loads, v0, slope) => {
+    const profile = buildProfile(loads.map((load) => ({ load, velocity: v0 + slope * load })));
+
+    expect(profile.confidence).toBe('high');
+    expect(profile.estimated1RM).toBeCloseTo((0.17 - v0) / slope, 6);
+  });
+});
+
 describe('buildProfile — unusable slope (VW-826)', () => {
   it.each([
     [
