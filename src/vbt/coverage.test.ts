@@ -5,6 +5,8 @@
 import { describe, it, expect } from 'vitest';
 import { computeCoverage, identifyCoverageGaps } from '@/vbt/coverage';
 import type { LoadVelocityDataPoint } from '@/vbt/profile';
+import { buildCoverageMap } from '@/analytics/coverage';
+import type { SetSummary } from '@/analytics/coverage';
 
 // =============================================================================
 // Test Data
@@ -97,6 +99,58 @@ describe('computeCoverage', () => {
     const result = computeCoverage(oldData, 100, { stalenessMs: 30 * DAY });
     // The old data point should be excluded
     expect(result.coverageScore).toBe(0);
+  });
+
+  it.each([0, -10, NaN, Infinity, -Infinity])(
+    'rejects a binWidth of %s instead of building bins',
+    { timeout: 2000 },
+    (binWidth) => {
+      // Arrange
+      const options = { binWidth };
+
+      // Act
+      const run = () => computeCoverage(EVEN_DATA, 100, options);
+
+      // Assert
+      expect(run).toThrow(RangeError);
+    }
+  );
+
+  it('counts a set at exactly e1RM in the top bin', () => {
+    // Arrange
+    const single: LoadVelocityDataPoint[] = [{ load: 100, velocity: 0.15, timestamp: now }];
+
+    // Act
+    const result = computeCoverage(single, 100);
+
+    // Assert
+    expect(result.bins[result.bins.length - 1].count).toBe(1);
+  });
+
+  it('still drops a set above the top of the bin range', () => {
+    // Arrange
+    const overload: LoadVelocityDataPoint[] = [{ load: 105, velocity: 0.1, timestamp: now }];
+
+    // Act
+    const result = computeCoverage(overload, 100);
+
+    // Assert
+    expect(result.coverageScore).toBe(0);
+  });
+
+  it('agrees with buildCoverageMap that a set at exactly e1RM is in the top bin', () => {
+    // Arrange
+    const e1RM = 100;
+    const single: LoadVelocityDataPoint[] = [{ load: e1RM, velocity: 0.15, timestamp: now }];
+    const summary: SetSummary[] = [{ weightLbs: e1RM, startedAt: new Date(now).toISOString() }];
+
+    // Act
+    const vbtBins = computeCoverage(single, e1RM).bins;
+    const mapBins = buildCoverageMap(summary, e1RM);
+
+    // Assert
+    expect(vbtBins[vbtBins.length - 1].count).toBe(1);
+    expect(mapBins[mapBins.length - 1].pointCount).toBe(1);
   });
 });
 

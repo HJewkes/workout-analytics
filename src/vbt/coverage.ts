@@ -19,7 +19,7 @@ import type { LoadVelocityDataPoint } from './profile.js';
  * A single coverage bin representing a %e1RM range.
  */
 export interface CoverageBin {
-  /** [low, high) %e1RM range */
+  /** [low, high) %e1RM range; the top bin also includes its high edge */
   readonly range: readonly [number, number];
   /** Number of data points in this bin */
   readonly count: number;
@@ -46,12 +46,15 @@ export interface CoverageResult {
 /**
  * Compute coverage of the load-velocity spectrum from observed data points.
  *
- * Bins data points by their load as a percentage of estimated 1RM.
+ * Bins data points by their load as a percentage of estimated 1RM. A point
+ * exactly at the top of `binRange` (a true single at 100%) counts in the top
+ * bin, matching `buildCoverageMap`.
  *
  * @param dataPoints - Observed load-velocity data
  * @param e1RM - Current estimated 1RM (used to compute %e1RM for each point)
  * @param options - Bin width, range, and staleness configuration
  * @returns Coverage analysis with bins, gaps, and overall score
+ * @throws RangeError if `binWidth` is not a finite positive number
  */
 export function computeCoverage(
   dataPoints: readonly LoadVelocityDataPoint[],
@@ -63,6 +66,9 @@ export function computeCoverage(
   }
 ): CoverageResult {
   const binWidth = options?.binWidth ?? 10;
+  if (!Number.isFinite(binWidth) || binWidth <= 0) {
+    throw new RangeError('binWidth must be a finite positive number');
+  }
   const [rangeMin, rangeMax] = options?.binRange ?? [40, 100];
   const stalenessMs = options?.stalenessMs;
   const now = Date.now();
@@ -88,7 +94,8 @@ export function computeCoverage(
 
     for (let i = 0; i < bins.length; i++) {
       const [low, high] = bins[i].range;
-      if (pctE1RM >= low && pctE1RM < high) {
+      const isTopEdge = i === bins.length - 1 && pctE1RM === high;
+      if (pctE1RM >= low && (pctE1RM < high || isTopEdge)) {
         const timestamp = dp.timestamp ?? null;
 
         // Apply staleness filter
