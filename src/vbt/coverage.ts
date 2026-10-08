@@ -53,6 +53,21 @@ export interface CoverageResult {
 const BIN_COUNT_TOLERANCE = 1e-12;
 
 /**
+ * Number of bins needed to cover the range. Besides the relative slack, it
+ * forgives the error from subtracting two close bounds far from zero (up to
+ * one ULP of each), measured in widths: [139.95, 139.96] at 0.01 is 1 bin.
+ */
+function countBins(rangeMin: number, rangeMax: number, binWidth: number): number {
+  const widths = (rangeMax - rangeMin) / binWidth;
+  if (!Number.isFinite(widths)) {
+    throw new RangeError('binRange holds too many bins of binWidth');
+  }
+  const boundError =
+    (4 * Number.EPSILON * Math.max(Math.abs(rangeMin), Math.abs(rangeMax))) / binWidth;
+  return Math.max(1, Math.ceil(widths - widths * BIN_COUNT_TOLERANCE - boundError));
+}
+
+/**
  * Build empty bins by index so edges never accumulate rounding error.
  * The last bin may be narrower than `binWidth` and always ends at `rangeMax`.
  */
@@ -60,11 +75,7 @@ function createBins(rangeMin: number, rangeMax: number, binWidth: number): Cover
   if (!Number.isFinite(rangeMin) || !Number.isFinite(rangeMax) || rangeMax <= rangeMin) {
     throw new RangeError('binRange must be two finite numbers with max above min');
   }
-  const widths = (rangeMax - rangeMin) / binWidth;
-  const binCount = Math.max(1, Math.ceil(widths * (1 - BIN_COUNT_TOLERANCE)));
-  if (!Number.isFinite(binCount)) {
-    throw new RangeError('binRange holds too many bins of binWidth');
-  }
+  const binCount = countBins(rangeMin, rangeMax, binWidth);
   return Array.from({ length: binCount }, (_, i) => {
     const low = rangeMin + i * binWidth;
     const high = i === binCount - 1 ? rangeMax : rangeMin + (i + 1) * binWidth;

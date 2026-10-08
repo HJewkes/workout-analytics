@@ -163,6 +163,23 @@ describe('computeCoverage', () => {
     expect(result.bins[3].range[1]).toBe(1);
   });
 
+  it.each([
+    { binWidth: 0.01, binRange: [139.95, 139.96], bins: 1 },
+    { binWidth: 0.1, binRange: [1e6 + 0.1, 1e6 + 0.4], bins: 3 },
+  ] as const)(
+    'adds no sliver bin when $binRange spans whole widths of $binWidth far from zero',
+    ({ binWidth, binRange, bins }) => {
+      // Act
+      const result = computeCoverage([], 100, { binWidth, binRange: [...binRange] });
+
+      // Assert
+      expect(result.bins).toHaveLength(bins);
+      const [lastLow, lastHigh] = result.bins[bins - 1].range;
+      expect(lastHigh).toBe(binRange[1]);
+      expect(lastHigh - lastLow).toBeGreaterThan(binWidth / 2);
+    }
+  );
+
   it('scores full coverage when every fractional-width bin has a point', () => {
     // Arrange
     const points: LoadVelocityDataPoint[] = [
