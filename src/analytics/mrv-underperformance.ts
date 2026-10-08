@@ -78,6 +78,12 @@ export interface MrvUnderperformanceVerdict {
   volumeLoadDeltaPct: number;
   /** Signed: (current − baseline) / baseline × 100. Negative = slower. 0 when either side's velocity is unmeasured. */
   velocityDeltaPct: number;
+  /**
+   * `false` when either side's velocity is unmeasured (0), in which case
+   * `velocityDeltaPct` is 0 as "not evaluated", not "no change". Absent on
+   * verdicts built before this field existed.
+   */
+  velocityEvaluated?: boolean;
   /** Human-readable explanation; always populated. */
   reasoning: string;
   /** The drift guard's `reasoning`, when it passed the pair but flagged it. */
@@ -217,6 +223,13 @@ function velocityMeasured(baseline: PerformanceSummary, current: PerformanceSumm
   );
 }
 
+/** Names velocity as held only when it was actually compared. */
+function heldReasoning(velocityEvaluated: boolean): string {
+  return velocityEvaluated
+    ? 'volume load and concentric velocity held at matched-or-greater load'
+    : 'volume load held at matched-or-greater load; velocity not measured';
+}
+
 /**
  * Decide whether `current` underperformed `baseline`.
  *
@@ -251,6 +264,7 @@ export function evaluateMrvUnderperformance(
       underperformed: false,
       volumeLoadDeltaPct: 0,
       velocityDeltaPct: 0,
+      velocityEvaluated: false,
       reasoning: `drift guard refused the comparison (${driftVerdict.reasoning}) — underperformance is not assessable`,
       thresholdsUsed,
     };
@@ -263,6 +277,7 @@ export function evaluateMrvUnderperformance(
       underperformed: false,
       volumeLoadDeltaPct: 0,
       velocityDeltaPct: 0,
+      velocityEvaluated: false,
       reasoning: `median load dropped ${loadDrop.toFixed(1)} lbs (tolerance ${Number(loadToleranceLbs.toFixed(2))} lbs) — fewer reps at lighter load is expected, not underperformance`,
       thresholdsUsed,
     };
@@ -272,7 +287,8 @@ export function evaluateMrvUnderperformance(
     baseline.totalVolumeLoadLbs,
     current.totalVolumeLoadLbs
   ).percentChange;
-  const velocityDeltaPct = velocityMeasured(baseline, current)
+  const velocityEvaluated = velocityMeasured(baseline, current);
+  const velocityDeltaPct = velocityEvaluated
     ? computeChange(baseline.medianConcentricVelocityMps, current.medianConcentricVelocityMps)
         .percentChange
     : 0;
@@ -290,10 +306,11 @@ export function evaluateMrvUnderperformance(
     underperformed: declines.length > 0,
     volumeLoadDeltaPct,
     velocityDeltaPct,
+    velocityEvaluated,
     reasoning:
       declines.length > 0
         ? `${declines.join(' and ')} at matched-or-greater load`
-        : 'volume load and concentric velocity held at matched-or-greater load',
+        : heldReasoning(velocityEvaluated),
     thresholdsUsed,
   };
 

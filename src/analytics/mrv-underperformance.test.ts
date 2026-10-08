@@ -266,6 +266,46 @@ describe('evaluateMrvUnderperformance', () => {
     expect(verdict.reasoning).not.toContain('velocity');
   });
 
+  it('does not claim velocity held when the current session has no measured velocity', () => {
+    // Arrange: baseline 0.5 m/s, current 0 (unmeasured); volume load held
+    const current = summary({ medianConcentricVelocityMps: 0 });
+
+    // Act
+    const verdict = evaluateMrvUnderperformance(BASELINE, current, drift());
+
+    // Assert
+    expect(verdict.velocityEvaluated).toBe(false);
+    expect(verdict.reasoning).toBe(
+      'volume load held at matched-or-greater load; velocity not measured'
+    );
+  });
+
+  it('does not claim velocity held when neither session has measured velocity', () => {
+    // Arrange
+    const baseline = summary({ medianConcentricVelocityMps: 0 });
+    const current = summary({ medianConcentricVelocityMps: 0 });
+
+    // Act
+    const verdict = evaluateMrvUnderperformance(baseline, current, drift());
+
+    // Assert
+    expect(verdict.velocityEvaluated).toBe(false);
+    expect(verdict.reasoning).toBe(
+      'volume load held at matched-or-greater load; velocity not measured'
+    );
+  });
+
+  it('reports velocity as evaluated and held when both sides are measured', () => {
+    // Act
+    const verdict = evaluateMrvUnderperformance(BASELINE, summary(), drift());
+
+    // Assert
+    expect(verdict.velocityEvaluated).toBe(true);
+    expect(verdict.reasoning).toBe(
+      'volume load and concentric velocity held at matched-or-greater load'
+    );
+  });
+
   it('refuses to evaluate when the drift guard says not comparable, however bad the numbers look', () => {
     // Arrange: volume load halved at matched load — an unmistakable decline —
     // but the two sessions describe different movements.
