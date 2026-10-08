@@ -236,6 +236,6 @@ Quick index of literature references that appear inline in VBT source:
 | `src/vbt/constants.ts:46-50` | RepOne — individual MVT variability. |
 | `src/vbt/constants.ts:54-59` | Rodiles-Guerrero 2020 — cable-machine velocity-loss-to-fatigue mapping. |
 | `src/vbt/profile.ts:6-10` | PLoS ONE 2019 — linear over polynomial; machine R² > 0.93. |
-| `src/analytics/intensity.ts:7-11` | Robinson et al. 2024, Refalo 2024, Martikainen 2025 — hardness decay rate. |
-| `src/analytics/intensity.ts:99-104` | Robinson 2024 meta-regression — gradual dose-response near failure. |
-| `src/analytics/intensity.ts:39-44` | J Strength Cond Res 2020 — velocity-loss vs reps-completed R²=0.93-0.97. |
+| `src/analytics/intensity.ts` module header | Robinson et al. 2024, Refalo 2024, Martikainen 2025 — hardness decay rate. |
+| `src/analytics/intensity.ts` `getRepHardnessWeight` docstring | Robinson 2024 meta-regression — gradual dose-response near failure. |
+| `src/analytics/intensity.ts` `estimatePerRepRIR` docstring | J Strength Cond Res 2020 — velocity-loss vs reps-completed R²=0.93-0.97. |

@@ -193,14 +193,14 @@ All return `ChangeResult` from `src/analytics/types.ts:46-57`.
 
 Source: `src/analytics/intensity.ts`. Per-rep RIR derivation, hardness weighting, set scoring.
 
-| Function | Source line | Notes |
-| --- | --- | --- |
-| `estimatePerRepRIR(set, setRIR?)` | `:50-87` | Velocity-proportional interpolation along the set's velocity decay curve. Falls back to linear `+1 per rep` when velocity data is noisy. Default `setRIR` from `estimateSetRIR(set)`. |
-| `getRepHardnessWeight(rir, decayRate=0.4)` | `:107-110` | `e^(-k*rir)`. RIR 0 = 1.00, RIR 1 = 0.67, RIR 2 = 0.45, RIR 3 = 0.30. |
-| `getSetIntensityScore(set, options?)` | `:134-142` | Sum of per-rep hardness weights = "effective stimulus reps". |
-| `getSetStimulusScore(set, load?, options?)` | `:164-212` | `Σ hardness[i] × load × (romFactor × tutFactor)?` over reps. Optionally normalized by `e1RM`. **Voltra-specific heuristic, not a published metric** (`:154-160`). |
+| Function | Notes |
+| --- | --- |
+| `estimatePerRepRIR(set, setRIR?)` | Velocity-proportional interpolation along the set's velocity decay curve. Falls back to linear `+1 per rep` when velocity data is noisy. Default `setRIR` from `estimateSetRIR(set)`. |
+| `getRepHardnessWeight(rir, decayRate=0.4)` | `e^(-k*rir)`. RIR 0 = 1.00, RIR 1 = 0.67, RIR 2 = 0.45, RIR 3 = 0.30. |
+| `getSetIntensityScore(set, options?)` | Sum of per-rep hardness weights = "effective stimulus reps". |
+| `getSetStimulusScore(set, load?, options?)` | `Σ hardness[i] × load × (romFactor × tutFactor)?` over reps. Optionally normalized by `e1RM`. **Voltra-specific heuristic, not a published metric** (its docstring). |
 
-`DEFAULT_DECAY_RATE = 0.4` at `:24`. Research basis cited at `:7-11` (Robinson 2024, Refalo 2024, Martikainen 2025; per-rep RIR R²=0.93-0.97 J Strength Cond Res 2020).
+`DEFAULT_DECAY_RATE = 0.4`. Research basis cited in the module header (Robinson 2024, Refalo 2024, Martikainen 2025; per-rep RIR R²=0.93-0.97 J Strength Cond Res 2020).
 
 ## Session analytics
 
