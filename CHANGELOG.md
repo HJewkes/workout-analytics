@@ -14,6 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **`computeCoverage` rejects a bad `binWidth` and counts a set at exactly e1RM (VW-827).** The signature is unchanged. Each behaviour change:
+  - A `binWidth` of 0, a negative number, NaN or ±Infinity throws a `RangeError`. Before, 0, a negative width and -Infinity never finished the bin loop and ran out of memory; NaN returned no bins and +Infinity one bin.
+  - A point exactly at the top of `binRange` (100% e1RM with the default range) counts in the top bin, as `buildCoverageMap` already does. Before, the top bin was `[low, high)` and dropped it. Points above the range are still dropped.
 - **NaN and ±Infinity no longer become confident answers (VW-825).** Signatures and return types are unchanged. Each behaviour change:
   - `estimatePercent1RMFromVelocity`, `categorizeVelocity` and `interpolate` throw a `RangeError` for a non-finite input. Before, NaN gave 50 %1RM, the `'speed'` zone and the scheme's last output; ±Infinity was clamped to an edge.
   - `estimateSetRIR` reads a non-finite velocity loss like a set with no derivable loss (RIR 6, RPE 4, confidence `'low'`). Before, a NaN loss gave RIR 0 / RPE 10, and an infinite loss gave the same with confidence `'high'`.

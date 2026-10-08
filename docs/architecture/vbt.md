@@ -162,8 +162,8 @@ interface CoverageResult {
 
 | Function | Source line | Notes |
 | --- | --- | --- |
-| `computeCoverage(dataPoints, e1RM, options?)` | `:56-120` | `options.binWidth` (default 10), `options.binRange` (default `[40, 100]`), `options.stalenessMs` (filter old points). Returns empty score (0) if `e1RM <= 0`. |
-| `identifyCoverageGaps(coverage, minObservations = 1)` | `:132-137` | Bins below the threshold count. |
+| `computeCoverage(dataPoints, e1RM, options?)` | `:59-127` | `options.binWidth` (default 10; throws `RangeError` unless finite and positive), `options.binRange` (default `[40, 100]`), `options.stalenessMs` (filter old points). Returns empty score (0) if `e1RM <= 0`. A point at exactly the top of `binRange` counts in the top bin, like `buildCoverageMap`. |
+| `identifyCoverageGaps(coverage, minObservations = 1)` | `:139-144` | Bins below the threshold count. |
 
 Used to direct exploration sets — schedule the athlete at intensities that are under-represented in their training history.
 
