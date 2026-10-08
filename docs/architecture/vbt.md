@@ -33,15 +33,15 @@ Mean concentric velocity at percentage of 1RM (Gonzalez-Badillo et al.). Defined
 | Function | Source line | Description |
 | --- | --- | --- |
 | `estimatePercent1RMFromVelocity(velocity)` | `constants.ts:89-113` | Linear interpolation in `VELOCITY_AT_PERCENT_1RM`. Clamps to `[30, 100]`. |
-| `categorizeVelocity(velocity, zones?)` | `zones.ts:266-276` | Returns the **5-way** `VelocityZoneId` from **mean** concentric velocity (m/s). Bands default to the profile-derived / movement-class table (`getVelocityZones`), not a hardcoded scale. |
+| `categorizeVelocity(velocity, zones?)` | `zones.ts` | Returns the **5-way** `VelocityZoneId` from **mean** concentric velocity (m/s). Bands default to the profile-derived / movement-class table (`getVelocityZones`), not a hardcoded scale. |
 
 ### `VelocityZoneId` (canonical, 5-way)
 
-`'grinding' \| 'maximalStrength' \| 'strengthSpeed' \| 'power' \| 'speed'` (`src/vbt/zones.ts:27`). Bands are MEAN-concentric-velocity (WA-D02), profile-derived where an LV profile exists, else a movement-class default table — WA owns the boundaries; colors stay in the UI. Feed mean per-rep velocity (`getSetRepMeanVelocities`), never peak.
+`'grinding' \| 'maximalStrength' \| 'strengthSpeed' \| 'power' \| 'speed'` (`VelocityZoneId` in `src/vbt/zones.ts`). Bands are MEAN-concentric-velocity (WA-D02), profile-derived where an LV profile exists, else a movement-class default table — WA owns the boundaries; colors stay in the UI. Feed mean per-rep velocity (`getSetRepMeanVelocities`), never peak.
 
 ### `VelocityZone` (deprecated, 4-way)
 
-`'fast' \| 'moderate' \| 'slow' \| 'grinding'` (`src/vbt/zones.ts:37`) — superseded by the 5-way `VelocityZoneId`; retained only for backward compatibility.
+`'fast' \| 'moderate' \| 'slow' \| 'grinding'` (`VelocityZone` in `src/vbt/zones.ts`) — superseded by the 5-way `VelocityZoneId`; retained only for backward compatibility.
 
 ## Load-velocity profile
 
@@ -67,26 +67,26 @@ interface LoadVelocityProfile {
 }
 ```
 
-(`src/vbt/profile.ts:22-45`.)
+(`LoadVelocityDataPoint` and `LoadVelocityProfile` in `src/vbt/profile.ts`.)
 
 ### Functions
 
-| Function | Source line | Notes |
-| --- | --- | --- |
-| `buildProfile(dataPoints, mvt = DEFAULT_MVT)` | `:131-170` | OLS regression. Solves for `e1RM = (mvt − intercept) / slope`. |
-| `predictVelocity(profile, load)` | `:179-182` | Clamped to ≥0. |
-| `estimateLoad(profile, targetVelocity)` | `:191-195` | Returns 0 if slope is 0. |
-| `addDataPoint(profile, point)` | `:205-210` | Returns a new profile with the additional point. Re-runs OLS. |
+| Function | Notes |
+| --- | --- |
+| `buildProfile(dataPoints, mvt = DEFAULT_MVT)` | OLS regression. Solves for `e1RM = (mvt − intercept) / slope`. A slope that is not negative, or an e1RM above 5× the heaviest load, is unusable: `low` confidence and `estimated1RM` 0. |
+| `predictVelocity(profile, load)` | Clamped to ≥0. |
+| `estimateLoad(profile, targetVelocity)` | Returns 0 if slope is 0. |
+| `addDataPoint(profile, point)` | Returns a new profile with the additional point. Re-runs OLS. |
 
-### Confidence rubric (`buildProfile`, `:152-159`)
+### Confidence rubric (`buildProfile`)
 
 | Confidence | Criteria |
 | --- | --- |
 | `high` | R² ≥ 0.90 AND ≥ 3 data points |
 | `medium` | R² ≥ 0.70 AND ≥ 2 data points |
-| `low` | otherwise |
+| `low` | otherwise, and always when the profile is unusable: the slope is zero, positive or NaN (flat or inverted), or the extrapolated e1RM exceeds 5× the heaviest load seen (`MAX_E1RM_TO_MAX_LOAD_RATIO`, a near-zero negative slope). `estimated1RM` is then 0 |
 
-OLS internals at `src/vbt/profile.ts:61-111` (`olsRegression`, including degenerate-case handling for empty / single-point / zero-variance inputs).
+OLS internals in `src/vbt/profile.ts` (private `olsRegression`, including degenerate-case handling for empty / single-point / zero-variance inputs).
 
 ## Velocity baseline
 
@@ -126,11 +126,11 @@ interface E1RMEstimate {
 
 ### Functions
 
-| Function | Source line | Confidence formula |
-| --- | --- | --- |
-| `estimateE1RMFromProfile(profile, mvt = 0.17)` | `:47-67` | `R² × min(1, n / 5)` — needs both fit quality and data volume. |
-| `estimateE1RMFromReps(load, reps)` | `:90-119` | Epley: `load × (1 + reps / 30)`. Confidence: 0.5 (1 rep), 0.9 (≤5), 0.85 (≤8), 0.7 (≤12), decays beyond 12. |
-| `estimateHybridE1RM(velocityEstimate, repsEstimate)` | `:138-168` | Confidence-weighted average of e1RMs. Confidence boosted by agreement between methods (`0.8 + 0.2 × agreement` factor). |
+| Function | Confidence formula |
+| --- | --- |
+| `estimateE1RMFromProfile(profile, mvt = 0.17)` | `R² × min(1, n / 5)` — needs both fit quality and data volume. Returns e1RM 0 and confidence 0 when the slope is not negative or the e1RM exceeds 5× the heaviest load in the profile. |
+| `estimateE1RMFromReps(load, reps)` | Epley: `load × (1 + reps / 30)`. Confidence: 0.5 (1 rep), 0.9 (≤5), 0.85 (≤8), 0.7 (≤12), decays beyond 12. |
+| `estimateHybridE1RM(velocityEstimate, repsEstimate)` | Confidence-weighted average of e1RMs. Confidence boosted by agreement between methods (`0.8 + 0.2 × agreement` factor). |
 
 ### Method selection (in `computeStrengthEstimate`, `src/analytics/session.ts:78-126`)
 
