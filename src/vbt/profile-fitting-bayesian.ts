@@ -22,11 +22,17 @@ import type { LoadVelocityDataPoint } from './profile.js';
 export interface BayesianLVPrior {
   /** Prior mean for a (intercept = velocity at zero load). Default 1.5 m/s. */
   meanA?: number;
-  /** Prior mean for b (slope = velocity decline per kg). Default -0.005. */
+  /**
+   * Prior mean for b (slope = velocity change per lb of load). Default
+   * -0.005 / 2.20462 ≈ -0.00227, i.e. -0.005 m/s per kg expressed per lb.
+   */
   meanB?: number;
   /** Prior variance on a. Default 1.0 (weakly informative). */
   varA?: number;
-  /** Prior variance on b. Default 0.001. */
+  /**
+   * Prior variance on b, in (m/s per lb)². Default 0.001 / 2.20462² ≈ 2.06e-4,
+   * the per-kg variance 0.001 rescaled with the slope (Var(b/c) = Var(b)/c²).
+   */
   varB?: number;
   /**
    * Observation noise variance (assumed homoscedastic).
@@ -61,6 +67,9 @@ export interface BayesianLVPosterior {
 // Internal helpers
 // =============================================================================
 
+/** Loads are lb; the default slope prior is stated per kg and converted. */
+const LB_PER_KG = 2.20462;
+
 /** Resolved prior with all fields present. */
 interface ResolvedPrior {
   meanA: number;
@@ -73,25 +82,27 @@ interface ResolvedPrior {
 function resolvePrior(prior?: BayesianLVPrior): ResolvedPrior {
   return {
     meanA: prior?.meanA ?? 1.5,
-    meanB: prior?.meanB ?? -0.005,
+    meanB: prior?.meanB ?? -0.005 / LB_PER_KG,
     varA: prior?.varA ?? 1.0,
-    varB: prior?.varB ?? 0.001,
+    varB: prior?.varB ?? 0.001 / LB_PER_KG ** 2,
     sigma2: prior?.sigma2 ?? 0.01,
   };
 }
 
 /**
  * Invert a 2×2 symmetric positive-definite matrix [[a,b],[b,d]].
- * Returns [[a,b],[b,d]]^-1. Throws if the matrix is singular (det ≈ 0).
+ * Returns [[a,b],[b,d]]^-1, or null if the matrix is singular.
  */
-function invert2x2(a: number, b: number, d: number): { a: number; b: number; d: number } {
+function invert2x2(a: number, b: number, d: number): { a: number; b: number; d: number } | null {
   const det = a * d - b * b;
-  if (Math.abs(det) < 1e-15) {
-    // Degenerate: return near-zero precision → near-infinite variance (prior dominates).
-    const huge = 1e15;
-    return { a: huge, b: 0, d: huge };
-  }
+  // Relative tolerance: a*d - b*b cancels catastrophically, so its rounding
+  // error scales with a*d rather than being a fixed absolute amount.
+  if (!(det > 1e-12 * Math.abs(a * d))) return null;
   return { a: d / det, b: -b / det, d: a / det };
+}
+
+function priorPosterior(p: ResolvedPrior, n: number): BayesianLVPosterior {
+  return { a: p.meanA, b: p.meanB, varA: p.varA, varB: p.varB, corr: 0, rSquared: 0, n };
 }
 
 /**
@@ -139,14 +150,17 @@ function computeRSquared(data: LoadVelocityDataPoint[], a: number, b: number): n
  *
  * @param data  - Observed load-velocity pairs (uses `load` and `velocity`).
  * @param prior - Prior hyperparameters. Defaults are weakly informative for
- *                typical barbell lifts (intercept ≈ 1.5 m/s, slope ≈ -0.005).
+ *                typical barbell lifts (intercept ≈ 1.5 m/s, slope ≈ -0.005
+ *                m/s per kg, stored per lb because loads are lb).
  * @returns Posterior mean + covariance + R² diagnostic.
  *
  * @remarks
- * **Degeneracy**: if all data points share the same load value, X'X is rank-1
- * (singular). The `invert2x2` guard returns near-infinite covariance in that
- * case so the posterior collapses to the prior on the degenerate axis rather
- * than producing NaN. The returned `corr` will be 0 in that case.
+ * **Same-load data**: if all points share one load L, X'X is rank-1 but the
+ * diagonal prior keeps Λ_post full rank. The data pin only a + L·b, so `corr`
+ * is close to -1 and b moves only by the prior-weighted share of the residual
+ * at L. Under a flat intercept prior (varA = Infinity) the slope posterior is
+ * exactly the prior. Only a singular Λ_post (flat priors on both axes with
+ * same-load data) returns the prior unchanged, with `corr` 0.
  */
 export function fitLVProfileBayesian(
   data: LoadVelocityDataPoint[],
@@ -154,17 +168,7 @@ export function fitLVProfileBayesian(
 ): BayesianLVPosterior {
   const p = resolvePrior(prior);
 
-  if (data.length === 0) {
-    return {
-      a: p.meanA,
-      b: p.meanB,
-      varA: p.varA,
-      varB: p.varB,
-      corr: 0,
-      rSquared: 0,
-      n: 0,
-    };
-  }
+  if (data.length === 0) return priorPosterior(p, 0);
 
   // Accumulate X'X (2×2 symmetric) and X'y (2-vector).
   // X row i = [1, load_i], so:
@@ -203,6 +207,7 @@ export function fitLVProfileBayesian(
 
   // Posterior covariance = inverse of posterior precision.
   const cov = invert2x2(postPrecAA, postPrecAB, postPrecBB);
+  if (cov === null) return priorPosterior(p, n);
   const postVarA = cov.a;
   const postCovAB = cov.b;
   const postVarB = cov.d;
