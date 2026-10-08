@@ -48,7 +48,7 @@ export function estimateE1RMFromProfile(
   profile: LoadVelocityProfile,
   mvt: number = DEFAULT_MVT
 ): E1RMEstimate {
-  if (profile.slope === 0 || profile.dataPoints.length === 0) {
+  if (!(profile.slope < 0) || profile.dataPoints.length === 0) {
     return { e1RM: 0, confidence: 0, method: 'profile' };
   }
 
