@@ -16,7 +16,7 @@
  */
 
 import type { LoadVelocityProfile } from './profile.js';
-import { predictVelocity } from './profile.js';
+import { isPlausibleE1RM, predictVelocity } from './profile.js';
 import { DEFAULT_MVT } from './constants.js';
 
 // =============================================================================
@@ -207,7 +207,8 @@ function boundariesFromProfile(
  * Resolve the velocity-zone bands to use, in priority order:
  *
  *   1. **Profile-derived** — when a usable `LoadVelocityProfile` is supplied
- *      (`confidence !== 'low'`): boundaries are anchored at fixed %1RM loads and
+ *      (`confidence !== 'low'`, a negative slope, and an e1RM no more than 5x the
+ *      heaviest load in the profile; a near-zero slope fails this): boundaries are anchored at fixed %1RM loads and
  *      mapped through the individual's own profile via `predictVelocity`,
  *      floored at the profile MVT and capped at V0 (`intercept`). Zones ride the
  *      profile and upgrade automatically as data accrues. `source: 'profile'`.
@@ -223,7 +224,13 @@ export function getVelocityZones(opts?: GetVelocityZonesOptions): VelocityZones 
   const profile = opts?.profile;
   const mvt = opts?.mvt ?? profile?.mvt ?? DEFAULT_MVT;
 
-  if (profile && profile.confidence !== 'low' && profile.slope < 0 && profile.estimated1RM > 0) {
+  if (
+    profile &&
+    profile.confidence !== 'low' &&
+    profile.slope < 0 &&
+    profile.estimated1RM > 0 &&
+    isPlausibleE1RM(profile.estimated1RM, profile.dataPoints)
+  ) {
     return {
       bands: bandsFromBoundaries(boundariesFromProfile(profile, mvt)),
       source: 'profile',

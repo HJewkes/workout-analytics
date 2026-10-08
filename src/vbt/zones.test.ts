@@ -108,6 +108,14 @@ describe('getVelocityZones() — source priority', () => {
     expect(zones.source).toBe('movement-class-default');
   });
 
+  it('ignores a profile whose e1RM is implausibly far above its loads (VW-914)', () => {
+    const unusable = { ...HIGH_CONFIDENCE_PROFILE, slope: -1e-9, estimated1RM: 5.3e8 };
+
+    const zones = getVelocityZones({ profile: unusable, movementClass: 'cable' });
+
+    expect(zones.source).toBe('movement-class-default');
+  });
+
   it('honors an explicit mvt override', () => {
     const zones = getVelocityZones({ mvt: 0.25 });
     expect(zones.basis.mvt).toBe(0.25);
