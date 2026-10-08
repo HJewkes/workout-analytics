@@ -160,10 +160,10 @@ interface CoverageResult {
 
 ### Functions
 
-| Function | Source line | Notes |
-| --- | --- | --- |
-| `computeCoverage(dataPoints, e1RM, options?)` | `:59-127` | `options.binWidth` (default 10; throws `RangeError` unless finite and positive), `options.binRange` (default `[40, 100]`), `options.stalenessMs` (filter old points). Returns empty score (0) if `e1RM <= 0`. A point at exactly the top of `binRange` counts in the top bin, like `buildCoverageMap`. |
-| `identifyCoverageGaps(coverage, minObservations = 1)` | `:139-144` | Bins below the threshold count. |
+| Function | Notes |
+| --- | --- |
+| `computeCoverage(dataPoints, e1RM, options?)` | `options.binWidth` (default 10; throws `RangeError` unless finite and positive), `options.binRange` (default `[40, 100]`; throws `RangeError` for a NaN or ±Infinity bound, a max at or below its min, or a span too large to count in bins of `binWidth`), `options.stalenessMs` (filter old points). Bins are built by index (`low = rangeMin + i * binWidth`) from a bin count computed once (private `countBins` / `createBins`), so a fractional width adds no sliver top bin; the last bin may be narrower and ends at `rangeMax`. Returns empty score (0) if `e1RM <= 0`. A point at exactly the top of `binRange` counts in the top bin, like `buildCoverageMap`. |
+| `identifyCoverageGaps(coverage, minObservations = 1)` | Bins below the threshold count. |
 
 Used to direct exploration sets — schedule the athlete at intensities that are under-represented in their training history.
 
