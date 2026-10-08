@@ -14,6 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **`computeCoverage` no longer adds a sliver bin for a fractional `binWidth`, and rejects a bad `binRange` (VW-913).** The signature is unchanged. Each behaviour change:
+  - Bins are built by index (`low = rangeMin + i * binWidth`) from a bin count computed once, so rounding no longer piles up. A `binWidth` of 0.1 over `[0.6, 1]` gives 4 bins; before, it gave 5, the last one `[0.9999999999999999, 1]`, which almost no point could land in and which pulled `coverageScore` down. Results for widths and bounds that are exact in binary (such as the default 10 over `[40, 100]`) are unchanged.
+  - A `binRange` with a NaN or ±Infinity bound, a max at or below its min, or a span too large to count in bins of `binWidth` throws a `RangeError`. Before, an infinite bound never finished the bin loop and ran out of memory, and NaN or an empty range returned no bins with a `coverageScore` of 0.
 - **`computeCoverage` rejects a bad `binWidth` and counts a set at exactly e1RM (VW-827).** The signature is unchanged. Each behaviour change:
   - A `binWidth` of 0, a negative number, NaN or ±Infinity throws a `RangeError`. Before, 0, a negative width and -Infinity never finished the bin loop and ran out of memory; NaN returned no bins and +Infinity one bin.
   - A point exactly at the top of `binRange` (100% e1RM with the default range) counts in the top bin, as `buildCoverageMap` already does. Before, the top bin was `[low, high)` and dropped it. Points above the range are still dropped.
