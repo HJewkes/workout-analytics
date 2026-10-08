@@ -151,6 +151,10 @@ describe('estimateE1RMFromReps', () => {
     expect(estimateE1RMFromReps(100, 5).confidence).toBe(0.9);
   });
 
+  it('a single-rep set has confidence 0.5, not 0, because singles are mostly sub-max', () => {
+    expect(estimateE1RMFromReps(100, 1).confidence).toBe(0.5);
+  });
+
   it('has lower confidence at high reps', () => {
     expect(estimateE1RMFromReps(100, 15).confidence).toBeLessThan(0.7);
     expect(estimateE1RMFromReps(100, 20).confidence).toBeLessThan(0.5);
@@ -205,6 +209,41 @@ describe('estimateHybridE1RM', () => {
     const disagreeResult = estimateHybridE1RM(disagree1, disagree2);
 
     expect(agreeResult.confidence).toBeGreaterThan(disagreeResult.confidence);
+  });
+
+  it('a hybrid of two agreeing estimates is no less confident than the stronger input', () => {
+    const pairs: Array<[number, number]> = [
+      [0.2, 0.9],
+      [0.6, 0.6],
+      [0.3, 1.0],
+    ];
+    for (const [profileConf, repsConf] of pairs) {
+      const profile: E1RMEstimate = { e1RM: 120, confidence: profileConf, method: 'profile' };
+      const reps: E1RMEstimate = { e1RM: 120, confidence: repsConf, method: 'reps' };
+
+      const hybrid = estimateHybridE1RM(profile, reps);
+
+      expect(hybrid.confidence).toBeGreaterThanOrEqual(Math.max(profileConf, repsConf));
+    }
+  });
+
+  it('a zero-confidence profile leaves the reps estimate and its confidence unchanged', () => {
+    const failedProfile: E1RMEstimate = { e1RM: 0, confidence: 0, method: 'profile' };
+    const reps: E1RMEstimate = { e1RM: 110, confidence: 0.9, method: 'reps' };
+
+    const hybrid = estimateHybridE1RM(failedProfile, reps);
+
+    expect(hybrid.e1RM).toBe(110);
+    expect(hybrid.confidence).toBeCloseTo(0.9, 10);
+  });
+
+  it('two equally confident estimates a third apart are less confident than either', () => {
+    const profile: E1RMEstimate = { e1RM: 100, confidence: 0.8, method: 'profile' };
+    const reps: E1RMEstimate = { e1RM: 150, confidence: 0.8, method: 'reps' };
+
+    const hybrid = estimateHybridE1RM(profile, reps);
+
+    expect(hybrid.confidence).toBeLessThan(0.8);
   });
 
   it('confidence is bounded 0-1', () => {

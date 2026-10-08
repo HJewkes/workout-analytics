@@ -128,6 +128,46 @@ describe('computeStrengthEstimate', () => {
     expect(result.estimated1RM).toBeCloseTo(99, 0);
   });
 
+  it('a 3-rep set at 90 lb outranks a 20-rep set at 60 lb', () => {
+    // 3 @ 90: Epley 99, confidence 0.9. 20 @ 60: Epley 100, confidence 0.3.
+    const result = computeStrengthEstimate([buildTestSet(20), buildTestSet(3)], [60, 90]);
+    expect(result.estimated1RM).toBeCloseTo(99, 5);
+    expect(result.confidence).toBe(0.9);
+  });
+
+  it('a light warm-up set does not outrank a heavy working set', () => {
+    // 5 @ 20 is in the most confident band, but 6 @ 100 (Epley 120) is the lift.
+    const result = computeStrengthEstimate([buildTestSet(5), buildTestSet(6)], [20, 100]);
+    expect(result.estimated1RM).toBeCloseTo(120, 5);
+  });
+
+  it('a heavy single outranks a light 5-rep set', () => {
+    const result = computeStrengthEstimate([buildTestSet(1), buildTestSet(5)], [100, 60]);
+    expect(result.estimated1RM).toBeCloseTo(103.33, 1);
+  });
+
+  it('a 5-rep warm-up at 30 does not outrank a 20-rep set at 60', () => {
+    const result = computeStrengthEstimate([buildTestSet(20), buildTestSet(5)], [60, 30]);
+    expect(result.estimated1RM).toBeCloseTo(100, 5);
+    expect(result.confidence).toBeCloseTo(0.3, 10);
+  });
+
+  it('a 5-rep warm-up at 25 does not outrank three 20-rep sets at 40', () => {
+    const work = [buildTestSet(20), buildTestSet(20), buildTestSet(20)];
+    const result = computeStrengthEstimate([buildTestSet(5), ...work], [25, 40, 40, 40]);
+    expect(result.estimated1RM).toBeCloseTo(66.67, 1);
+  });
+
+  it('a single at 90 after a 15-rep set at 100 does not set the estimate', () => {
+    const result = computeStrengthEstimate([buildTestSet(15), buildTestSet(1)], [100, 90]);
+    expect(result.estimated1RM).toBeCloseTo(150, 5);
+  });
+
+  it('a single at 95 after a 10-rep set at 90 does not set the estimate', () => {
+    const result = computeStrengthEstimate([buildTestSet(10), buildTestSet(1)], [90, 95]);
+    expect(result.estimated1RM).toBeCloseTo(120, 5);
+  });
+
   it('uses hybrid method when profile available', () => {
     const set = buildTestSet(5);
     const profile = buildProfile([
