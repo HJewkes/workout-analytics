@@ -2,6 +2,7 @@
  * Coverage Tracking Tests
  */
 
+import { spawnSync } from 'node:child_process';
 import { describe, it, expect } from 'vitest';
 import { computeCoverage, identifyCoverageGaps } from '@/vbt/coverage';
 import type { LoadVelocityDataPoint } from '@/vbt/profile';
@@ -152,7 +153,151 @@ describe('computeCoverage', () => {
     expect(vbtBins[vbtBins.length - 1].count).toBe(1);
     expect(mapBins[mapBins.length - 1].pointCount).toBe(1);
   });
+
+  it('builds exactly four bins for a 0.1 width over [0.6, 1]', () => {
+    // Act
+    const result = computeCoverage([], 100, { binWidth: 0.1, binRange: [0.6, 1] });
+
+    // Assert
+    expect(result.bins).toHaveLength(4);
+    expect(result.bins[3].range[1]).toBe(1);
+  });
+
+  it.each([
+    { binWidth: 0.01, binRange: [139.95, 139.96], bins: 1 },
+    { binWidth: 0.1, binRange: [1e6 + 0.1, 1e6 + 0.4], bins: 3 },
+  ] as const)(
+    'adds no sliver bin when $binRange spans whole widths of $binWidth far from zero',
+    ({ binWidth, binRange, bins }) => {
+      // Act
+      const result = computeCoverage([], 100, { binWidth, binRange: [...binRange] });
+
+      // Assert
+      expect(result.bins).toHaveLength(bins);
+      const [lastLow, lastHigh] = result.bins[bins - 1].range;
+      expect(lastHigh).toBe(binRange[1]);
+      expect(lastHigh - lastLow).toBeGreaterThan(binWidth / 2);
+    }
+  );
+
+  it('scores full coverage when every fractional-width bin has a point', () => {
+    // Arrange
+    const points: LoadVelocityDataPoint[] = [
+      0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95,
+    ].map((load) => ({ load, velocity: 0.5, timestamp: now }));
+
+    // Act
+    const result = computeCoverage(points, 100, { binWidth: 0.1, binRange: [0, 1] });
+
+    // Assert
+    expect(result.bins).toHaveLength(10);
+    expect(result.coverageScore).toBe(1);
+  });
+
+  it('shares bin lower edges with buildCoverageMap for a fractional width', () => {
+    // Act
+    const vbtBins = computeCoverage([], 1, { binWidth: 0.1, binRange: [0.6, 1] }).bins;
+    const mapBins = buildCoverageMap([], 1, { binCount: 4, binMinPctE1RM: 0.6, binMaxPctE1RM: 1 });
+
+    // Assert
+    expect(vbtBins.map((bin) => bin.range[0])).toEqual(mapBins.map((bin) => bin.binMinPctE1RM));
+  });
+
+  it.each([
+    {
+      binWidth: 10,
+      binRange: [40, 100],
+      expected: [
+        [40, 50],
+        [50, 60],
+        [60, 70],
+        [70, 80],
+        [80, 90],
+        [90, 100],
+      ],
+    },
+    {
+      binWidth: 25,
+      binRange: [40, 100],
+      expected: [
+        [40, 65],
+        [65, 90],
+        [90, 100],
+      ],
+    },
+    {
+      binWidth: 0.25,
+      binRange: [0, 1],
+      expected: [
+        [0, 0.25],
+        [0.25, 0.5],
+        [0.5, 0.75],
+        [0.75, 1],
+      ],
+    },
+  ] as const)(
+    'keeps exact-width bins of $binWidth over $binRange',
+    ({ binWidth, binRange, expected }) => {
+      // Act
+      const result = computeCoverage([], 100, { binWidth, binRange: [...binRange] });
+
+      // Assert
+      expect(result.bins.map((bin) => bin.range)).toEqual(expected);
+    }
+  );
+
+  it.each([
+    [NaN, 100],
+    [40, NaN],
+    [100, 40],
+    [40, 40],
+  ])('rejects a binRange of [%s, %s]', (rangeMin, rangeMax) => {
+    // Act
+    const run = () => computeCoverage(EVEN_DATA, 100, { binRange: [rangeMin, rangeMax] });
+
+    // Assert
+    expect(run).toThrow(RangeError);
+  });
+
+  it.each([
+    ['40', 'Infinity'],
+    ['-Infinity', '100'],
+    ['-1e308', '1e308'],
+  ])(
+    'rejects a binRange of [%s, %s] without hanging',
+    { timeout: 30_000 },
+    (rangeMin, rangeMax) => {
+      // Act
+      const outcome = runCoverageInChild(rangeMin, rangeMax);
+
+      // Assert
+      expect(outcome).toBe('RangeError');
+    }
+  );
 });
+
+/**
+ * Call computeCoverage in a child process with a small heap and a deadline,
+ * so a bin loop that never ends fails this test instead of hanging the suite.
+ */
+function runCoverageInChild(rangeMin: string, rangeMax: string): string {
+  const moduleUrl = new URL('./coverage.ts', import.meta.url).href;
+  const script = `
+    const { computeCoverage } = await import(${JSON.stringify(moduleUrl)});
+    const binRange = [Number(${JSON.stringify(rangeMin)}), Number(${JSON.stringify(rangeMax)})];
+    try {
+      computeCoverage([], 100, { binRange });
+      console.log('returned');
+    } catch (error) {
+      console.log(error.constructor.name);
+    }`;
+  const child = spawnSync(
+    process.execPath,
+    ['--max-old-space-size=128', '--import', 'tsx', '--input-type=module', '-e', script],
+    { encoding: 'utf8', timeout: 15_000 }
+  );
+  return child.stdout.trim() || `no result (signal ${child.signal}, status ${child.status})`;
+}
 
 // =============================================================================
 // identifyCoverageGaps
