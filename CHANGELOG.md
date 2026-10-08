@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **An inverted or non-finite load-velocity slope is no longer a confident profile (VW-826).** `buildProfile` rates a profile whose slope is zero, positive or NaN as `'low'` confidence with `estimated1RM` 0, and `estimateE1RMFromProfile` returns `e1RM` 0 and confidence 0 for it. Before, a positive slope could be rated `'high'` and yield a nonsense e1RM, and a NaN slope returned an e1RM of NaN. `getVelocityZones` also ignores a profile whose slope is not negative and falls back to the class default.
 - **`computeCoverage` rejects a bad `binWidth` and counts a set at exactly e1RM (VW-827).** The signature is unchanged. Each behaviour change:
   - A `binWidth` of 0, a negative number, NaN or ±Infinity throws a `RangeError`. Before, 0, a negative width and -Infinity never finished the bin loop and ran out of memory; NaN returned no bins and +Infinity one bin.
   - A point exactly at the top of `binRange` (100% e1RM with the default range) counts in the top bin, as `buildCoverageMap` already does. Before, the top bin was `[low, high)` and dropped it. Points above the range are still dropped.

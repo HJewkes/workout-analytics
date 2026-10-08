@@ -223,7 +223,7 @@ export function getVelocityZones(opts?: GetVelocityZonesOptions): VelocityZones 
   const profile = opts?.profile;
   const mvt = opts?.mvt ?? profile?.mvt ?? DEFAULT_MVT;
 
-  if (profile && profile.confidence !== 'low' && profile.estimated1RM > 0) {
+  if (profile && profile.confidence !== 'low' && profile.slope < 0 && profile.estimated1RM > 0) {
     return {
       bands: bandsFromBoundaries(boundariesFromProfile(profile, mvt)),
       source: 'profile',

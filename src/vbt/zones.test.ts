@@ -96,6 +96,18 @@ describe('getVelocityZones() — source priority', () => {
     expect(zones.bands.map((b) => b.max)).toEqual([0.25, 0.4, 0.6, 0.85, null]);
   });
 
+  it.each([
+    ['positive', 0.008],
+    ['zero', 0],
+    ['NaN', NaN],
+  ])('ignores a high-confidence profile with a %s slope (VW-826)', (_name, slope) => {
+    const unusable = { ...HIGH_CONFIDENCE_PROFILE, slope, estimated1RM: 120 };
+
+    const zones = getVelocityZones({ profile: unusable, movementClass: 'cable' });
+
+    expect(zones.source).toBe('movement-class-default');
+  });
+
   it('honors an explicit mvt override', () => {
     const zones = getVelocityZones({ mvt: 0.25 });
     expect(zones.basis.mvt).toBe(0.25);

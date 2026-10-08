@@ -76,6 +76,29 @@ describe('estimateE1RMFromProfile', () => {
 // estimateE1RMFromReps
 // =============================================================================
 
+describe('estimateE1RMFromProfile — unusable slope (VW-826)', () => {
+  const good = buildProfile(LINEAR_DATA);
+
+  it.each([
+    ['positive', 0.008],
+    ['zero', 0],
+    ['NaN', NaN],
+  ])('returns e1RM 0 and confidence 0 for a %s slope', (_name, slope) => {
+    const profile = { ...good, slope, intercept: 0.1 };
+
+    const result = estimateE1RMFromProfile(profile);
+
+    expect(result).toEqual({ e1RM: 0, confidence: 0, method: 'profile' });
+  });
+
+  it('leaves a normal negative slope unchanged', () => {
+    const result = estimateE1RMFromProfile(good);
+
+    expect(good.slope).toBeLessThan(0);
+    expect(result.e1RM).toBeCloseTo(133, 0);
+  });
+});
+
 describe('estimateE1RMFromReps', () => {
   it('applies Epley formula correctly', () => {
     // 100kg * (1 + 5/30) = 100 * 1.1667 = 116.67

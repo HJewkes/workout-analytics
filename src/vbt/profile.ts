@@ -122,7 +122,7 @@ function olsRegression(xs: number[], ys: number[]): RegressionResult {
  * Confidence is determined by:
  * - 'high': R² >= 0.90 and >= 3 data points
  * - 'medium': R² >= 0.70 and >= 2 data points
- * - 'low': everything else
+ * - 'low': everything else, including any profile whose slope is not negative
  *
  * @param dataPoints - Observed load-velocity pairs
  * @param mvt - Minimum velocity threshold (default 0.17 m/s)
@@ -141,8 +141,10 @@ export function buildProfile(
   // velocity = slope * load + intercept
   // mvt = slope * load + intercept
   // load = (mvt - intercept) / slope
+  // Only a falling line (more load, less velocity) is a usable LV profile.
+  const slopeUsable = slope < 0;
   let estimated1RM = 0;
-  if (slope !== 0) {
+  if (slopeUsable) {
     estimated1RM = (mvt - intercept) / slope;
     // Sanity: 1RM should be positive
     if (estimated1RM < 0) estimated1RM = 0;
@@ -150,7 +152,9 @@ export function buildProfile(
 
   // Determine confidence
   let confidence: 'high' | 'medium' | 'low';
-  if (rSquared >= 0.9 && dataPoints.length >= 3) {
+  if (!slopeUsable) {
+    confidence = 'low';
+  } else if (rSquared >= 0.9 && dataPoints.length >= 3) {
     confidence = 'high';
   } else if (rSquared >= 0.7 && dataPoints.length >= 2) {
     confidence = 'medium';
