@@ -27,7 +27,7 @@ Engine: Node `>=20.0.0` (`package.json:120-122`).
 - Hardware-agnostic data model: `WorkoutSample` → `Phase` → `Rep` → `Set`.
 - O(1) running aggregates on `Phase` (mean/peak velocity, force, load; hold time).
 - Tempo formatting (`E-PB-C-PT`).
-- Defensive `Math.abs` on velocity inside `addSampleToPhase` (`src/models/phase.ts:74`) — hardens against signed velocity from SDK 0.6.0+.
+- Defensive `Math.abs` on velocity inside `addSampleToPhase` (`src/models/phase.ts`) — hardens against signed velocity from SDK 0.6.0+.
 - Full analytics surface: rep, set, fatigue, quality, intensity, session. See `analytics-surface.md`.
 - VBT: constants table, OLS profile builder, baseline interpolation, e1RM (profile / Epley / hybrid), coverage tracking, advanced fitting (recency / quality / Huber-IRLS / uncertainty). See `vbt.md`.
 - Stats primitives: Welford `StreamingDistribution`, breakpoint and interpolation schemes, defaults for RIR / consistency / outlier / quality / confidence. See `stats.md`.
@@ -69,13 +69,13 @@ These cost time before. See `data-model.md` "Unit hazards" for full detail.
 
 | Gotcha | Mitigation |
 | --- | --- |
-| `WorkoutSample.velocity` MUST be magnitude only (m/s, ≥ 0). SDK 0.6.0+ provides signed `int16`. | Adapter applies `Math.abs`. Phase aggregation defends with `Math.abs` (`src/models/phase.ts:74`). |
+| `WorkoutSample.velocity` MUST be magnitude only (m/s, ≥ 0). SDK 0.6.0+ provides signed `int16`. | Adapter applies `Math.abs`. Phase aggregation defends with `Math.abs` (`addSampleToPhase` in `src/models/phase.ts`). |
 | `WorkoutSample.force` MUST be lbs. SDK frames are tenths-of-lbs. | Adapter divides by 10. **No runtime guard** — bug silently 10×s impulse / work / power. |
 | `getRepWork` / `getRepImpulse` return lbs-derived units, NOT SI. | Documented in JSDoc; consumers must scale. |
 | `prepareForSave` overwrites caller's `schemaVersion`. | Documented in `SessionStore.saveSession` JSDoc and `src/store/prepare-for-save.ts`. Caller can pass any number. |
-| `validators` MUST NOT use `.default()`, `.transform()`, `.coerce()`. | D19 invariant in `src/schema/validators.ts:1-9`. Enforced by `validators.test.ts`. |
+| `validators` MUST NOT use `.default()`, `.transform()`, `.coerce()`. | D19 invariant in `src/schema/validators.ts`. Enforced by `validators.test.ts`. |
 | WAL must succeed at connect time. | `applyConnectionPragmas` reads back `journal_mode` and throws `StoreError` if not `'wal'`. |
-| `db.transaction(fn)` (better-sqlite3) rejects async callbacks. | `BetterSqlite3Driver` issues BEGIN/COMMIT manually + serializes via promise mutex. See `src/store/sqlite-node/driver.ts:14-28`. |
+| `db.transaction(fn)` (better-sqlite3) rejects async callbacks. | `BetterSqlite3Driver` issues BEGIN/COMMIT manually + serializes via promise mutex. See `src/store/sqlite-node/driver.ts`. |
 
 ## Testing footprint
 

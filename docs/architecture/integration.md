@@ -32,11 +32,11 @@ The `LiveState` class holds an in-progress `Set` (`_analyticsSet: AnalyticsSet |
 
 | Phase | Code in `live-state.ts` |
 | --- | --- |
-| Set start | `this._analyticsSet = createSet();` (around `:205`) |
-| Sample ingest | `this._analyticsSet = addSampleToSet(this._analyticsSet, sample);` (around `:276`) |
-| Set end | `completeSet(this._analyticsSet).reps` (around `:225-230`) |
+| Set start | `this._analyticsSet = createSet();` |
+| Sample ingest | `this._analyticsSet = addSampleToSet(this._analyticsSet, sample);` |
+| Set end | `completeSet(this._analyticsSet).reps` |
 
-The class header (around `:134`) describes this as "the canonical mobile-app pipeline" — confirming MCP and mobile follow the same shape.
+The `LiveState` class header describes this as "the canonical mobile-app pipeline" — confirming MCP and mobile follow the same shape.
 
 ### Samples come from the bridge
 
@@ -91,7 +91,7 @@ The package is hardware-agnostic, so vendor-frame translation is **outside** its
 | `voltras-mcp` | Inline within bridge / live-state code. |
 | `voltras/mobile` | `voltras/mobile/src/domain/device/voltra-adapter.ts`. |
 
-The unit contract (`data-model.md` "Unit hazards") is enforced **at this boundary**. The package defends against signed velocity via `Math.abs` in `addSampleToPhase` (`src/models/phase.ts:74`), but force is opaque — adapter bugs that forward tenths-of-lbs silently 10× the impulse / work / power outputs.
+The unit contract (`data-model.md` "Unit hazards") is enforced **at this boundary**. The package defends against signed velocity via `Math.abs` in `addSampleToPhase` (`src/models/phase.ts`), but force is opaque — adapter bugs that forward tenths-of-lbs silently 10× the impulse / work / power outputs.
 
 Workspace integration plan `sources/integration-plans/raw-signal-architecture.md:122` summarizes this: "Sample contract is strict — units matter, signed velocity from SDK 0.6.0+ must be `Math.abs`'d at the adapter boundary, force in tenths-lbs must be divided by 10."
 

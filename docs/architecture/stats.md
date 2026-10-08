@@ -12,7 +12,7 @@ Source: `src/stats/`. Two abstractions: `StreamingDistribution` (incremental sta
 
 ## `StreamingDistribution`
 
-Definition: `src/stats/distribution.ts:12-23`. Immutable. Uses Welford's online algorithm for numerically stable variance.
+Definition: `src/stats/distribution.ts`. Immutable. Uses Welford's online algorithm for numerically stable variance.
 
 ```ts
 interface StreamingDistribution {
@@ -24,7 +24,7 @@ interface StreamingDistribution {
 }
 ```
 
-`EMPTY_DISTRIBUTION` (`:29-35`) is `Object.freeze`'d with `n=0, sum=0, m2=0, min=Infinity, max=-Infinity`.
+`EMPTY_DISTRIBUTION` is `Object.freeze`'d with `n=0, sum=0, m2=0, min=Infinity, max=-Infinity`.
 
 ### Why both `sum` and `m2`?
 
@@ -35,25 +35,25 @@ interface StreamingDistribution {
 
 Source: `src/stats/distribution.ts`. All immutable — mutators return new objects.
 
-| Function | Source line | Notes |
-| --- | --- | --- |
-| `createDistribution()` | `:40-42` | Returns `EMPTY_DISTRIBUTION`. |
-| `addSample(dist, value)` | `:48-64` | Welford update: `oldMean → newMean → m2 += (v - oldMean)(v - newMean)`. |
-| `mergeDist(a, b)` | `:70-93` | Parallel variance algorithm (Chan et al.) for combining two independent distributions: `m2 = a.m2 + b.m2 + δ² × a.n × b.n / n`. |
-| `getMean(dist)` | `:99-102` | `0` for empty. |
-| `getVariance(dist)` | `:108-111` | Sample variance with Bessel's correction (`m2 / (n-1)`). `0` for n < 2. |
-| `getStdDev(dist)` | `:117-119` | `Math.sqrt(getVariance)`. |
-| `getZScore(dist, value)` | `:125-129` | Returns `0` if stdDev is `0` (n < 2 or all same values). |
-| `getCV(dist)` | `:135-139` | Coefficient of variation = `stdDev / |mean|`. `0` if mean is `0`. |
-| `isOutlier(dist, value, zThreshold = 2.0)` | `:145-151` | |
-| `isWithinRange(dist, value, sigmas = 2.0)` | `:157-163` | |
-| `buildDistribution(values)` | `:169-171` | Convenience — folds an array via `addSample`. |
+| Function | Notes |
+| --- | --- |
+| `createDistribution()` | Returns `EMPTY_DISTRIBUTION`. |
+| `addSample(dist, value)` | Welford update: `oldMean → newMean → m2 += (v - oldMean)(v - newMean)`. |
+| `mergeDist(a, b)` | Parallel variance algorithm (Chan et al.) for combining two independent distributions: `m2 = a.m2 + b.m2 + δ² × a.n × b.n / n`. |
+| `getMean(dist)` | `0` for empty. |
+| `getVariance(dist)` | Sample variance with Bessel's correction (`m2 / (n-1)`). `0` for n < 2. |
+| `getStdDev(dist)` | `Math.sqrt(getVariance)`. |
+| `getZScore(dist, value)` | Returns `0` if stdDev is `0` (n < 2 or all same values). |
+| `getCV(dist)` | Coefficient of variation = `stdDev / |mean|`. `0` if mean is `0`. |
+| `isOutlier(dist, value, zThreshold = 2.0)` | |
+| `isWithinRange(dist, value, sigmas = 2.0)` | |
+| `buildDistribution(values)` | Convenience — folds an array via `addSample`. |
 
-Re-exported from `src/index.ts:67-81`.
+Re-exported from `src/index.ts`.
 
 ## `BreakpointScheme<T>`
 
-Definition: `src/stats/schemes.ts:29-32`. Maps numeric values to a category `T` via ordered breakpoints.
+Definition: `src/stats/schemes.ts`. Maps numeric values to a category `T` via ordered breakpoints.
 
 ```ts
 interface BreakpointScheme<T> {
@@ -62,13 +62,13 @@ interface BreakpointScheme<T> {
 }
 ```
 
-`classifyByBreakpoints(value, scheme)` (`:62-69`) returns the value of the first breakpoint where `value < below`, or `fallback` if none match.
+`classifyByBreakpoints(value, scheme)` returns the value of the first breakpoint where `value < below`, or `fallback` if none match.
 
-`createBreakpointScheme(breakpoints, fallback)` (`:120-128`) sorts breakpoints by `below` ascending — pass them in any order.
+`createBreakpointScheme(breakpoints, fallback)` sorts breakpoints by `below` ascending — pass them in any order.
 
 ## `InterpolationScheme`
 
-Definition: `src/stats/schemes.ts:49-51`. Linear interpolation between defined points, clamped at edges.
+Definition: `src/stats/schemes.ts`. Linear interpolation between defined points, clamped at edges.
 
 ```ts
 interface InterpolationScheme {
@@ -76,19 +76,19 @@ interface InterpolationScheme {
 }
 ```
 
-`interpolate(value, scheme)` (`:77-111`):
+`interpolate(value, scheme)`:
 - Throws if `points` is empty.
 - Returns `points[0].output` if length is 1.
 - Clamps below first input / above last input.
 - Linear interpolation between bracketing points otherwise.
 
-`createInterpolationScheme(points)` (`:134-139`) sorts by `input` ascending.
+`createInterpolationScheme(points)` sorts by `input` ascending.
 
 ## Default schemes
 
-Source: `src/stats/schemes.ts:158-224`. All re-exported from `src/index.ts:84-96`.
+Source: `src/stats/schemes.ts`. All re-exported from `src/index.ts`.
 
-### `DEFAULT_RIR_SCHEME` (`:158-168`)
+### `DEFAULT_RIR_SCHEME`
 
 `InterpolationScheme` mapping velocity-loss-% to RIR:
 
@@ -102,9 +102,9 @@ Source: `src/stats/schemes.ts:158-224`. All re-exported from `src/index.ts:84-96
 | 50 | 1 |
 | 60+ | 0 |
 
-Same values appear in `DEFAULT_VELOCITY_RIR_MAP` (`src/vbt/constants.ts:61-69`). Used by `estimateSetRIR` (`src/analytics/fatigue.ts:424-447`).
+Same values appear in `DEFAULT_VELOCITY_RIR_MAP` (`src/vbt/constants.ts`). Used by `estimateSetRIR` (`src/analytics/fatigue.ts`).
 
-### `DEFAULT_CONSISTENCY_SCHEME` (`:177-183`)
+### `DEFAULT_CONSISTENCY_SCHEME`
 
 `BreakpointScheme<'stable' | 'variable' | 'erratic'>` — classifies coefficient of variation:
 
@@ -114,9 +114,9 @@ Same values appear in `DEFAULT_VELOCITY_RIR_MAP` (`src/vbt/constants.ts:61-69`).
 | < 0.20 | `variable` |
 | ≥ 0.20 | `erratic` |
 
-Used by `getSetConsistencyScore` (`src/analytics/fatigue.ts:331-352`).
+Used by `getSetConsistencyScore` (`src/analytics/fatigue.ts`).
 
-### `DEFAULT_OUTLIER_SCHEME` (`:191-194`)
+### `DEFAULT_OUTLIER_SCHEME`
 
 `BreakpointScheme<boolean>` — classifies absolute z-score:
 
@@ -125,7 +125,7 @@ Used by `getSetConsistencyScore` (`src/analytics/fatigue.ts:331-352`).
 | < 2.0 | `false` |
 | ≥ 2.0 | `true` |
 
-Used by `compareToExpectation` (`src/analytics/types.ts:121-151`) and `getRepQualityFlags` (`src/analytics/quality.ts:120-150`). Both score against an EXTERNAL baseline distribution, where a fixed cut is fine.
+Used by `compareToExpectation` (`src/analytics/types.ts`) and `getRepQualityFlags` (`src/analytics/quality.ts`). Both score against an EXTERNAL baseline distribution, where a fixed cut is fine.
 
 **Not** used by `findOutlierReps`, whose z-scores are within-set: Samuelson's inequality bounds those at `(n-1)/√n`, so 2.0 is unreachable for n ≤ 5. That function uses Grubbs' critical value instead — see below.
 
@@ -148,7 +148,7 @@ with `t` the upper t critical value at `alpha / (2n)` on `n - 2` degrees of free
 | 10 | 2.8460 | 2.2900 |
 | 20 | 4.2485 | 2.7082 |
 
-### `DEFAULT_QUALITY_SCHEME` (`:203-209`)
+### `DEFAULT_QUALITY_SCHEME`
 
 `BreakpointScheme<'good' | 'warning' | 'poor'>` — classifies actual/expected ratio:
 
@@ -160,7 +160,7 @@ with `t` the upper t critical value at `alpha / (2n)` on `n - 2` degrees of free
 
 Used by `getRepQualityFlags`.
 
-### `DEFAULT_CONFIDENCE_SCHEME` (`:218-224`)
+### `DEFAULT_CONFIDENCE_SCHEME`
 
 `BreakpointScheme<'high' | 'medium' | 'low'>` — classifies sample count:
 
