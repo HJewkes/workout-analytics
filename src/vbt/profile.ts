@@ -45,6 +45,34 @@ export interface LoadVelocityProfile {
 }
 
 // =============================================================================
+// e1RM Plausibility
+// =============================================================================
+
+/**
+ * Largest e1RM a profile may claim, as a multiple of its heaviest observed load.
+ *
+ * The velocity table in constants.ts bottoms out at 30% 1RM, so a profile
+ * whose heaviest set sits at the lowest anchor implies e1RM = load / 0.30
+ * (3.3x). 5x allows a heaviest load as light as 20% 1RM, below that table.
+ * A ratio guard is unit-free, unlike a minimum |slope|, which would depend on
+ * whether loads are kg, lbs or stack positions.
+ */
+export const MAX_E1RM_TO_MAX_LOAD_RATIO = 5;
+
+/**
+ * Whether an e1RM extrapolated from `dataPoints` is within
+ * MAX_E1RM_TO_MAX_LOAD_RATIO of the heaviest load seen. A near-zero negative
+ * slope extrapolates to an astronomically large e1RM; this rejects it.
+ */
+export function isPlausibleE1RM(
+  e1RM: number,
+  dataPoints: readonly LoadVelocityDataPoint[]
+): boolean {
+  const maxLoad = Math.max(...dataPoints.map((dp) => dp.load));
+  return Number.isFinite(e1RM) && e1RM <= maxLoad * MAX_E1RM_TO_MAX_LOAD_RATIO;
+}
+
+// =============================================================================
 // OLS Regression (internal)
 // =============================================================================
 
@@ -123,6 +151,9 @@ function olsRegression(xs: number[], ys: number[]): RegressionResult {
  * - 'high': R² >= 0.90 and >= 3 data points
  * - 'medium': R² >= 0.70 and >= 2 data points
  * - 'low': everything else, including any profile whose slope is not negative
+ *   and any whose extrapolated e1RM exceeds MAX_E1RM_TO_MAX_LOAD_RATIO (5x)
+ *   times the heaviest load seen (a near-zero negative slope); its
+ *   `estimated1RM` is then 0
  *
  * @param dataPoints - Observed load-velocity pairs
  * @param mvt - Minimum velocity threshold (default 0.17 m/s)
@@ -142,12 +173,16 @@ export function buildProfile(
   // mvt = slope * load + intercept
   // load = (mvt - intercept) / slope
   // Only a falling line (more load, less velocity) is a usable LV profile.
-  const slopeUsable = slope < 0;
+  let slopeUsable = slope < 0;
   let estimated1RM = 0;
   if (slopeUsable) {
     estimated1RM = (mvt - intercept) / slope;
     // Sanity: 1RM should be positive
     if (estimated1RM < 0) estimated1RM = 0;
+    if (!isPlausibleE1RM(estimated1RM, dataPoints)) {
+      estimated1RM = 0;
+      slopeUsable = false;
+    }
   }
 
   // Determine confidence
