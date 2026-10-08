@@ -73,8 +73,12 @@ export function classifyByBreakpoints<T>(value: number, scheme: BreakpointScheme
  * Linear interpolation between points, clamped at edges.
  *
  * @throws Error if scheme has no points
+ * @throws RangeError if `value` is NaN or ±Infinity
  */
 export function interpolate(value: number, scheme: InterpolationScheme): number {
+  if (!Number.isFinite(value)) {
+    throw new RangeError('value must be a finite number');
+  }
   const { points } = scheme;
 
   if (points.length === 0) {

@@ -79,8 +79,13 @@ const SORTED_ENTRIES = Object.entries(VELOCITY_AT_PERCENT_1RM)
  *
  * @param velocity - Mean concentric velocity in m/s
  * @returns Estimated %1RM (30-100)
+ * @throws RangeError if `velocity` is NaN or ±Infinity
  */
 export function estimatePercent1RMFromVelocity(velocity: number): number {
+  if (!Number.isFinite(velocity)) {
+    throw new RangeError('velocity must be a finite number');
+  }
+
   // Below MVT -> 100%
   if (velocity <= SORTED_ENTRIES[0].vel) {
     return 100;

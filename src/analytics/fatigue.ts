@@ -443,10 +443,15 @@ function findMostExtremeRep(
 
 /**
  * Estimate RIR (Reps in Reserve) from velocity loss.
+ *
+ * A non-finite velocity loss (from NaN or ±Infinity rep velocities) carries no
+ * signal, so it reads like a set with no derivable loss: the 0% loss point of
+ * the scheme with `'low'` confidence.
  */
 export function estimateSetRIR(set: Set, schemes?: FatigueSchemes): RIREstimate {
   const rirScheme = schemes?.rir ?? DEFAULT_RIR_SCHEME;
-  const velLossPct = getSetVelocityLossPct(set);
+  const rawLossPct = getSetVelocityLossPct(set);
+  const velLossPct = Number.isFinite(rawLossPct) ? rawLossPct : 0;
 
   // Interpolate RIR from velocity loss
   const rir = interpolate(Math.abs(velLossPct), rirScheme);
@@ -651,11 +656,16 @@ export const VBT_DEFAULT_FATIGUE_LAMBDA = 0.4;
  *
  * Both inputs and output are clamped to [0, 1].
  *
+ * A non-finite `fiSet` or `intensityRatio` (for example `0 / 0` when e1RM is 0)
+ * carries no signal from the set, so the state is returned unchanged rather than
+ * poisoned with NaN for the rest of the session.
+ *
  * @param prevF - Previous session fatigue state in [0, 1].
  * @param fiSet - Set fatigue index from computeVBTSetFatigueIndex in [0, 1].
  * @param intensityRatio - workingWeight / e1RM, clamped internally to [0.3, 1.0].
  * @param lambda - EWMA decay coefficient (default 0.4).
  * @returns Updated session fatigue state in [0, 1].
+ * @throws RangeError if `prevF` or `lambda` is NaN or ±Infinity
  */
 export function updateSessionFatigueState(
   prevF: number,
@@ -663,7 +673,12 @@ export function updateSessionFatigueState(
   intensityRatio: number,
   lambda: number = VBT_DEFAULT_FATIGUE_LAMBDA
 ): number {
+  if (!Number.isFinite(prevF)) throw new RangeError('prevF must be a finite number');
+  if (!Number.isFinite(lambda)) throw new RangeError('lambda must be a finite number');
+
   const clampedPrevF = Math.min(1, Math.max(0, prevF));
+  if (!Number.isFinite(fiSet) || !Number.isFinite(intensityRatio)) return clampedPrevF;
+
   const clampedFiSet = Math.min(1, Math.max(0, fiSet));
   const clampedIntensity = Math.min(1.0, Math.max(0.3, intensityRatio));
 
