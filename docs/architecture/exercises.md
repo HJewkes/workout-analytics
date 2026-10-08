@@ -15,25 +15,25 @@ Source: `src/exercises/`. A normalized exercise catalog with muscle-group / move
 
 Source: `src/exercises/types.ts`.
 
-### `MuscleGroupId` (18 values, `:12-30`)
+### `MuscleGroupId` (18 values)
 
 `'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'quads' | 'hamstrings' | 'glutes' | 'calves' | 'core' | 'forearms' | 'traps' | 'lats' | 'abs' | 'obliques' | 'adductors' | 'abductors' | 'neck'`
 
-### `MovementPatternId` (8 values, `:36-44`)
+### `MovementPatternId` (8 values)
 
 `'push' | 'pull' | 'hinge' | 'squat' | 'lunge' | 'carry' | 'rotation' | 'isolation'`
 
-### `EquipmentCategory` (8 values, `:50-58`)
+### `EquipmentCategory` (8 values)
 
 `'cable' | 'barbell' | 'dumbbell' | 'machine' | 'bodyweight' | 'band' | 'kettlebell' | 'other'`
 
-### `EquipmentInfo` (`:60-63`)
+### `EquipmentInfo`
 
 ```ts
 { name: string; category: EquipmentCategory }
 ```
 
-### `CableSetup` (`:69-74`)
+### `CableSetup`
 
 ```ts
 {
@@ -46,7 +46,7 @@ Source: `src/exercises/types.ts`.
 
 ## `Exercise` shape
 
-Definition: `src/exercises/types.ts:80-117`.
+Definition: `src/exercises/types.ts`.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -69,54 +69,54 @@ Definition: `src/exercises/types.ts:80-117`.
 
 ## Catalog injection
 
-The catalog is decoupled from any specific data source. Source: `src/exercises/catalog.ts:22-92`.
+The catalog is decoupled from any specific data source. Source: `src/exercises/catalog.ts`.
 
-### `setCatalog(exercises)` (`:70-74`)
+### `setCatalog(exercises)`
 
 Pass an `Exercise[]` from any source — JSON import, fetched API response, embedded fixture. Resets and rebuilds the four indexes.
 
-### `loadCatalog()` (`:80-92`)
+### `loadCatalog()`
 
 Async dynamic import of `./data/catalog.json`. Returns the count of exercises loaded. If the file does not exist (catalog not yet generated), sets an empty catalog and returns 0 — does not throw.
 
 ### Indexes
 
-Internally maintained at `:24-29`:
+Internally maintained:
 
 - `byId: Map<string, Exercise>`
 - `byMuscleGroup: Map<MuscleGroupId, Exercise[]>`
 - `byMovementPattern: Map<MovementPatternId, Exercise[]>`
 - `byEquipmentCategory: Map<EquipmentCategory, Exercise[]>`
 
-`buildIndexes()` (`:30-60`) is idempotent and called lazily on every lookup.
+`buildIndexes()` is idempotent and called lazily on every lookup.
 
 ## Lookup functions
 
-Source: `src/exercises/catalog.ts:101-172`. Re-exported via `src/exercises/index.ts` and `src/index.ts:272-290`.
+Source: `src/exercises/catalog.ts`. Re-exported via `src/exercises/index.ts` and `src/index.ts`.
 
-| Function | Returns | Source line |
+| Function | Returns | Notes |
 | --- | --- | --- |
-| `getExerciseById(id)` | `Exercise \| undefined` | `:101-104` |
-| `getAllExercises()` | `Exercise[]` | `:109-112` |
-| `getExercisesByMuscleGroup(muscleGroup)` | `Exercise[]` | `:117-120` |
-| `getExercisesByMovementPattern(pattern)` | `Exercise[]` | `:125-128` |
-| `getExercisesByEquipment(category)` | `Exercise[]` | `:133-136` |
-| `getCableExercises()` | `Exercise[]` | `:141-144` — filters `cableEquivalent === true`. |
-| `searchExercises(query)` | `Exercise[]` | `:149-157` — case-insensitive substring on `name` and `aliases`. |
-| `hasExercise(id)` | `boolean` | `:162-165` |
-| `getExerciseCount()` | `number` | `:170-172` — note: does NOT call `buildIndexes()`. |
+| `getExerciseById(id)` | `Exercise \| undefined` | |
+| `getAllExercises()` | `Exercise[]` | |
+| `getExercisesByMuscleGroup(muscleGroup)` | `Exercise[]` | |
+| `getExercisesByMovementPattern(pattern)` | `Exercise[]` | |
+| `getExercisesByEquipment(category)` | `Exercise[]` | |
+| `getCableExercises()` | `Exercise[]` | filters `cableEquivalent === true`. |
+| `searchExercises(query)` | `Exercise[]` | case-insensitive substring on `name` and `aliases`. |
+| `hasExercise(id)` | `boolean` | |
+| `getExerciseCount()` | `number` | note: does NOT call `buildIndexes()`. |
 
 All lookups call `buildIndexes()` first, so they work without an explicit setup call (returning empty results until `setCatalog` / `loadCatalog` runs).
 
 ## Data file
 
-`src/exercises/data/catalog.json` — generated catalog. Loaded via dynamic import so consumers that ship this package as an ESM dependency pull it in lazily. Listed under `files: ["dist"]` in `package.json:33-35`, so it ships in the published package once the build copies it (see `tsc-alias` in the build script).
+`src/exercises/data/catalog.json` — generated catalog. Loaded via dynamic import so consumers that ship this package as an ESM dependency pull it in lazily. Listed under `files: ["dist"]` in `package.json`, so it ships in the published package once the build copies it (see `tsc-alias` in the build script).
 
 If a consumer has different data needs, they can call `setCatalog(myCustomExercises)` instead of `loadCatalog()` and never touch the bundled JSON.
 
 ## Pipeline scripts
 
-The catalog data is produced by an offline pipeline under `scripts/`. NPM scripts (`package.json:46-52`):
+The catalog data is produced by an offline pipeline under `scripts/`. NPM scripts (`package.json` `"scripts"`):
 
 | Script | Purpose |
 | --- | --- |

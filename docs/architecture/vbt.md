@@ -1,6 +1,6 @@
 # VBT (velocity-based training) surface
 
-Source: `src/vbt/`. Re-exported via `src/index.ts:230-269`.
+Source: `src/vbt/`. Re-exported via `src/index.ts`.
 
 ## Table of contents
 
@@ -18,22 +18,22 @@ Source: `src/vbt/constants.ts`.
 
 ### `VELOCITY_AT_PERCENT_1RM`
 
-Mean concentric velocity at percentage of 1RM (Gonzalez-Badillo et al.). Defined at `src/vbt/constants.ts:28-42` as a record `Record<number, number>`. 13 entries from 30% (1.28 m/s) to 100% (0.17 m/s). Population averages — individual variation exists; cable values trend slightly lower due to constant tension.
+Mean concentric velocity at percentage of 1RM (Gonzalez-Badillo et al.). Defined in `src/vbt/constants.ts` as a record `Record<number, number>`. 13 entries from 30% (1.28 m/s) to 100% (0.17 m/s). Population averages — individual variation exists; cable values trend slightly lower due to constant tension.
 
 ### `DEFAULT_MVT`
 
-`0.17 m/s` at `src/vbt/constants.ts:51`. Minimum velocity threshold — the velocity at which a true 1RM rep is performed. RepOne research notes individual MVT varies; this is a conservative default.
+`0.17 m/s` in `src/vbt/constants.ts`. Minimum velocity threshold — the velocity at which a true 1RM rep is performed. RepOne research notes individual MVT varies; this is a conservative default.
 
 ### `DEFAULT_VELOCITY_RIR_MAP`
 
-`InterpolationScheme` mapping velocity-loss-% to RIR at `src/vbt/constants.ts:61-69`. Cable-machine-conservative (Rodiles-Guerrero 2020). Points: `0%→6, 10%→5, 20%→4, 30%→3, 40%→2, 50%→1, 60%→0`.
+`InterpolationScheme` mapping velocity-loss-% to RIR in `src/vbt/constants.ts`. Cable-machine-conservative (Rodiles-Guerrero 2020). Points: `0%→6, 10%→5, 20%→4, 30%→3, 40%→2, 50%→1, 60%→0`.
 
 ### Functions
 
-| Function | Source line | Description |
-| --- | --- | --- |
-| `estimatePercent1RMFromVelocity(velocity)` | `constants.ts:89-113` | Linear interpolation in `VELOCITY_AT_PERCENT_1RM`. Clamps to `[30, 100]`. |
-| `categorizeVelocity(velocity, zones?)` | `zones.ts` | Returns the **5-way** `VelocityZoneId` from **mean** concentric velocity (m/s). Bands default to the profile-derived / movement-class table (`getVelocityZones`), not a hardcoded scale. |
+| Function | Description |
+| --- | --- |
+| `estimatePercent1RMFromVelocity(velocity)` | Linear interpolation in `VELOCITY_AT_PERCENT_1RM`. Clamps to `[30, 100]`. |
+| `categorizeVelocity(velocity, zones?)` | Returns the **5-way** `VelocityZoneId` from **mean** concentric velocity (m/s). Bands default to the profile-derived / movement-class table (`getVelocityZones`), not a hardcoded scale. |
 
 ### `VelocityZoneId` (canonical, 5-way)
 
@@ -104,11 +104,11 @@ interface VelocityBaseline {
 
 ### Functions
 
-| Function | Source line | Notes |
-| --- | --- | --- |
-| `buildBaseline(dataPoints, key?)` | `:65-71` | Sorts by load ascending. Preserves duplicates at same load. |
-| `getExpectedVelocity(baseline, load)` | `:84-119` | Linear interpolation between bracketing points. Returns `null` when load is outside the observed range or baseline is empty. With one point, returns its velocity only on exact match. |
-| `updateBaselineWithPoint(baseline, load, meanVelocity, opts?)` | `:189-211` | Returns a new baseline with one point added. `meanVelocity` is first-rep mean concentric velocity (`getSetFirstRepVelocity`). `opts.timestamp` stamps the point (defaults to `Date.now()`); `opts.maxPoints` evicts the oldest point when exceeded. |
+| Function | Notes |
+| --- | --- |
+| `buildBaseline(dataPoints, key?)` | Sorts by load ascending. Preserves duplicates at same load. |
+| `getExpectedVelocity(baseline, load)` | Linear interpolation between bracketing points. Returns `null` when load is outside the observed range or baseline is empty. With one point, returns its velocity only on exact match. |
+| `updateBaselineWithPoint(baseline, load, meanVelocity, opts?)` | Returns a new baseline with one point added. `meanVelocity` is first-rep mean concentric velocity (`getSetFirstRepVelocity`). `opts.timestamp` stamps the point (defaults to `Date.now()`); `opts.maxPoints` evicts the oldest point when exceeded. |
 
 ## e1RM estimation
 
@@ -185,7 +185,7 @@ interface FittingOptions {
 }
 ```
 
-(`src/vbt/profile-fitting.ts:20-35`.)
+(`src/vbt/profile-fitting.ts`.)
 
 ### `FittingResult`
 
@@ -199,20 +199,20 @@ interface FittingResult {
 }
 ```
 
-(`src/vbt/profile-fitting.ts:40-46`.)
+(`src/vbt/profile-fitting.ts`.)
 
 ### Internals
 
-| Helper | Source line |
+| Helper | Notes |
 | --- | --- |
-| `weightedLeastSquares(xs, ys, weights)` | `:56-89` |
-| `computeWeightedRSquared(xs, ys, weights, slope, intercept)` | `:94-121` |
-| `computeUncertainty(xs, ys, weights, slope, intercept)` | `:126-164` — needs n ≥ 3, MSE-scaled standard errors. |
-| `huberWeight(residual, delta)` | `:170-174` — `1` if `|r| ≤ δ`, else `δ / |r|`. |
+| `weightedLeastSquares(xs, ys, weights)` | |
+| `computeWeightedRSquared(xs, ys, weights, slope, intercept)` | |
+| `computeUncertainty(xs, ys, weights, slope, intercept)` | needs n ≥ 3, MSE-scaled standard errors. |
+| `huberWeight(residual, delta)` | `1` if `|r| ≤ δ`, else `δ / |r|`. |
 
 ### `fitLVProfile`
 
-`fitLVProfile(dataPoints, options?)` at `src/vbt/profile-fitting.ts:194-314`.
+`fitLVProfile(dataPoints, options?)` in `src/vbt/profile-fitting.ts`.
 
 Pipeline:
 1. Empty check.
@@ -232,10 +232,10 @@ Quick index of literature references that appear inline in VBT source:
 
 | Source | Reference |
 | --- | --- |
-| `src/vbt/constants.ts:22-26` | Gonzalez-Badillo et al. — `VELOCITY_AT_PERCENT_1RM` table. |
-| `src/vbt/constants.ts:46-50` | RepOne — individual MVT variability. |
-| `src/vbt/constants.ts:54-59` | Rodiles-Guerrero 2020 — cable-machine velocity-loss-to-fatigue mapping. |
-| `src/vbt/profile.ts:6-10` | PLoS ONE 2019 — linear over polynomial; machine R² > 0.93. |
+| `src/vbt/constants.ts` `VELOCITY_AT_PERCENT_1RM` | Gonzalez-Badillo et al. — `VELOCITY_AT_PERCENT_1RM` table. |
+| `src/vbt/constants.ts` `DEFAULT_MVT` | RepOne — individual MVT variability. |
+| `src/vbt/constants.ts` `DEFAULT_VELOCITY_RIR_MAP` | Rodiles-Guerrero 2020 — cable-machine velocity-loss-to-fatigue mapping. |
+| `src/vbt/profile.ts` module header | PLoS ONE 2019 — linear over polynomial; machine R² > 0.93. |
 | `src/analytics/intensity.ts` module header | Robinson et al. 2024, Refalo 2024, Martikainen 2025 — hardness decay rate. |
 | `src/analytics/intensity.ts` `getRepHardnessWeight` docstring | Robinson 2024 meta-regression — gradual dose-response near failure. |
 | `src/analytics/intensity.ts` `estimatePerRepRIR` docstring | J Strength Cond Res 2020 — velocity-loss vs reps-completed R²=0.93-0.97. |

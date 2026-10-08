@@ -27,7 +27,7 @@ It is intentionally device-agnostic: the input contract is `WorkoutSample`, not 
 ## Package shape
 
 - **ESM only** (since 1.0.0). `package.json#type` is `"module"`. Only `dist/esm/` and `dist/types/` ship. CJS consumers must `await import(...)` (see `../../README.md` "Breaking changes").
-- **5 subpath exports** (see `package.json:9-32`):
+- **5 subpath exports** (see `package.json` `"exports"`):
 
 | Subpath | Source root | Purpose |
 | --- | --- | --- |
@@ -38,8 +38,8 @@ It is intentionally device-agnostic: the input contract is `WorkoutSample`, not 
 | `@voltras/workout-analytics/store/sqlite-expo` | `src/store/sqlite-expo/index.ts` | Expo / RN driver via `expo-sqlite@^15` (optional peer). |
 
 - **Runtime dep**: `zod@^3` (validators).
-- **Optional peer deps** (declared via `peerDependenciesMeta`, `package.json:65-72`): `better-sqlite3@^11`, `expo-sqlite@^15`. Consumers install only the driver they need.
-- **Engines**: Node `>=20.0.0` (`package.json:120-122`).
+- **Optional peer deps** (declared via `peerDependenciesMeta` in `package.json`): `better-sqlite3@^11`, `expo-sqlite@^15`. Consumers install only the driver they need.
+- **Engines**: Node `>=20.0.0` (`package.json` `"engines"`).
 
 ## Position in the workspace
 
@@ -60,15 +60,15 @@ voltra-node-sdk (BLE + decoded telemetry)
 
 ## Design principles
 
-1. **Immutable data**. `Phase`, `Rep`, `Set`, `StreamingDistribution`, `LoadVelocityProfile`, etc. are all readonly interfaces. Mutator functions (`addSampleToSet`, `addSample`, `addDataPoint`) return new objects — they never mutate inputs. Empty constants are `Object.freeze`'d (e.g. `EMPTY_PHASE` at `src/models/phase.ts:41-55`, `EMPTY_DISTRIBUTION` at `src/stats/distribution.ts:29-35`).
+1. **Immutable data**. `Phase`, `Rep`, `Set`, `StreamingDistribution`, `LoadVelocityProfile`, etc. are all readonly interfaces. Mutator functions (`addSampleToSet`, `addSample`, `addDataPoint`) return new objects — they never mutate inputs. Empty constants are `Object.freeze`'d (e.g. `EMPTY_PHASE` in `src/models/phase.ts`, `EMPTY_DISTRIBUTION` in `src/stats/distribution.ts`).
 
-2. **O(1) running aggregates**. Phase stores `_totalVelocity`, `_totalForce`, `_totalLoad`, `_movementSampleCount`, `_totalHoldDuration`, plus peaks. Means are derived in O(1) (`src/models/phase.ts:114-131`). `StreamingDistribution` uses Welford's online algorithm for numerically stable variance (`src/stats/distribution.ts:48-64`).
+2. **O(1) running aggregates**. Phase stores `_totalVelocity`, `_totalForce`, `_totalLoad`, `_movementSampleCount`, `_totalHoldDuration`, plus peaks. Means are derived in O(1) (`getPhaseMeanVelocity`, `getPhaseMeanForce`, `getPhaseMeanLoad` in `src/models/phase.ts`). `StreamingDistribution` uses Welford's online algorithm for numerically stable variance (`addSample` in `src/stats/distribution.ts`).
 
-3. **Hardware-agnostic input contract**. `WorkoutSample` (`src/models/sample.ts:10-53`) is the universal interface. Vendor adapters convert device-specific frames into `WorkoutSample`. The package defensively normalizes velocity via `Math.abs` (`src/models/phase.ts:74`) so a buggy adapter does not silently zero peaks.
+3. **Hardware-agnostic input contract**. `WorkoutSample` (`src/models/sample.ts`) is the universal interface. Vendor adapters convert device-specific frames into `WorkoutSample`. The package defensively normalizes velocity via `Math.abs` (`addSampleToPhase` in `src/models/phase.ts`) so a buggy adapter does not silently zero peaks.
 
 4. **Configurable schemes over hard-coded thresholds**. Classification (RIR, consistency, outlier, quality, confidence) is parameterized via `BreakpointScheme<T>` and `InterpolationScheme` (`src/stats/schemes.ts`). Defaults ship as named exports (`DEFAULT_RIR_SCHEME`, `DEFAULT_CONSISTENCY_SCHEME`, etc.) but every analytics function that classifies accepts an override.
 
-5. **Opt-in storage**. The analytics surface and the storage layer are independent. A consumer can build the entire VBT pipeline in memory; persistence is a separate subpath behind an optional peer dependency. `SessionStore` is implemented by both drivers (`src/store/session-store.ts:19-101`).
+5. **Opt-in storage**. The analytics surface and the storage layer are independent. A consumer can build the entire VBT pipeline in memory; persistence is a separate subpath behind an optional peer dependency. `SessionStore` is implemented by both drivers (`src/store/session-store.ts`).
 
 6. **Pure functions over classes**. Analytics live as standalone functions taking `Rep` / `Set`, not methods. Only the storage layer uses classes (`MigrationRunner`, driver adapters); the analytics, VBT, stats, and exercises modules are pure.
 
@@ -85,9 +85,9 @@ voltra-node-sdk (BLE + decoded telemetry)
 | `src/store/` | Driver-agnostic store primitives: `SessionStore` interface, `MigrationRunner`, `withTransaction`, `prepareForSave`, error classes. | `src/store/index.ts` |
 | `src/store/sqlite-node/` | `better-sqlite3` driver + factory `createSqliteNodeStore`. | `src/store/sqlite-node/index.ts` |
 | `src/store/sqlite-expo/` | `expo-sqlite` driver + factory `createSqliteExpoStore`. | `src/store/sqlite-expo/index.ts` |
-| `src/index.ts` | Public barrel for the root subpath. | `src/index.ts:9-291` |
+| `src/index.ts` | Public barrel for the root subpath. | `src/index.ts` |
 
-See `code-map.md` for line-level detail.
+See `code-map.md` for file- and symbol-level detail.
 
 ## What the package does NOT do
 

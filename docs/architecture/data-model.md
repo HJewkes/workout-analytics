@@ -18,14 +18,14 @@ The core data hierarchy is `WorkoutSample` → `Phase` → `Rep` → `Set`. Plus
 
 ## Unit hazards (READ THIS FIRST)
 
-These are documented contract gotchas that have cost time before. The package does not error if you violate them — it silently produces wrong numbers. Sources: `CHANGELOG.md` 1.1.0 "Fixed" notes; `src/models/sample.ts:23-49`; rep-analytics docstrings at `src/analytics/rep-analytics.ts:88-94`, `:122-133`, `:236-243`.
+These are documented contract gotchas that have cost time before. The package does not error if you violate them — it silently produces wrong numbers. Sources: `CHANGELOG.md` 1.1.0 "Fixed" notes; `src/models/sample.ts`; the docstrings of `getRepImpulse`, `getRepWork` and `getRepMeanConcentricPower` in `src/analytics/rep-analytics.ts`.
 
 ### Velocity is magnitude-only
 
 `WorkoutSample.velocity` MUST be **non-negative** (m/s). Direction of motion is encoded by `phase` (CONCENTRIC vs ECCENTRIC), NOT by velocity sign.
 
 - SDK 0.6.0+ reports velocity as a **signed `int16`** — eccentric velocity is **negative**. Adapters MUST apply `Math.abs(value)` at the boundary before constructing a `WorkoutSample`.
-- `src/models/phase.ts:74` defensively normalizes via `Math.abs` so a buggy adapter does not silently zero peak velocity (`Math.max(peakVelocity, -1.2)` would yield `0` and lose the peak). This is a safety net, not the contract — adapters should pass magnitudes.
+- `addSampleToPhase` in `src/models/phase.ts` defensively normalizes via `Math.abs` so a buggy adapter does not silently zero peak velocity (`Math.max(peakVelocity, -1.2)` would yield `0` and lose the peak). This is a safety net, not the contract — adapters should pass magnitudes.
 
 ### Force is in lbs, NOT tenths-lbs
 
@@ -33,9 +33,9 @@ These are documented contract gotchas that have cost time before. The package do
 
 - SDK frames report force as `uint16` **tenths-of-lbs**. Adapters MUST divide by 10 before populating `WorkoutSample.force`.
 - Forwarding the raw tenths value silently inflates these by 10×:
-  - `getRepImpulse` (`src/analytics/rep-analytics.ts:95-117`)
-  - `getRepWork` (`:135-157`)
-  - `getRepMeanConcentricPower` (`:244-258`)
+  - `getRepImpulse` (`src/analytics/rep-analytics.ts`)
+  - `getRepWork`
+  - `getRepMeanConcentricPower`
   - All eccentric/total variants and any downstream metric that ingests these.
 - There is no runtime guard. The package treats `force` as opaque magnitude.
 
@@ -56,13 +56,13 @@ enum MovementPhase {
 }
 ```
 
-Source: `src/models/types.ts:8-13`. UI display names (`'Ready'`, `'Lifting'`, `'Lowering'`, `'Hold'`) at `src/models/types.ts:18-23`.
+Source: `src/models/types.ts`. UI display names (`'Ready'`, `'Lifting'`, `'Lowering'`, `'Hold'`) in `PhaseNames`.
 
-In `Phase`/`Rep` aggregation, `IDLE` and `HOLD` are **both** treated as pause: they contribute to hold-duration but NOT to velocity / force / load running aggregates (`src/models/phase.ts:64`, `src/models/rep.ts:56`).
+In `Phase`/`Rep` aggregation, `IDLE` and `HOLD` are **both** treated as pause: they contribute to hold-duration but NOT to velocity / force / load running aggregates (`addSampleToPhase` in `src/models/phase.ts`, `addSampleToRep` in `src/models/rep.ts`).
 
 ## `WorkoutSample`
 
-Definition: `src/models/sample.ts:10-53`.
+Definition: `src/models/sample.ts`.
 
 | Field | Type | Unit | Notes |
 | --- | --- | --- | --- |
@@ -74,11 +74,11 @@ Definition: `src/models/sample.ts:10-53`.
 | `force` | `number` | **lbs** | **MUST be lbs**, NOT tenths-lbs. Always non-negative. |
 | `load` | `number?` | lbs | Instantaneous resistance. Optional for backward compatibility. |
 
-The contract is enforced socially (docstrings + adapter discipline), not by the type system. Phase aggregation (`src/models/phase.ts:74`) defends against signed velocity by `Math.abs`-ing on insert. There is no equivalent guard for `force`.
+The contract is enforced socially (docstrings + adapter discipline), not by the type system. Phase aggregation (`addSampleToPhase` in `src/models/phase.ts`) defends against signed velocity by `Math.abs`-ing on insert. There is no equivalent guard for `force`.
 
 ## `Phase`
 
-Definition: `src/models/phase.ts:15-35`.
+Definition: `src/models/phase.ts`.
 
 A `Phase` is a "bag of samples with metrics". Its meaning (concentric vs eccentric) comes from which slot it occupies on `Rep` — there is no `kind` field on `Phase`.
 
@@ -98,11 +98,11 @@ A `Phase` is a "bag of samples with metrics". Its meaning (concentric vs eccentr
 | `peakForce` | `number` | Max force over movement samples. |
 | `peakLoad` | `number` | Max load over movement samples. |
 
-`EMPTY_PHASE` (`src/models/phase.ts:41-55`) is a frozen instance — start from this constant rather than constructing `Phase` literals.
+`EMPTY_PHASE` (`src/models/phase.ts`) is a frozen instance — start from this constant rather than constructing `Phase` literals.
 
-Insertion: `addSampleToPhase(phase, sample)` (`src/models/phase.ts:61-91`) returns a NEW `Phase`. IDLE / HOLD samples skip the velocity / force / load aggregation and only accumulate hold time.
+Insertion: `addSampleToPhase(phase, sample)` (`src/models/phase.ts`) returns a NEW `Phase`. IDLE / HOLD samples skip the velocity / force / load aggregation and only accumulate hold time.
 
-Derived metrics (all O(1) via the running aggregates, `src/models/phase.ts:102-135`):
+Derived metrics (all O(1) via the running aggregates, `src/models/phase.ts`):
 - `getPhaseDuration(phase)` — total seconds.
 - `getPhaseHoldDuration(phase)` — IDLE + HOLD seconds.
 - `getPhaseMovementDuration(phase)` — duration minus hold.
@@ -110,11 +110,11 @@ Derived metrics (all O(1) via the running aggregates, `src/models/phase.ts:102-1
 - `getPhasePeakLoad(phase)`.
 - `getPhaseRangeOfMotion(phase)` — `|endPosition − startPosition|`.
 
-`rebuildPhaseFromSamples(samples)` (`src/models/phase.ts:96-98`) reconstructs a Phase from a sample array; used internally by `completeSet` after trimming.
+`rebuildPhaseFromSamples(samples)` (`src/models/phase.ts`) reconstructs a Phase from a sample array; used internally by `completeSet` after trimming.
 
 ## `Rep`
 
-Definition: `src/models/rep.ts:24-28`.
+Definition: `src/models/rep.ts`.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -122,9 +122,9 @@ Definition: `src/models/rep.ts:24-28`.
 | `concentric` | `Phase` | Lifting + hold-at-top samples. |
 | `eccentric` | `Phase` | Lowering + hold-at-bottom samples. |
 
-`createRep(repNumber)` initialises both phases to `EMPTY_PHASE` (`src/models/rep.ts:33-39`).
+`createRep(repNumber)` initialises both phases to `EMPTY_PHASE` (`src/models/rep.ts`).
 
-**Sample routing inside `addSampleToRep` (`src/models/rep.ts:52-65`):**
+**Sample routing inside `addSampleToRep` (`src/models/rep.ts`):**
 
 | Incoming sample.phase | `isInEccentricPhase(rep)`? | Routed to |
 | --- | --- | --- |
@@ -133,9 +133,9 @@ Definition: `src/models/rep.ts:24-28`.
 | `IDLE` or `HOLD` | `false` (eccentric not started) | `concentric` (counted as hold-at-top) |
 | `IDLE` or `HOLD` | `true` (eccentric started) | `eccentric` (counted as hold-at-bottom) |
 
-`isInEccentricPhase(rep)` (`src/models/rep.ts:44-46`) returns true once the eccentric phase has any samples.
+`isInEccentricPhase(rep)` (`src/models/rep.ts`) returns true once the eccentric phase has any samples.
 
-Derived metrics (all O(1), `src/models/rep.ts:69-110`):
+Derived metrics (all O(1), `src/models/rep.ts`):
 - `getRepDuration` — concentric start to eccentric end (or concentric end if no eccentric).
 - `getRepTempo` — formats movement / hold durations as `"E-PB-C-PT"` via `formatTempo`.
 - `getRepMeanVelocity` — concentric only (primary VBT signal).
@@ -147,20 +147,20 @@ Derived metrics (all O(1), `src/models/rep.ts:69-110`):
 
 ## `Set`
 
-Definition: `src/models/set.ts:30-34`.
+Definition: `src/models/set.ts`.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `reps` | `readonly Rep[]` | All reps in the set. |
 | `loadSettings` | `LoadSettings?` | Optional. If provided, drives per-frame load when adapters compute `WorkoutSample.load`. |
 
-`createSet(loadSettings?)` (`src/models/set.ts:39-41`) starts an empty set.
+`createSet(loadSettings?)` (`src/models/set.ts`) starts an empty set.
 
-`addSampleToSet(set, sample)` (`src/models/set.ts:47-65`) is the single ingest entry point. See [Rep boundary detection](#rep-boundary-detection).
+`addSampleToSet(set, sample)` (`src/models/set.ts`) is the single ingest entry point. See [Rep boundary detection](#rep-boundary-detection).
 
-`completeSet(set)` (`src/models/set.ts:94-104`) trims trailing IDLE samples from the last rep's active phase (eccentric if started, else concentric) by rebuilding the phase from the trimmed sample array.
+`completeSet(set)` (`src/models/set.ts`) trims trailing IDLE samples from the last rep's active phase (eccentric if started, else concentric) by rebuilding the phase from the trimmed sample array.
 
-Set-level helpers (`src/models/set.ts:113-174`):
+Set-level helpers (`src/models/set.ts`):
 - `getSetRepCount(set)`, `getSetDuration(set)`.
 - `getSetTimeUnderTension(set)` — sum of concentric + eccentric movement time across reps (excludes holds).
 - `getSetLoad(set)` — base weight from `loadSettings.weight` (the simple scalar for volume / e1RM / stimulus).
@@ -169,7 +169,7 @@ Set-level helpers (`src/models/set.ts:113-174`):
 
 ## Rep boundary detection
 
-Implemented in `addSampleToSet` (`src/models/set.ts:47-65`):
+Implemented in `addSampleToSet` (`src/models/set.ts`):
 
 1. **Pre-first-rep**: while no rep exists, samples are ignored UNLESS `sample.phase === CONCENTRIC`. The first concentric sample creates rep 1 and routes the sample to its concentric phase.
 
@@ -183,7 +183,7 @@ The autoregulation spec discusses optional minimum-rep-duration jitter filters (
 
 ## `LoadSettings`
 
-Definition: `src/models/load.ts:24-31`. Hardware-agnostic configuration for resistance.
+Definition: `src/models/load.ts`. Hardware-agnostic configuration for resistance.
 
 | Field | Type | Unit | Description |
 | --- | --- | --- | --- |
@@ -194,7 +194,7 @@ Definition: `src/models/load.ts:24-31`. Hardware-agnostic configuration for resi
 
 `DEFAULT_LOAD_SETTINGS` is `{ weight: 0, chains: 0, eccentric: 0, chainsFullExtension: 0 }`. The `0` reference means a caller who adds chains by spreading the default gets NO chain contribution — loudly wrong rather than plausibly wrong.
 
-`calculateFrameLoad(settings, position, phase)` (`src/models/load.ts:70-89`) computes the instantaneous load:
+`calculateFrameLoad(settings, position, phase)` (`src/models/load.ts`) computes the instantaneous load:
 
 ```
 load = weight
@@ -204,13 +204,13 @@ load = weight
 
 Floored at 0. The chains curve is a linear simplification.
 
-**The chains term's DIRECTION is unresolved.** It is descending in extension (maximum at position 0, zero at `chainsFullExtension`). Physical barbell chains do the opposite — links leaving the floor transfer weight onto the bar, so resistance rises through the concentric. Per `voltra-node-sdk` `src/sdk/voltra-client.ts:693-700`, `setInverseChains` is documented as "reduce resistance during the concentric (lifting) phase and add resistance during the eccentric (lowering) phase - opposite of regular chains" — so a term that falls with position is modelling the device's *inverse*-chains behaviour under the name `chains`. The device also exposes inverse chains as a weight in pounds, and `LoadSettings` has no `inverseChains` field, so that mode is unmodelled. `eccentric` is unaffected — it is correctly phase-gated. Tracked in `KNOWN-ISSUES-2026-07-27.md`; do not rely on `chains` for regular-chain modelling until it is resolved.
+**The chains term's DIRECTION is unresolved.** It is descending in extension (maximum at position 0, zero at `chainsFullExtension`). Physical barbell chains do the opposite — links leaving the floor transfer weight onto the bar, so resistance rises through the concentric. Per `voltra-node-sdk` `src/sdk/voltra-client.ts`, `setInverseChains` is documented as "reduce resistance during the concentric (lifting) phase and add resistance during the eccentric (lowering) phase - opposite of regular chains" — so a term that falls with position is modelling the device's *inverse*-chains behaviour under the name `chains`. The device also exposes inverse chains as a weight in pounds, and `LoadSettings` has no `inverseChains` field, so that mode is unmodelled. `eccentric` is unaffected — it is correctly phase-gated. Tracked in `KNOWN-ISSUES-2026-07-27.md`; do not rely on `chains` for regular-chain modelling until it is resolved.
 
-`getEffectiveLoad(settings)` (`src/models/load.ts:109-111`) returns `weight` only, used by `getSetLoad` and downstream analytics that want a single scalar load.
+`getEffectiveLoad(settings)` (`src/models/load.ts`) returns `weight` only, used by `getSetLoad` and downstream analytics that want a single scalar load.
 
 ## `Tempo`
 
-`TempoParts` (`src/models/tempo.ts:11-16`) and the format/parse helpers (`src/models/tempo.ts:19-28`):
+`TempoParts` and the format/parse helpers `formatTempo` / `parseTempo` (`src/models/tempo.ts`):
 
 ```
 "E-PB-C-PT" — eccentric, pause-bottom, concentric, pause-top (whole seconds)
@@ -219,7 +219,7 @@ Floored at 0. The chains curve is a linear simplification.
 This matches the canonical tempo order used by `getSetTempoSeconds`
 (`src/analytics/view-model.ts`): `[eccentric, pauseBottom, concentric, pauseTop]`.
 
-`getRepTempo(rep)` (`src/models/rep.ts:75-82`) constructs this from the phase movement / hold durations:
+`getRepTempo(rep)` (`src/models/rep.ts`) constructs this from the phase movement / hold durations:
 - `eccentric` ← `getPhaseMovementDuration(rep.eccentric)`
 - `pauseBottom` ← `getPhaseHoldDuration(rep.eccentric)` — IDLE/HOLD in the eccentric phase
 - `concentric` ← `getPhaseMovementDuration(rep.concentric)`

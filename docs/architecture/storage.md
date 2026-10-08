@@ -19,7 +19,7 @@ Persistence is opt-in and lives behind separate subpath exports. The analytics s
 
 ## Subpath layout and peer deps
 
-Five subpath exports (`package.json:9-32`):
+Five subpath exports (`package.json` `"exports"`):
 
 | Subpath | Source | Optional peer | Purpose |
 | --- | --- | --- | --- |
@@ -28,7 +28,7 @@ Five subpath exports (`package.json:9-32`):
 | `@voltras/workout-analytics/store/sqlite-node` | `src/store/sqlite-node/index.ts` | `better-sqlite3@^11` | Node driver. |
 | `@voltras/workout-analytics/store/sqlite-expo` | `src/store/sqlite-expo/index.ts` | `expo-sqlite@^15` | Expo / React Native driver. |
 
-Peers are flagged optional via `peerDependenciesMeta` (`package.json:65-72`). Consumers install only the driver they need:
+Peers are flagged optional via `peerDependenciesMeta` in `package.json`. Consumers install only the driver they need:
 
 ```bash
 npm install @voltras/workout-analytics better-sqlite3   # Node
@@ -48,7 +48,7 @@ Session (1) ──< SetRecord (n) ──< RepRecord (n)
    sessionId ─┘     setId ────────┘
 ```
 
-FK CASCADE on delete is enforced at the DB layer (`src/schema/migrations/001_initial.sql:19, :29`). Foreign keys must be enabled per-connection — see [Connection PRAGMAs](#connection-pragmas).
+FK CASCADE on delete is enforced at the DB layer (the `FOREIGN KEY` clauses of the `sets` and `reps` tables in `src/schema/migrations/001_initial.sql`). Foreign keys must be enabled per-connection — see [Connection PRAGMAs](#connection-pragmas).
 
 ### `Session`
 
@@ -85,17 +85,17 @@ FK CASCADE on delete is enforced at the DB layer (`src/schema/migrations/001_ini
 
 ### `SchemaVersion`
 
-`type SchemaVersion = number` (`src/schema/types.ts:8`).
+`type SchemaVersion = number` (`src/schema/types.ts`).
 
 ### Validators
 
-Source: `src/schema/validators.ts:13-38`. Three zod schemas: `sessionSchema`, `setRecordSchema`, `repRecordSchema`.
+Source: `src/schema/validators.ts`. Three zod schemas: `sessionSchema`, `setRecordSchema`, `repRecordSchema`.
 
-**D19 invariant** (`src/schema/validators.ts:1-9`): no `.default()`, `.transform()`, or `.coerce` anywhere. The store's round-trip contract requires validation NOT silently mutate input shape. `validators.test.ts` walks each schema's `_def` and asserts no `ZodEffects` nodes and no `coerce` flags. If you add a new validator, do not introduce these.
+**D19 invariant** (`src/schema/validators.ts`): no `.default()`, `.transform()`, or `.coerce` anywhere. The store's round-trip contract requires validation NOT silently mutate input shape. `validators.test.ts` walks each schema's `_def` and asserts no `ZodEffects` nodes and no `coerce` flags. If you add a new validator, do not introduce these.
 
 ## `SessionStore` interface
 
-Source: `src/store/session-store.ts:19-101`. The single public storage interface, implemented by both drivers.
+Source: `src/store/session-store.ts`. The single public storage interface, implemented by both drivers.
 
 ### Methods
 
@@ -120,7 +120,7 @@ All writes serialize through the driver-specific `withTransaction` shim. Concurr
 
 ## Validation: `prepareForSave`
 
-Source: `src/store/prepare-for-save.ts:22-37`.
+Source: `src/store/prepare-for-save.ts`.
 
 ```ts
 prepareForSave<T extends { schemaVersion: number }>(
@@ -133,7 +133,7 @@ prepareForSave<T extends { schemaVersion: number }>(
 1. `validator.parse(input)` — wraps `ZodError` as `ValidationError(message, { cause: zodError })` so callers don't depend on zod-specific error shapes.
 2. Shallow spread `{ ...parsed, schemaVersion: latestAppliedVersion }`.
 
-Why shallow rather than `structuredClone` (`src/store/prepare-for-save.ts:1-13`): records are flat — primitives only. `rawSamplesJson` is opaque per v5R-4. No nested mutables to copy. Shallow spread is portable across Hermes versions and avoids runtime cost. The function MUST NOT mutate `input`.
+Why shallow rather than `structuredClone` (`src/store/prepare-for-save.ts`): records are flat — primitives only. `rawSamplesJson` is opaque per v5R-4. No nested mutables to copy. Shallow spread is portable across Hermes versions and avoids runtime cost. The function MUST NOT mutate `input`.
 
 ## Migrations
 
@@ -225,10 +225,10 @@ This works because applying v2 raises `latestAppliedVersion` to `2`, and `prepar
 
 Source: `src/store/migration-runner.ts`. Class `MigrationRunner(driver: MigrationDriver)`.
 
-Run order in `MigrationRunner.run(migrations)` (`:120-150`):
+Run order in `MigrationRunner.run(migrations)`:
 
-1. **Validate sequence** (`:70-82`) — must be contiguous `1..N`, sorted ascending. Rejection happens BEFORE any DDL.
-2. **Bootstrap** (`:93-101`) — idempotent `CREATE TABLE IF NOT EXISTS __migrations`. DDL failure → `MigrationError('failed to create __migrations table', { cause })`.
+1. **Validate sequence** (`validateSequence`) — must be contiguous `1..N`, sorted ascending. Rejection happens BEFORE any DDL.
+2. **Bootstrap** (`MigrationRunner.bootstrap`) — idempotent `CREATE TABLE IF NOT EXISTS __migrations`. DDL failure → `MigrationError('failed to create __migrations table', { cause })`.
 3. **Read applied versions** from `__migrations`.
 4. **For each unapplied** migration: verify SHA-256 (`createHash('sha256')` over the SQL string); on mismatch throw `MigrationError('hash mismatch for migration N: expected X, got Y')`. Apply SQL inside `withTransaction`, then `INSERT INTO __migrations (version, sha256)`.
 
@@ -242,7 +242,7 @@ CREATE TABLE IF NOT EXISTS __migrations (
 );
 ```
 
-Drivers implement the `MigrationDriver` interface (`src/store/migration-runner.ts:39-53`) — intersection of `MigrationDriverSql` (`exec`, `selectAll`, `run`) and `TransactionalDriver`.
+Drivers implement the `MigrationDriver` interface (`src/store/migration-runner.ts`) — intersection of `MigrationDriverSql` (`exec`, `selectAll`, `run`) and `TransactionalDriver`.
 
 ### `latestAppliedVersion` derivation
 
@@ -250,7 +250,7 @@ Both factories compute `latestAppliedVersion = Math.max(...(await runner.getAppl
 
 ## Connection PRAGMAs
 
-Source: `src/store/bootstrap.ts:30-38`.
+Source: `src/store/bootstrap.ts`.
 
 `applyConnectionPragmas(driver)` issues, in order:
 
@@ -258,11 +258,11 @@ Source: `src/store/bootstrap.ts:30-38`.
 2. `PRAGMA journal_mode = WAL`.
 3. Reads back `PRAGMA journal_mode` and verifies the result is literally `'wal'`. If not (e.g. file is on a network filesystem that doesn't support memory-mapped I/O), throws `StoreError('failed to enable WAL: <actual>')`.
 
-`PragmaDriver` interface at `:25-28`: minimal `{ exec, selectAll }` — both drivers satisfy this.
+`PragmaDriver` interface: minimal `{ exec, selectAll }` — both drivers satisfy this.
 
 ## Transaction shim: `withTransaction`
 
-Source: `src/store/with-transaction.ts`. Discriminates between two driver shapes by literal `'transaction' in driver` (`:32-34`).
+Source: `src/store/with-transaction.ts`. Discriminates between two driver shapes by literal `'transaction' in driver`.
 
 ### Sync shape (`SyncTransactionalDriver`)
 
@@ -288,11 +288,11 @@ Used by `ExpoSqliteDriver`. `withTransaction` calls `beginExclusive` → `fn()` 
 
 ### Important: `BetterSqlite3Driver` deviation
 
-`better-sqlite3`'s native `db.transaction(fn)` rejects async `fn` ("Transaction function cannot return a promise"). The driver issues `BEGIN`/`COMMIT`/`ROLLBACK` manually via `db.exec` and serializes overlapping `withTransaction` calls with an internal Promise mutex (`this.chain`, `src/store/sqlite-node/driver.ts:88-110`). The DB ops themselves stay synchronous; the mutex prevents overlapping `BEGIN` from concurrent JS callers.
+`better-sqlite3`'s native `db.transaction(fn)` rejects async `fn` ("Transaction function cannot return a promise"). The driver issues `BEGIN`/`COMMIT`/`ROLLBACK` manually via `db.exec` and serializes overlapping `withTransaction` calls with an internal Promise mutex (`this.chain`, `src/store/sqlite-node/driver.ts`). The DB ops themselves stay synchronous; the mutex prevents overlapping `BEGIN` from concurrent JS callers.
 
 ## Errors
 
-Source: `src/store/errors.ts:12-31`. Three classes; each accepts `{ cause }`.
+Source: `src/store/errors.ts`. Three classes; each accepts `{ cause }`.
 
 | Class | When |
 | --- | --- |
@@ -306,7 +306,7 @@ There is **no** `NotFoundError` (D16 / AC-15). Reads return `undefined`/`[]` for
 
 ### Node — `createSqliteNodeStore`
 
-Source: `src/store/sqlite-node/index.ts:141-300`.
+Source: `src/store/sqlite-node/index.ts`.
 
 Open path:
 
@@ -318,22 +318,22 @@ Open path:
 6. `latestAppliedVersion = Math.max(...await runner.getAppliedVersions())`.
 7. Return `SessionStore` impl that closes over driver + version.
 
-`saveReps([])` short-circuits before opening any transaction (`:222-223`).
+`saveReps([])` short-circuits before opening any transaction.
 
-`close()` is idempotent (`:284-288`).
+`close()` is idempotent.
 
-`isUniqueConstraintError` (`:117-125`) detects `SQLITE_CONSTRAINT*` codes / messages.
+`isUniqueConstraintError` detects `SQLITE_CONSTRAINT*` codes / messages.
 
 ### Expo / React Native — `createSqliteExpoStore`
 
-Source: `src/store/sqlite-expo/index.ts:122-282`.
+Source: `src/store/sqlite-expo/index.ts`.
 
 Mirrors the Node factory but async-throughout via `expo-sqlite`'s `openDatabaseAsync`, `execAsync`, `runAsync`, `getAllAsync`, `closeAsync`.
 
 `ExpoSqliteDriver` (`src/store/sqlite-expo/driver.ts`):
 - Implements `MigrationDriverSql` + `AsyncTransactionalDriver`.
 - Holds an internal Promise mutex (`currentTx`) — new callers chain after the in-flight transaction's `commit()`/`rollback()` resolves before issuing their own `BEGIN EXCLUSIVE`. This is required because the async API does not have native serialization equivalent to `better-sqlite3`'s synchronous engine lock.
-- `normalizeParams` (`:31-34`) maps `undefined` to `null` because `SQLiteBindValue` does not include `undefined`.
+- `normalizeParams` maps `undefined` to `null` because `SQLiteBindValue` does not include `undefined`.
 
 ### Verification model
 
