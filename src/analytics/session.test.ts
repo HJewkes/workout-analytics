@@ -128,6 +128,24 @@ describe('computeStrengthEstimate', () => {
     expect(result.estimated1RM).toBeCloseTo(99, 0);
   });
 
+  it('a 3-rep set at 90 lb outranks a 20-rep set at 60 lb', () => {
+    // 3 @ 90: Epley 99, confidence 0.9. 20 @ 60: Epley 100, confidence 0.3.
+    const result = computeStrengthEstimate([buildTestSet(20), buildTestSet(3)], [60, 90]);
+    expect(result.estimated1RM).toBeCloseTo(99, 5);
+    expect(result.confidence).toBe(0.9);
+  });
+
+  it('a light warm-up set does not outrank a heavy working set', () => {
+    // 5 @ 20 is in the most confident band, but 6 @ 100 (Epley 120) is the lift.
+    const result = computeStrengthEstimate([buildTestSet(5), buildTestSet(6)], [20, 100]);
+    expect(result.estimated1RM).toBeCloseTo(120, 5);
+  });
+
+  it('a heavy single outranks a light 5-rep set', () => {
+    const result = computeStrengthEstimate([buildTestSet(1), buildTestSet(5)], [100, 60]);
+    expect(result.estimated1RM).toBeCloseTo(103.33, 1);
+  });
+
   it('uses hybrid method when profile available', () => {
     const set = buildTestSet(5);
     const profile = buildProfile([

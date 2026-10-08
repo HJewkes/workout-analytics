@@ -88,8 +88,10 @@ export function estimateE1RMFromProfile(
  * - Assumes linear load-reps relationship
  * - Most accurate in the 3-10 rep range
  *
- * Confidence decreases with rep count (formula less reliable at high reps)
- * and is 0 for single-rep sets (formula undefined at 1 rep).
+ * Confidence decreases with rep count (formula less reliable at high reps).
+ * Epley assumes a set taken to or near failure. Under that premise a single
+ * is a direct max: the formula extrapolates nothing and only adds 1/30 of
+ * the load, so a single gets the same confidence as the 2-5 rep band.
  *
  * @param load - Load used for the set
  * @param reps - Number of reps completed
@@ -103,12 +105,9 @@ export function estimateE1RMFromReps(load: number, reps: number): E1RMEstimate {
   // At 1 rep, Epley gives e1RM ≈ load * 1.033 -- essentially the load itself
   const e1RM = load * (1 + reps / 30);
 
-  // Confidence: highest at 3-8 reps, decreasing outside that range
+  // Confidence: highest at 1-5 reps, decreasing as reps rise
   let confidence: number;
-  if (reps === 1) {
-    // Single rep: load IS close to 1RM, but formula adds little value
-    confidence = 0.5;
-  } else if (reps <= 5) {
+  if (reps <= 5) {
     confidence = 0.9;
   } else if (reps <= 8) {
     confidence = 0.85;
@@ -139,6 +138,14 @@ export function estimateE1RMFromReps(load: number, reps: number): E1RMEstimate {
  *
  * The final estimate is a confidence-weighted average.
  *
+ * Confidence treats the two as independent corroborating estimates,
+ * 1 - (1 - vc)(1 - rc), which is never below the stronger input. It is then
+ * cut by their relative disagreement, scaled by weaker / stronger so that a
+ * near-zero-confidence input (which barely moves the e1RM) barely moves the
+ * confidence either. Two agreeing estimates are therefore at least as
+ * confident as the stronger one; two equally confident estimates far apart
+ * are less confident than either.
+ *
  * @param velocityEstimate - e1RM from profile method
  * @param repsEstimate - e1RM from Epley method
  * @returns Combined e1RM with aggregated confidence
@@ -159,18 +166,18 @@ export function estimateHybridE1RM(
   // Confidence-weighted average
   const e1RM = (velocityEstimate.e1RM * vc + repsEstimate.e1RM * rc) / totalConf;
 
-  // Hybrid confidence: average of both, boosted slightly because
-  // two independent estimates corroborating increases reliability
-  const avgConfidence = totalConf / 2;
-  const agreement =
-    1 -
-    Math.abs(velocityEstimate.e1RM - repsEstimate.e1RM) /
-      Math.max(velocityEstimate.e1RM, repsEstimate.e1RM, 1);
-  const confidence = Math.min(1, avgConfidence * (0.8 + 0.2 * agreement));
-
   return {
     e1RM: Math.max(0, e1RM),
-    confidence: Math.min(1, Math.max(0, confidence)),
+    confidence: hybridConfidence(velocityEstimate, repsEstimate),
     method: 'hybrid',
   };
+}
+
+function hybridConfidence(a: E1RMEstimate, b: E1RMEstimate): number {
+  const stronger = Math.max(a.confidence, b.confidence);
+  const weaker = Math.min(a.confidence, b.confidence);
+  const corroborated = 1 - (1 - a.confidence) * (1 - b.confidence);
+  const disagreement = Math.abs(a.e1RM - b.e1RM) / Math.max(a.e1RM, b.e1RM, 1);
+  const confidence = corroborated * (1 - disagreement * (weaker / stronger));
+  return Math.min(1, Math.max(0, confidence));
 }

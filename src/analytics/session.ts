@@ -72,9 +72,12 @@ export interface SessionFatigueEstimate {
 /**
  * Compute strength estimate from session sets.
  *
- * Uses the best e1RM estimate from across all sets. When an LV profile
- * is available, combines profile-based and rep-based estimates via
- * the hybrid method.
+ * Picks the set whose Epley e1RM scores highest once discounted by its
+ * confidence (e1RM x confidence, ties to the higher e1RM). Taking the raw
+ * maximum let a high-rep set, which Epley overestimates, beat a heavier
+ * low-rep set; ranking by confidence alone would let a light warm-up in the
+ * 1-5 rep band beat the working sets. When an LV profile is available,
+ * combines the profile-based estimate with that set's via the hybrid method.
  *
  * @param sets - All sets in the session
  * @param weights - Optional parallel array of load per set. Falls back to set.loadSettings.weight.
@@ -90,18 +93,7 @@ export function computeStrengthEstimate(
     return { estimated1RM: 0, confidence: 0, source: 'reps' };
   }
 
-  // Rep-based: find best e1RM from all sets via Epley
-  let bestRepEstimate: E1RMEstimate = { e1RM: 0, confidence: 0, method: 'reps' };
-  for (let i = 0; i < sets.length; i++) {
-    const reps = sets[i].reps.length;
-    const load = weights?.[i] ?? getSetLoad(sets[i]);
-    if (reps > 0 && load > 0) {
-      const est = estimateE1RMFromReps(load, reps);
-      if (est.e1RM > bestRepEstimate.e1RM) {
-        bestRepEstimate = est;
-      }
-    }
-  }
+  const bestRepEstimate = bestRepBasedEstimate(sets, weights);
 
   // Profile-based: if profile available
   if (profile && profile.dataPoints.length >= 2) {
@@ -129,6 +121,26 @@ export function computeStrengthEstimate(
     confidence: bestRepEstimate.confidence,
     source: 'reps',
   };
+}
+
+function bestRepBasedEstimate(sets: readonly Set[], weights?: readonly number[]): E1RMEstimate {
+  let best: E1RMEstimate = { e1RM: 0, confidence: 0, method: 'reps' };
+  for (let i = 0; i < sets.length; i++) {
+    const reps = sets[i].reps.length;
+    const load = weights?.[i] ?? getSetLoad(sets[i]);
+    if (reps > 0 && load > 0) {
+      const est = estimateE1RMFromReps(load, reps);
+      if (outranks(est, best)) best = est;
+    }
+  }
+  return best;
+}
+
+function outranks(candidate: E1RMEstimate, current: E1RMEstimate): boolean {
+  const candidateScore = candidate.e1RM * candidate.confidence;
+  const currentScore = current.e1RM * current.confidence;
+  if (candidateScore !== currentScore) return candidateScore > currentScore;
+  return candidate.e1RM > current.e1RM;
 }
 
 // =============================================================================
