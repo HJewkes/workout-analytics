@@ -122,6 +122,24 @@ function pair(
 // =============================================================================
 
 describe('summarizeSetsForPerformance', () => {
+  it('ignores 0 lb sets', () => {
+    // Arrange: one loaded set and one unloaded set
+    const sets = [buildSet(5, 100), buildSet(5, 0)];
+
+    // Act
+    const result = summarizeSetsForPerformance(sets);
+
+    // Assert: the unloaded set neither counts nor drags the median load
+    expect(result?.workingSetCount).toBe(1);
+    expect(result?.totalReps).toBe(5);
+    expect(result?.medianSetWeightLbs).toBe(100);
+    expect(result?.totalVolumeLoadLbs).toBe(500);
+  });
+
+  it('returns undefined when every set is 0 lb', () => {
+    expect(summarizeSetsForPerformance([buildSet(5, 0)])).toBeUndefined();
+  });
+
   it('returns undefined when no set qualifies', () => {
     // Arrange: one set with no load recorded, one with load but no reps
     const sets = [buildSet(5, undefined), buildSet(0, 100)];
@@ -205,6 +223,49 @@ describe('summarizeSetsForPerformance', () => {
 // =============================================================================
 
 describe('evaluateMrvUnderperformance', () => {
+  it('skips the velocity delta when the current session has no measured velocity', () => {
+    // Arrange: volume load held; current velocity is 0 (unmeasured), not a stall
+    const current = summary({ medianConcentricVelocityMps: 0 });
+
+    // Act
+    const verdict = evaluateMrvUnderperformance(BASELINE, current, drift());
+
+    // Assert: no -100 % velocity decline is invented
+    expect(verdict.evaluable).toBe(true);
+    expect(verdict.underperformed).toBe(false);
+    expect(verdict.velocityDeltaPct).toBe(0);
+    expect(verdict.reasoning).not.toContain('concentric velocity fell');
+  });
+
+  it('skips the velocity delta when the baseline session has no measured velocity', () => {
+    // Arrange: baseline unmeasured, current measured and slow
+    const baseline = summary({ medianConcentricVelocityMps: 0 });
+    const current = summary({ medianConcentricVelocityMps: 0.1 });
+
+    // Act
+    const verdict = evaluateMrvUnderperformance(baseline, current, drift());
+
+    // Assert
+    expect(verdict.underperformed).toBe(false);
+    expect(verdict.velocityDeltaPct).toBe(0);
+  });
+
+  it('evaluates a pair with no measured velocity on volume load alone', () => {
+    // Arrange: neither side has velocity; volume load fell 20 %
+    const baseline = summary({ medianConcentricVelocityMps: 0 });
+    const current = summary({ medianConcentricVelocityMps: 0, totalVolumeLoadLbs: 2000 });
+
+    // Act
+    const verdict = evaluateMrvUnderperformance(baseline, current, drift());
+
+    // Assert
+    expect(verdict.evaluable).toBe(true);
+    expect(verdict.underperformed).toBe(true);
+    expect(verdict.velocityDeltaPct).toBe(0);
+    expect(verdict.reasoning).toContain('volume load fell 20.0%');
+    expect(verdict.reasoning).not.toContain('velocity');
+  });
+
   it('refuses to evaluate when the drift guard says not comparable, however bad the numbers look', () => {
     // Arrange: volume load halved at matched load — an unmistakable decline —
     // but the two sessions describe different movements.
