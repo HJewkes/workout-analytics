@@ -72,12 +72,13 @@ export interface SessionFatigueEstimate {
 /**
  * Compute strength estimate from session sets.
  *
- * Picks the set whose Epley e1RM scores highest once discounted by its
- * confidence (e1RM x confidence, ties to the higher e1RM). Taking the raw
- * maximum let a high-rep set, which Epley overestimates, beat a heavier
- * low-rep set; ranking by confidence alone would let a light warm-up in the
- * 1-5 rep band beat the working sets. When an LV profile is available,
- * combines the profile-based estimate with that set's via the hybrid method.
+ * Only sets whose Epley e1RM is at least MIN_E1RM_SHARE_OF_SESSION_MAX
+ * (0.85) of the session's highest are eligible. Among those it picks the
+ * highest e1RM x confidence, ties to the higher e1RM. Taking the raw maximum
+ * let a high-rep set, which Epley overestimates, beat a heavier low-rep set;
+ * the score alone, or confidence alone, let a light warm-up or a sub-max
+ * single beat the working sets. When an LV profile is available, combines
+ * the profile-based estimate with the picked set's via the hybrid method.
  *
  * @param sets - All sets in the session
  * @param weights - Optional parallel array of load per set. Falls back to set.loadSettings.weight.
@@ -123,17 +124,34 @@ export function computeStrengthEstimate(
   };
 }
 
+/**
+ * A set below this share of the session's highest Epley e1RM cannot set the
+ * estimate. It caps how far the confidence discount can pull the pick below
+ * the raw maximum, at 15%. A set further down implies a lighter effort (a
+ * warm-up, back-off or sub-max single) rather than a better-measured version
+ * of the top set. Within the margin the discount still applies, so a 3-rep
+ * set at 90 (e1RM 99) beats a 20-rep set at 60 (e1RM 100).
+ */
+const MIN_E1RM_SHARE_OF_SESSION_MAX = 0.85;
+
 function bestRepBasedEstimate(sets: readonly Set[], weights?: readonly number[]): E1RMEstimate {
+  const estimates = repBasedEstimates(sets, weights);
+  const maxE1RM = estimates.reduce((max, est) => Math.max(max, est.e1RM), 0);
   let best: E1RMEstimate = { e1RM: 0, confidence: 0, method: 'reps' };
+  for (const est of estimates) {
+    if (est.e1RM >= maxE1RM * MIN_E1RM_SHARE_OF_SESSION_MAX && outranks(est, best)) best = est;
+  }
+  return best;
+}
+
+function repBasedEstimates(sets: readonly Set[], weights?: readonly number[]): E1RMEstimate[] {
+  const estimates: E1RMEstimate[] = [];
   for (let i = 0; i < sets.length; i++) {
     const reps = sets[i].reps.length;
     const load = weights?.[i] ?? getSetLoad(sets[i]);
-    if (reps > 0 && load > 0) {
-      const est = estimateE1RMFromReps(load, reps);
-      if (outranks(est, best)) best = est;
-    }
+    if (reps > 0 && load > 0) estimates.push(estimateE1RMFromReps(load, reps));
   }
-  return best;
+  return estimates;
 }
 
 function outranks(candidate: E1RMEstimate, current: E1RMEstimate): boolean {

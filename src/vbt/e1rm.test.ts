@@ -151,9 +151,8 @@ describe('estimateE1RMFromReps', () => {
     expect(estimateE1RMFromReps(100, 5).confidence).toBe(0.9);
   });
 
-  it('a single-rep set is as confident as the 2-5 rep band, not unknown', () => {
-    expect(estimateE1RMFromReps(100, 1).confidence).toBe(0.9);
-    expect(estimateE1RMFromReps(100, 1).confidence).toBe(estimateE1RMFromReps(100, 3).confidence);
+  it('a single-rep set has confidence 0.5, not 0, because singles are mostly sub-max', () => {
+    expect(estimateE1RMFromReps(100, 1).confidence).toBe(0.5);
   });
 
   it('has lower confidence at high reps', () => {

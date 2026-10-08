@@ -88,10 +88,12 @@ export function estimateE1RMFromProfile(
  * - Assumes linear load-reps relationship
  * - Most accurate in the 3-10 rep range
  *
- * Confidence decreases with rep count (formula less reliable at high reps).
- * Epley assumes a set taken to or near failure. Under that premise a single
- * is a direct max: the formula extrapolates nothing and only adds 1/30 of
- * the load, so a single gets the same confidence as the 2-5 rep band.
+ * Confidence decreases with rep count (formula less reliable at high reps)
+ * and is 0.5 for single-rep sets. Epley assumes a set taken to or near
+ * failure, but singles in this data are mostly sub-max: warm-up and
+ * load-velocity profiling singles, and heavy singles taken without failure.
+ * A single is therefore not a max attempt, and its e1RM (about the load
+ * itself) is often low.
  *
  * @param load - Load used for the set
  * @param reps - Number of reps completed
@@ -105,9 +107,11 @@ export function estimateE1RMFromReps(load: number, reps: number): E1RMEstimate {
   // At 1 rep, Epley gives e1RM ≈ load * 1.033 -- essentially the load itself
   const e1RM = load * (1 + reps / 30);
 
-  // Confidence: highest at 1-5 reps, decreasing as reps rise
+  // Confidence: highest at 2-5 reps, decreasing outside that range
   let confidence: number;
-  if (reps <= 5) {
+  if (reps === 1) {
+    confidence = 0.5;
+  } else if (reps <= 5) {
     confidence = 0.9;
   } else if (reps <= 8) {
     confidence = 0.85;

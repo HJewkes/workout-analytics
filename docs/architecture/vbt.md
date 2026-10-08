@@ -129,12 +129,12 @@ interface E1RMEstimate {
 | Function | Confidence formula |
 | --- | --- |
 | `estimateE1RMFromProfile(profile, mvt = 0.17)` | `R² × min(1, n / 5)` — needs both fit quality and data volume. Returns e1RM 0 and confidence 0 when the slope is not negative or the e1RM exceeds 5× the heaviest load in the profile. |
-| `estimateE1RMFromReps(load, reps)` | Epley: `load × (1 + reps / 30)`. Confidence: 0.9 (1-5 reps; a single is a direct max under Epley's to-failure premise), 0.85 (≤8), 0.7 (≤12), decays beyond 12. |
+| `estimateE1RMFromReps(load, reps)` | Epley: `load × (1 + reps / 30)`. Confidence: 0.5 (1 rep; singles are mostly sub-max warm-up and profiling reps, not max attempts), 0.9 (≤5), 0.85 (≤8), 0.7 (≤12), decays beyond 12. |
 | `estimateHybridE1RM(velocityEstimate, repsEstimate)` | Confidence-weighted average of e1RMs. Confidence `(1 − (1 − vc)(1 − rc)) × (1 − disagreement × weaker / stronger)`: two agreeing estimates are at least as confident as the stronger input, a zero-confidence input leaves the other's confidence unchanged, and two equally confident estimates far apart are less confident than either. |
 
 ### Method selection (in `computeStrengthEstimate`, `src/analytics/session.ts`)
 
-1. Find the best rep-based estimate across all sets: the set with the highest Epley e1RM × confidence, ties to the higher e1RM. A 3-rep set at 90 (99 × 0.9) beats a 20-rep set at 60 (100 × 0.3), and a light warm-up does not beat a heavy working set.
+1. Find the best rep-based estimate across all sets. Only sets whose Epley e1RM is at least 0.85 of the session's highest are eligible (`MIN_E1RM_SHARE_OF_SESSION_MAX`), so the pick never falls more than 15% below the raw maximum and a warm-up, back-off set or sub-max single cannot set it. Among those, the set with the highest e1RM × confidence wins, ties to the higher e1RM. A 3-rep set at 90 (99 × 0.9) beats a 20-rep set at 60 (100 × 0.3); a single at 95 after a 10-rep set at 90 (98.2 < 0.85 × 120) does not.
 2. If a profile is provided AND has ≥2 data points: compute profile-based estimate; if rep-based also exists, return hybrid; else profile-only.
 3. Else return rep-based.
 

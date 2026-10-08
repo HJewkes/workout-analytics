@@ -146,6 +146,28 @@ describe('computeStrengthEstimate', () => {
     expect(result.estimated1RM).toBeCloseTo(103.33, 1);
   });
 
+  it('a 5-rep warm-up at 30 does not outrank a 20-rep set at 60', () => {
+    const result = computeStrengthEstimate([buildTestSet(20), buildTestSet(5)], [60, 30]);
+    expect(result.estimated1RM).toBeCloseTo(100, 5);
+    expect(result.confidence).toBeCloseTo(0.3, 10);
+  });
+
+  it('a 5-rep warm-up at 25 does not outrank three 20-rep sets at 40', () => {
+    const work = [buildTestSet(20), buildTestSet(20), buildTestSet(20)];
+    const result = computeStrengthEstimate([buildTestSet(5), ...work], [25, 40, 40, 40]);
+    expect(result.estimated1RM).toBeCloseTo(66.67, 1);
+  });
+
+  it('a single at 90 after a 15-rep set at 100 does not set the estimate', () => {
+    const result = computeStrengthEstimate([buildTestSet(15), buildTestSet(1)], [100, 90]);
+    expect(result.estimated1RM).toBeCloseTo(150, 5);
+  });
+
+  it('a single at 95 after a 10-rep set at 90 does not set the estimate', () => {
+    const result = computeStrengthEstimate([buildTestSet(10), buildTestSet(1)], [90, 95]);
+    expect(result.estimated1RM).toBeCloseTo(120, 5);
+  });
+
   it('uses hybrid method when profile available', () => {
     const set = buildTestSet(5);
     const profile = buildProfile([
