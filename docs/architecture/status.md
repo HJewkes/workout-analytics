@@ -61,7 +61,7 @@ From the integration plan and recent audits. These are NOT settled:
 - **Mode-aware enrichment surface shape.** Modes are listed in the plan but the per-mode aggregator API is not designed.
 - **Persistence schema evolution under 2.0.0.** The current schema (`src/schema/migrations/001_initial.sql`) does not carry mode or device-asserted fields. A v2 migration is implied but not drafted.
 - **Set-lifecycle policy configuration surface.** `force_threshold` is mentioned as a fallback. The full `WatchConfig`-equivalent for the analytics layer is undefined.
-- **Whether Voltra-specific scoring (`getSetStimulusScore`) should remain.** The function is explicitly marked as "a Voltra-specific heuristic, not a published metric" (`src/analytics/intensity.ts:154-160`). Composite scoring vs. surfacing only validated metrics (mechanical work) is an open call.
+- **Whether Voltra-specific scoring (`getSetStimulusScore`) should remain.** The function is explicitly marked as "a Voltra-specific heuristic, not a published metric" (the `getSetStimulusScore` docstring in `src/analytics/intensity.ts`). Composite scoring vs. surfacing only validated metrics (mechanical work) is an open call.
 
 ## Known contract gotchas
 

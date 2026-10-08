@@ -123,9 +123,9 @@ export function getRepHardnessWeight(rir: number, decayRate: number = DEFAULT_DE
 /**
  * Sum of per-rep hardness weights -- "effective stimulus reps."
  *
- * A set of 8 reps at RIR 2 with default decay produces ~3.6 effective reps.
- * A set of 5 reps at RIR 0 produces ~3.2 effective reps.
- * This captures the insight that more reps near failure = more stimulus.
+ * Per-rep RIR ramps down to the set RIR, so with flat velocity and default decay
+ * 8 reps ending at RIR 2 (reps at RIR 9..2) give ~1.31; 5 reps to failure ~2.62.
+ * Stopping short loses the heaviest-weighted reps, so the shorter set wins.
  *
  * @param set - The set to score
  * @param options - Optional decay rate and set RIR override
