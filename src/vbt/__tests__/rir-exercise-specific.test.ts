@@ -274,8 +274,7 @@ describe.each([
 ])('estimateRIRWithProfile — v_ratio direction (%s)', (_name, profile) => {
   it('a higher v_ratio never lowers RIR with velLossPct and repIndex fixed', () => {
     const rirs = V_RATIOS.map(
-      (vRatio) =>
-        estimateRIRWithProfile({ ...HIGH_CONF_INPUTS, peakVelocity: vRatio }, profile).rir
+      (vRatio) => estimateRIRWithProfile({ ...HIGH_CONF_INPUTS, peakVelocity: vRatio }, profile).rir
     );
 
     rirs.slice(1).forEach((rir, i) => expect(rir).toBeGreaterThanOrEqual(rirs[i]!));
