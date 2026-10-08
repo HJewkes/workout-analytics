@@ -19,7 +19,7 @@ Persistence is opt-in and lives behind separate subpath exports. The analytics s
 
 ## Subpath layout and peer deps
 
-Five subpath exports (`package.json:9-32`):
+Five subpath exports (`package.json` `"exports"`):
 
 | Subpath | Source | Optional peer | Purpose |
 | --- | --- | --- | --- |
@@ -28,7 +28,7 @@ Five subpath exports (`package.json:9-32`):
 | `@voltras/workout-analytics/store/sqlite-node` | `src/store/sqlite-node/index.ts` | `better-sqlite3@^11` | Node driver. |
 | `@voltras/workout-analytics/store/sqlite-expo` | `src/store/sqlite-expo/index.ts` | `expo-sqlite@^15` | Expo / React Native driver. |
 
-Peers are flagged optional via `peerDependenciesMeta` (`package.json:65-72`). Consumers install only the driver they need:
+Peers are flagged optional via `peerDependenciesMeta` in `package.json`. Consumers install only the driver they need:
 
 ```bash
 npm install @voltras/workout-analytics better-sqlite3   # Node
@@ -48,7 +48,7 @@ Session (1) ──< SetRecord (n) ──< RepRecord (n)
    sessionId ─┘     setId ────────┘
 ```
 
-FK CASCADE on delete is enforced at the DB layer (`src/schema/migrations/001_initial.sql:19, :29`). Foreign keys must be enabled per-connection — see [Connection PRAGMAs](#connection-pragmas).
+FK CASCADE on delete is enforced at the DB layer (the `FOREIGN KEY` clauses of the `sets` and `reps` tables in `src/schema/migrations/001_initial.sql`). Foreign keys must be enabled per-connection — see [Connection PRAGMAs](#connection-pragmas).
 
 ### `Session`
 

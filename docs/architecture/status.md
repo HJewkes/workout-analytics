@@ -13,14 +13,14 @@ Current state of `@voltras/workout-analytics`. Snapshot date: 2026-05-06 (matche
 
 ## Published version
 
-**1.1.0** (`package.json:3`).
+**1.1.0** (`package.json` `"version"`).
 
 | Version | Headline | Reference |
 | --- | --- | --- |
 | 1.1.0 | Expo SQLite driver subpath + SDK 0.6.0 contract tightening | `../../CHANGELOG.md` |
 | 1.0.0 | ESM-only; subpath split for `/schema`, `/store`, `/store/sqlite-node` | `../../CHANGELOG.md` |
 
-Engine: Node `>=20.0.0` (`package.json:120-122`).
+Engine: Node `>=20.0.0` (`package.json` `"engines"`).
 
 ## What ships today
 

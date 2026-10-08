@@ -19,7 +19,7 @@ This document describes how `@voltras/workout-analytics` is integrated by its tw
 
 ## voltras-mcp
 
-Source: `voltras-mcp/src/state/live-state.ts`. Imports at line 27-28:
+Source: `voltras-mcp/src/state/live-state.ts`. Imports:
 
 ```ts
 import type { Rep, Set as AnalyticsSet, WorkoutSample } from '@voltras/workout-analytics';
@@ -50,13 +50,13 @@ The `LiveState` class header describes this as "the canonical mobile-app pipelin
 
 ### Cross-reference
 
-Workspace audit `sources/research/audit-2026-05-06-untested-capabilities.md:148` mentions that vendor decoders exposed by the SDK feed downstream into the workout-analytics pipeline.
+Workspace audit `sources/research/audit-2026-05-06-untested-capabilities.md` mentions that vendor decoders exposed by the SDK feed downstream into the workout-analytics pipeline.
 
 ## voltras/mobile
 
 ### Adapter
 
-`voltras/mobile/src/domain/device/voltra-adapter.ts` exports `toWorkoutSample` and `toWorkoutSamples`. Imported by `voltras/mobile/src/domain/device/index.ts` (line 9). This is the dedicated mobile adapter — not yet shared with MCP.
+`voltras/mobile/src/domain/device/voltra-adapter.ts` exports `toWorkoutSample` and `toWorkoutSamples`. Imported by `voltras/mobile/src/domain/device/index.ts`. This is the dedicated mobile adapter — not yet shared with MCP.
 
 The adapter is the responsible layer for the unit contract:
 - `Math.abs(velocity)` for SDK 0.6.0+ signed velocity.
@@ -93,11 +93,11 @@ The package is hardware-agnostic, so vendor-frame translation is **outside** its
 
 The unit contract (`data-model.md` "Unit hazards") is enforced **at this boundary**. The package defends against signed velocity via `Math.abs` in `addSampleToPhase` (`src/models/phase.ts`), but force is opaque — adapter bugs that forward tenths-of-lbs silently 10× the impulse / work / power outputs.
 
-Workspace integration plan `sources/integration-plans/raw-signal-architecture.md:122` summarizes this: "Sample contract is strict — units matter, signed velocity from SDK 0.6.0+ must be `Math.abs`'d at the adapter boundary, force in tenths-lbs must be divided by 10."
+Workspace integration plan `sources/integration-plans/raw-signal-architecture.md` summarizes this: "Sample contract is strict — units matter, signed velocity from SDK 0.6.0+ must be `Math.abs`'d at the adapter boundary, force in tenths-lbs must be divided by 10."
 
 ## Phase 4 (2.0.0) — planned changes
 
-Reference: `sources/integration-plans/raw-signal-architecture.md` Phase 4 (lines 306+). Coordinated landing across SDK 0.7.0 + voltras-mcp 0.5.0 + workout-analytics 2.0.0.
+Reference: `sources/integration-plans/raw-signal-architecture.md` Phase 4. Coordinated landing across SDK 0.7.0 + voltras-mcp 0.5.0 + workout-analytics 2.0.0.
 
 | Change | Brief | Plan section |
 | --- | --- | --- |

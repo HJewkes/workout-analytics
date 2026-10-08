@@ -138,7 +138,7 @@ Driver-agnostic storage primitives plus the two SQLite drivers.
 | `src/store/sqlite-node/driver.ts` | `BetterSqlite3Driver` class. Synchronous driver wrapping a promise-mutex (`chain`) for serialization. DEVIATION from v5R-1: issues BEGIN/COMMIT manually because `db.transaction(fn)` rejects async callbacks. |
 | `src/store/sqlite-node/require-peer.ts` | `createRequirePeerResolver` for resolving the optional `better-sqlite3` peer via `createRequire(import.meta.url)`. |
 | `src/store/sqlite-expo/index.ts` | `createSqliteExpoStore` factory. Mirrors the Node factory but async-throughout. |
-| `src/store/sqlite-expo/driver.ts` | `ExpoSqliteDriver` class implementing `MigrationDriverSql` + `AsyncTransactionalDriver` at `:36+`. Uses an internal Promise mutex (`currentTx`) to serialize `BEGIN EXCLUSIVE` (v5R-1 / AC-32). |
+| `src/store/sqlite-expo/driver.ts` | `ExpoSqliteDriver` class implementing `MigrationDriverSql` + `AsyncTransactionalDriver`. Uses an internal Promise mutex (`currentTx`) to serialize `BEGIN EXCLUSIVE` (v5R-1 / AC-32). |
 
 ## Tests
 
@@ -154,4 +154,4 @@ Vitest config: `vitest.config.ts` (one project for `src/**/*.test.ts`).
 
 ## Scripts
 
-`scripts/` contains the exercise data pipeline (`exercises:analyze`, `exercises:collect`, `exercises:process`, `exercises:export`, `exercises:research`) and `migrations-build.mjs` which generates `src/schema/_generated.ts` from the SQL files in `src/schema/migrations/`. Run via `npm run` scripts in `package.json:46-56`.
+`scripts/` contains the exercise data pipeline (`exercises:analyze`, `exercises:collect`, `exercises:process`, `exercises:export`, `exercises:research`) and `migrations-build.mjs` which generates `src/schema/_generated.ts` from the SQL files in `src/schema/migrations/`. Run via `npm run` scripts in `package.json` `"scripts"`.

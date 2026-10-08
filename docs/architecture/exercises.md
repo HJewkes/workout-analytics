@@ -110,13 +110,13 @@ All lookups call `buildIndexes()` first, so they work without an explicit setup 
 
 ## Data file
 
-`src/exercises/data/catalog.json` — generated catalog. Loaded via dynamic import so consumers that ship this package as an ESM dependency pull it in lazily. Listed under `files: ["dist"]` in `package.json:33-35`, so it ships in the published package once the build copies it (see `tsc-alias` in the build script).
+`src/exercises/data/catalog.json` — generated catalog. Loaded via dynamic import so consumers that ship this package as an ESM dependency pull it in lazily. Listed under `files: ["dist"]` in `package.json`, so it ships in the published package once the build copies it (see `tsc-alias` in the build script).
 
 If a consumer has different data needs, they can call `setCatalog(myCustomExercises)` instead of `loadCatalog()` and never touch the bundled JSON.
 
 ## Pipeline scripts
 
-The catalog data is produced by an offline pipeline under `scripts/`. NPM scripts (`package.json:46-52`):
+The catalog data is produced by an offline pipeline under `scripts/`. NPM scripts (`package.json` `"scripts"`):
 
 | Script | Purpose |
 | --- | --- |

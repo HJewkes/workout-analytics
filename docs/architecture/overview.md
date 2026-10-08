@@ -27,7 +27,7 @@ It is intentionally device-agnostic: the input contract is `WorkoutSample`, not 
 ## Package shape
 
 - **ESM only** (since 1.0.0). `package.json#type` is `"module"`. Only `dist/esm/` and `dist/types/` ship. CJS consumers must `await import(...)` (see `../../README.md` "Breaking changes").
-- **5 subpath exports** (see `package.json:9-32`):
+- **5 subpath exports** (see `package.json` `"exports"`):
 
 | Subpath | Source root | Purpose |
 | --- | --- | --- |
@@ -38,8 +38,8 @@ It is intentionally device-agnostic: the input contract is `WorkoutSample`, not 
 | `@voltras/workout-analytics/store/sqlite-expo` | `src/store/sqlite-expo/index.ts` | Expo / RN driver via `expo-sqlite@^15` (optional peer). |
 
 - **Runtime dep**: `zod@^3` (validators).
-- **Optional peer deps** (declared via `peerDependenciesMeta`, `package.json:65-72`): `better-sqlite3@^11`, `expo-sqlite@^15`. Consumers install only the driver they need.
-- **Engines**: Node `>=20.0.0` (`package.json:120-122`).
+- **Optional peer deps** (declared via `peerDependenciesMeta` in `package.json`): `better-sqlite3@^11`, `expo-sqlite@^15`. Consumers install only the driver they need.
+- **Engines**: Node `>=20.0.0` (`package.json` `"engines"`).
 
 ## Position in the workspace
 
