@@ -12,6 +12,8 @@ import type { LoadVelocityDataPoint } from '@/vbt/profile';
 // Helpers
 // =============================================================================
 
+const LB_PER_KG = 2.20462;
+
 /** Generate points along v = trueA + trueB * load with optional Gaussian noise. */
 function syntheticData(
   trueA: number,
@@ -52,8 +54,15 @@ describe('fitLVProfileBayesian', () => {
     it('uses default prior when none supplied', () => {
       const result = fitLVProfileBayesian([]);
       expect(result.a).toBe(1.5);
-      expect(result.b).toBe(-0.005);
+      expect(result.b).toBeCloseTo(-0.005 / LB_PER_KG, 12);
       expect(result.n).toBe(0);
+    });
+
+    it('default slope prior is the -0.005 m/s per kg belief expressed per lb', () => {
+      // Loads are lb, so b_lb = b_kg / 2.20462 and Var(b_lb) = Var(b_kg) / 2.20462².
+      const result = fitLVProfileBayesian([]);
+      expect(result.b * LB_PER_KG).toBeCloseTo(-0.005, 12);
+      expect(result.varB * LB_PER_KG ** 2).toBeCloseTo(0.001, 12);
     });
   });
 
@@ -266,6 +275,64 @@ describe('fitLVProfileBayesian', () => {
       expect(isFinite(result.varA)).toBe(true);
       expect(isFinite(result.varB)).toBe(true);
       expect(isFinite(result.corr)).toBe(true);
+    });
+
+    it('same-load data stays non-singular and leaves a and b almost perfectly correlated', () => {
+      // The diagonal prior keeps the posterior precision full rank; the data
+      // only pins a + 60b, so the two coefficients trade off along that line.
+      const data: LoadVelocityDataPoint[] = [
+        { load: 60, velocity: 0.8 },
+        { load: 60, velocity: 0.9 },
+        { load: 60, velocity: 0.85 },
+      ];
+      const result = fitLVProfileBayesian(data, {
+        meanA: 1.5,
+        meanB: -0.005,
+        varA: 1.0,
+        varB: 0.001,
+        sigma2: 0.01,
+      });
+
+      expect(result.corr).toBeLessThan(-0.99);
+      expect(result.varB).toBeGreaterThan(0);
+      expect(result.varB).toBeLessThan(0.001);
+    });
+
+    it('same-load data under a flat intercept prior leaves the slope posterior equal to the prior', () => {
+      const data: LoadVelocityDataPoint[] = [
+        { load: 60, velocity: 0.8 },
+        { load: 60, velocity: 0.9 },
+        { load: 60, velocity: 0.85 },
+      ];
+      const result = fitLVProfileBayesian(data, {
+        meanB: -0.002,
+        varA: Infinity,
+        varB: 0.0002,
+        sigma2: 0.01,
+      });
+
+      expect(result.b).toBeCloseTo(-0.002, 12);
+      expect(result.varB).toBeCloseTo(0.0002, 12);
+      expect(result.a + result.b * 60).toBeCloseTo(0.85, 12);
+      expect(Math.abs(result.corr)).toBeGreaterThan(0.99);
+    });
+
+    it('falls back to the prior when the posterior precision is singular', () => {
+      // A flat prior on both axes plus one point leaves only the data's rank-1
+      // precision, so there is nothing to invert.
+      const result = fitLVProfileBayesian([{ load: 60, velocity: 0.85 }], {
+        meanA: 1.5,
+        meanB: -0.002,
+        varA: Infinity,
+        varB: Infinity,
+      });
+
+      expect(result.a).toBe(1.5);
+      expect(result.b).toBe(-0.002);
+      expect(result.varA).toBe(Infinity);
+      expect(result.varB).toBe(Infinity);
+      expect(result.corr).toBe(0);
+      expect(result.n).toBe(1);
     });
   });
 });

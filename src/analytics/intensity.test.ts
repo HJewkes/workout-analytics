@@ -86,6 +86,15 @@ function buildFatigueSet(numReps: number, v0: number = 0.8, rom: number = 200): 
   return buildSet(samples);
 }
 
+/** Build a multi-rep set where every rep has identical velocity. */
+function buildConstantVelocitySet(numReps: number, velocity = 0.5, rom = 200): Set {
+  const samples: WorkoutSample[] = [];
+  for (let i = 0; i < numReps; i++) {
+    samples.push(...createRepSamples(i * 10, i * 3000, velocity, rom));
+  }
+  return buildSet(samples);
+}
+
 // =============================================================================
 // getRepHardnessWeight
 // =============================================================================
@@ -218,6 +227,25 @@ describe('getSetIntensityScore', () => {
     expect(scoreRIR0).toBeGreaterThan(scoreRIR3);
   });
 
+  it('scores 8 flat-velocity reps ending at RIR 2 as sum(e^-0.4k, k=2..9)', () => {
+    const set = buildConstantVelocitySet(8);
+    let expected = 0;
+    for (let k = 2; k <= 9; k++) expected += Math.exp(-0.4 * k);
+
+    const score = getSetIntensityScore(set, { setRIR: 2 });
+
+    expect(score).toBeCloseTo(expected, 12);
+    expect(score).toBeCloseTo(1.31, 2);
+  });
+
+  it('scores 5 reps to failure above 8 reps stopped 2 short', () => {
+    const toFailure = getSetIntensityScore(buildConstantVelocitySet(5), { setRIR: 0 });
+    const twoShort = getSetIntensityScore(buildConstantVelocitySet(8), { setRIR: 2 });
+
+    expect(toFailure).toBeCloseTo(2.62, 2);
+    expect(toFailure).toBeGreaterThan(twoShort);
+  });
+
   it('accepts custom decay rate', () => {
     const set = buildFatigueSet(5);
     const steeper = getSetIntensityScore(set, { decayRate: 0.7, setRIR: 1 });
@@ -309,15 +337,6 @@ describe('getSetStimulusScore', () => {
 // =============================================================================
 
 describe('estimatePerRepRIR (no velocity decay fallback)', () => {
-  /** Build a multi-rep set where every rep has identical velocity. */
-  function buildConstantVelocitySet(numReps: number, velocity = 0.5, rom = 200): Set {
-    const samples: WorkoutSample[] = [];
-    for (let i = 0; i < numReps; i++) {
-      samples.push(...createRepSamples(i * 10, i * 3000, velocity, rom));
-    }
-    return buildSet(samples);
-  }
-
   it('falls back to linear +1-per-rep when there is no velocity loss', () => {
     // totalVelocityLoss = v0 - vLast = 0, so the velocity-proportional path is
     // skipped and each earlier rep gets setRIR + (remaining reps to failure).
