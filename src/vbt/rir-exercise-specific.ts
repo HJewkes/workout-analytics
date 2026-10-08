@@ -95,7 +95,7 @@ export interface ExerciseRIREstimate {
 export const DEFAULT_CABLE_COMPOUND_PROFILE: ExerciseVBTProfile = {
   exerciseTypeId: 'cable-compound',
   // Placeholder coefficients — calibration deferred pending real-device session data.
-  coefficients: { c0: 8.0, c1: -3.0, c2: -0.1, c3: -2.0 },
+  coefficients: { c0: 8.0, c1: 3.0, c2: -0.1, c3: -2.0 },
   stderr: 0.8,
 };
 
@@ -112,7 +112,7 @@ export const DEFAULT_CABLE_COMPOUND_PROFILE: ExerciseVBTProfile = {
 export const DEFAULT_CABLE_ISOLATION_PROFILE: ExerciseVBTProfile = {
   exerciseTypeId: 'cable-isolation',
   // Placeholder coefficients — calibration deferred pending real-device session data.
-  coefficients: { c0: 7.5, c1: -2.5, c2: -0.08, c3: -1.5 },
+  coefficients: { c0: 7.5, c1: 2.5, c2: -0.08, c3: -1.5 },
   stderr: 0.9,
 };
 

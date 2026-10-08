@@ -261,3 +261,23 @@ describe('estimateRIRWithProfile — edge cases', () => {
     expect(earlyRep.rir).toBeGreaterThan(lateRep.rir);
   });
 });
+
+// =============================================================================
+// estimateRIRWithProfile — Monotone in v_ratio (VW-823)
+// =============================================================================
+
+const V_RATIOS = Array.from({ length: 12 }, (_, i) => i * 0.1); // 0.0 .. 1.1
+
+describe.each([
+  ['compound', DEFAULT_CABLE_COMPOUND_PROFILE],
+  ['isolation', DEFAULT_CABLE_ISOLATION_PROFILE],
+])('estimateRIRWithProfile — v_ratio direction (%s)', (_name, profile) => {
+  it('a higher v_ratio never lowers RIR with velLossPct and repIndex fixed', () => {
+    const rirs = V_RATIOS.map(
+      (vRatio) => estimateRIRWithProfile({ ...HIGH_CONF_INPUTS, peakVelocity: vRatio }, profile).rir
+    );
+
+    rirs.slice(1).forEach((rir, i) => expect(rir).toBeGreaterThanOrEqual(rirs[i]!));
+    expect(rirs.at(-1)!).toBeGreaterThan(rirs[0]!);
+  });
+});
