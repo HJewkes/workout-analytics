@@ -196,3 +196,27 @@ describe('addDataPoint', () => {
     expect(updated.rSquared).toBeGreaterThan(0.95);
   });
 });
+
+describe('buildProfile — unusable slope (VW-826)', () => {
+  it.each([
+    [
+      'positive slope',
+      [20, 40, 60, 80, 100].map((load) => ({ load, velocity: 0.2 + load * 0.008 })),
+    ],
+    ['zero slope', [20, 40, 60, 80, 100].map((load) => ({ load, velocity: 0.7 }))],
+    ['NaN slope', [20, 40, 60, 80, 100].map((load) => ({ load, velocity: load === 60 ? NaN : 1 }))],
+  ])('rates a %s profile low confidence with no e1RM', (_name, points) => {
+    const profile = buildProfile(points);
+
+    expect(profile.confidence).toBe('low');
+    expect(profile.estimated1RM).toBe(0);
+  });
+
+  it('keeps a normal negative slope high confidence with its e1RM', () => {
+    const profile = buildProfile(PERFECT_LINEAR);
+
+    expect(profile.slope).toBeLessThan(0);
+    expect(profile.confidence).toBe('high');
+    expect(profile.estimated1RM).toBeCloseTo(133, 0);
+  });
+});
